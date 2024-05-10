@@ -52,3 +52,8 @@ def test_read_parquet_based_on_date_and_runid_with_mocking(spark, mock_spark_rea
     mock_spark_read.assert_called_once_with("dummy_path")
 
 # Additional necessary imports and setup may be required here
+
+
+import sys
+import os
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
