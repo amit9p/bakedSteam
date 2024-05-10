@@ -1,37 +1,54 @@
 
-
-# test_assembler.py located in tests folder
+# test_assembler.py
 
 import pytest
+from unittest.mock import Mock
 from pyspark.sql import SparkSession
-from ecb_assmbler.assembler import Assembler  # Update this import based on your actual module structure
+from pyspark.sql.functions import col
+from pyspark.sql.dataframe import DataFrame
+from ecb_assmbler.assembler import Assembler
 
-# Setup a fixture for Spark session that can be reused
 @pytest.fixture(scope="module")
 def spark():
-    spark = SparkSession.builder \
-        .appName("Test Assembler") \
-        .master("local[2]") \
-        .getOrCreate()
+    spark = SparkSession.builder.master("local[1]").appName("Test Assembler").getOrCreate()
     yield spark
     spark.stop()
 
-# Test the read_parquet_based_on_date_and_runid method
-def test_read_parquet_based_on_date_and_runid(spark):
+@pytest.fixture
+def mock_spark_read(spark):
+    # Mock the read.parquet method
+    mock_read = Mock()
+    spark.read.parquet = mock_read
+    return mock_read
+
+def test_read_parquet_based_on_date_and_runid_with_mocking(spark, mock_spark_read):
+    # Setup the assembler instance
     assembler = Assembler(spark)
-    path = "path/to/your/test/data.parquet"  # Ensure this points to a valid test Parquet file
+
+    # Mock data
+    mock_df = spark.createDataFrame([
+        ("2024-03-04", "sample_run_id", "metro2-all"),
+        ("2024-03-04", "sample_run_id", "metro2-equifax"),
+    ], ["business_date", "run_id", "file_type"])
+
+    # Setup the mock to return our DataFrame
+    mock_spark_read.return_value = mock_df.filter(col("business_date") == "2024-03-04").filter(col("run_id") == "sample_run_id")
+
+    # Test data
+    path = "dummy_path"
     business_date = "2024-03-04"
     run_id = "sample_run_id"
     file_type = "ALL"
 
-    # Invoke the method
+    # Call the method under test
     result = assembler.read_parquet_based_on_date_and_runid(path, business_date, run_id, file_type)
 
-    # Assert conditions based on expected outcomes
-    assert isinstance(result, dict)  # Check if the result is a dictionary
-    assert "metro2-all" in result  # Check if 'metro2-all' DataFrame is in results
+    # Assertions to ensure our method behaves as expected
+    assert isinstance(result, dict)
+    assert "metro2-all" in result and "metro2-all+equifax" in result
+    assert isinstance(result["metro2-all"], DataFrame)
 
-    # Further checks can be based on the content of the DataFrames
-    # For example:
-    assert not result["metro2-all"].rdd.isEmpty()  # Ensure the DataFrame is not empty
-    # Add more assertions as necessary to validate DataFrame structures, column names, row counts, etc.
+    # Check that the mock was called correctly
+    mock_spark_read.assert_called_once_with("dummy_path")
+
+# Additional necessary imports and setup may be required here
