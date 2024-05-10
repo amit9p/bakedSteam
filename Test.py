@@ -1,20 +1,37 @@
-print("hello world")
 
-fuucjvivjvjvjvjv kzitxkxitdxkfxkgxkx
-# Example string
-s = "metro2-all+transunion"
 
-# Split the string based on '+' and take the second part
-key = s.split('+')[1]
+# test_assembler.py located in tests folder
 
-print(key)  # Output will be 'transunion'
+import pytest
+from pyspark.sql import SparkSession
+from ecb_assmbler.assembler import Assembler  # Update this import based on your actual module structure
 
-s = "metro2-all+transunion"
+# Setup a fixture for Spark session that can be reused
+@pytest.fixture(scope="module")
+def spark():
+    spark = SparkSession.builder \
+        .appName("Test Assembler") \
+        .master("local[2]") \
+        .getOrCreate()
+    yield spark
+    spark.stop()
 
-# Check if '+' is in the string to avoid errors
-if '+' in s:
-    key = s.split('+')[1]
-    print(key)
-else:
-    print("No '+' found in the string.")
+# Test the read_parquet_based_on_date_and_runid method
+def test_read_parquet_based_on_date_and_runid(spark):
+    assembler = Assembler(spark)
+    path = "path/to/your/test/data.parquet"  # Ensure this points to a valid test Parquet file
+    business_date = "2024-03-04"
+    run_id = "sample_run_id"
+    file_type = "ALL"
 
+    # Invoke the method
+    result = assembler.read_parquet_based_on_date_and_runid(path, business_date, run_id, file_type)
+
+    # Assert conditions based on expected outcomes
+    assert isinstance(result, dict)  # Check if the result is a dictionary
+    assert "metro2-all" in result  # Check if 'metro2-all' DataFrame is in results
+
+    # Further checks can be based on the content of the DataFrames
+    # For example:
+    assert not result["metro2-all"].rdd.isEmpty()  # Ensure the DataFrame is not empty
+    # Add more assertions as necessary to validate DataFrame structures, column names, row counts, etc.
