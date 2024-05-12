@@ -1,7 +1,8 @@
 
+
 import pytest
 from pyspark.sql import SparkSession
-from unittest.mock import patch
+from unittest.mock import MagicMock
 from assembler import Assembler
 
 @pytest.fixture(scope="module")
@@ -29,12 +30,15 @@ def create_sample_data(spark_session):
     ("2023-01-02", "2", 1),
     ("2023-01-01", "2", 0)  # No data for this run_id on this date
 ])
-@patch('assembler.SparkSession.read')
-def test_read_parquet_based_on_date_and_runid(mock_read, assembler, spark_session, test_date, test_run_id, expected_count):
-    # Setup the mock to return the sample data
-    mock_read.parquet.return_value = create_sample_data(spark_session)
+def test_read_parquet_based_on_date_and_runid(assembler, spark_session, test_date, test_run_id, expected_count):
+    # Mocking the read.parquet method
+    spark_session.read.parquet = MagicMock(return_value=create_sample_data(spark_session))
     
-    # Execute the test
+    # Execute the function
     df = assembler.read_parquet_based_on_date_and_runid("dummy_path", test_date, test_run_id)
+
+    # Test to ensure the DataFrame has the correct number of rows
     assert df.count() == expected_count
-    mock_read.parquet.assert_called_once_with("dummy_path")
+
+    # Ensure the mock was called correctly
+    spark_session.read.parquet.assert_called_once_with("dummy_path")
