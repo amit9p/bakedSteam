@@ -1,59 +1,39 @@
 
-# test_assembler.py
-
 import pytest
-from unittest.mock import Mock
+from unittest.mock import MagicMock
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-from pyspark.sql.dataframe import DataFrame
-from ecb_assmbler.assembler import Assembler
+from assembler import Assembler
 
 @pytest.fixture(scope="module")
-def spark():
-    spark = SparkSession.builder.master("local[1]").appName("Test Assembler").getOrCreate()
-    yield spark
-    spark.stop()
+def spark_session():
+    return SparkSession.builder \
+        .master("local[1]") \
+        .appName("TestSession") \
+        .getOrCreate()
 
 @pytest.fixture
-def mock_spark_read(spark):
-    # Mock the read.parquet method
-    mock_read = Mock()
-    spark.read.parquet = mock_read
-    return mock_read
+def assembler(spark_session):
+    return Assembler(spark_session)
 
-def test_read_parquet_based_on_date_and_runid_with_mocking(spark, mock_spark_read):
-    # Setup the assembler instance
-    assembler = Assembler(spark)
+def create_sample_data(spark_session):
+    # Create sample DataFrame
+    sample_data = [
+        ("2023-01-01", "1", "EQ", {"data": "example1"}),
+        ("2023-01-01", "1", "TU", {"data": "example2"}),
+        ("2023-01-02", "2", "EQ", {"data": "example3"})
+    ]
+    schema = "business_date string, run_id string, file_type string, data map<string,string>"
+    return spark_session.createDataFrame(sample_data, schema)
 
-    # Mock data
-    mock_df = spark.createDataFrame([
-        ("2024-03-04", "sample_run_id", "metro2-all"),
-        ("2024-03-04", "sample_run_id", "metro2-equifax"),
-    ], ["business_date", "run_id", "file_type"])
-
-    # Setup the mock to return our DataFrame
-    mock_spark_read.return_value = mock_df.filter(col("business_date") == "2024-03-04").filter(col("run_id") == "sample_run_id")
-
-    # Test data
-    path = "dummy_path"
-    business_date = "2024-03-04"
-    run_id = "sample_run_id"
-    file_type = "ALL"
-
-    # Call the method under test
-    result = assembler.read_parquet_based_on_date_and_runid(path, business_date, run_id, file_type)
-
-    # Assertions to ensure our method behaves as expected
-    assert isinstance(result, dict)
-    assert "metro2-all" in result and "metro2-all+equifax" in result
-    assert isinstance(result["metro2-all"], DataFrame)
-
-    # Check that the mock was called correctly
-    mock_spark_read.assert_called_once_with("dummy_path")
-
-# Additional necessary imports and setup may be required here
-
-
-import sys
-import os
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+@pytest.mark.parametrize("test_date, test_run_id, expected_count", [
+    ("2023-01-01", "1", 2),
+    ("2023-01-02", "2", 1),
+    ("2023-01-01", "2", 0),  # No data for this run_id on this date
+])
+def test_read_parquet_based_on_date_and_runid(assembler, spark_session, test_date, test_run_id, expected_count):
+    # Mock the read.parquet to return a controlled DataFrame
+    assembler.spark.read.parquet = MagicMock(return_value=create_sample_data(spark_session))
+    
+    # Use the function to filter data
+    df = assembler.read_parquet_based_on_date_and_runid("dummy_path", test_date, test_run_id)
+    assert df.count() == expected_count
