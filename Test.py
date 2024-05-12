@@ -1,5 +1,4 @@
 
-
 import pytest
 from pyspark.sql import SparkSession
 from unittest.mock import patch
@@ -30,9 +29,12 @@ def create_sample_data(spark_session):
     ("2023-01-02", "2", 1),
     ("2023-01-01", "2", 0)  # No data for this run_id on this date
 ])
-def test_read_parquet_based_on_date_and_runid(assembler, spark_session, test_date, test_run_id, expected_count):
-    # Using patch to mock spark.read.parquet
-    with patch.object(spark_session.read, 'parquet', return_value=create_sample_data(spark_session)) as mock_parquet:
-        df = assembler.read_parquet_based_on_date_and_runid("dummy_path", test_date, test_run_id)
-        assert df.count() == expected_count
-        mock_parquet.assert_called_once_with("dummy_path")  # Check if our mock was called correctly
+@patch('assembler.SparkSession.read')
+def test_read_parquet_based_on_date_and_runid(mock_read, assembler, spark_session, test_date, test_run_id, expected_count):
+    # Setup the mock to return the sample data
+    mock_read.parquet.return_value = create_sample_data(spark_session)
+    
+    # Execute the test
+    df = assembler.read_parquet_based_on_date_and_runid("dummy_path", test_date, test_run_id)
+    assert df.count() == expected_count
+    mock_read.parquet.assert_called_once_with("dummy_path")
