@@ -1,7 +1,8 @@
 
+
 import pytest
-from unittest.mock import MagicMock
 from pyspark.sql import SparkSession
+from unittest.mock import MagicMock
 from assembler import Assembler
 
 @pytest.fixture(scope="module")
@@ -16,7 +17,7 @@ def assembler(spark_session):
     return Assembler(spark_session)
 
 def create_sample_data(spark_session):
-    # Create sample DataFrame
+    # Sample DataFrame mimicking Parquet data
     sample_data = [
         ("2023-01-01", "1", "EQ", {"data": "example1"}),
         ("2023-01-01", "1", "TU", {"data": "example2"}),
@@ -31,9 +32,9 @@ def create_sample_data(spark_session):
     ("2023-01-01", "2", 0),  # No data for this run_id on this date
 ])
 def test_read_parquet_based_on_date_and_runid(assembler, spark_session, test_date, test_run_id, expected_count):
-    # Mock the read.parquet to return a controlled DataFrame
-    assembler.spark.read.parquet = MagicMock(return_value=create_sample_data(spark_session))
+    # Correctly mocking the read.parquet method
+    spark_session.read.parquet = MagicMock(return_value=create_sample_data(spark_session))
     
-    # Use the function to filter data
+    # Calling the function with the mocked method
     df = assembler.read_parquet_based_on_date_and_runid("dummy_path", test_date, test_run_id)
     assert df.count() == expected_count
