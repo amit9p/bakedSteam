@@ -1,3 +1,19 @@
 
 
-To sync your feature branch with the main branch when it has been updated by others, you can follow these steps using Git. I'll include the commands with examples:Switch to your feature branch: First, make sure you are on your feature branch.git checkout feature-branchReplace feature-branch with the name of your branch.Fetch the latest changes from the remote repository: This will update your local copy of the remote branches without merging any changes into your branch.git fetch originRebase your feature branch against the updated main branch: Rebasing is generally preferred over merging as it helps to keep the project history cleaner by applying your feature branch changes on top of the latest main branch.git rebase origin/mainReplace main with the name of your main branch if it's called something else like master.During rebase, you may encounter conflicts. Git will stop at each conflicting commit for you to resolve the conflicts manually. After resolving a conflict in a file:Add the file to the staging area:git add filenameContinue the rebase process:git rebase --continueIf you want to abort the rebase process because the conflicts are too complex, you can do so with:git rebase --abortPush your rebased feature branch (if needed): If you have already pushed the feature branch before and you are the only one working on it, you may need to force push after rebasing because the history has changed.git push origin feature-branch --forceNote: Use --force with caution. It's safe to use if you are the only person working on the branch. If others are collaborating on the same branch, you should coordinate with them before doing a force push.These steps will help you to keep your feature branch up-to-date with the main branch, ensuring that integrating your changes later (via a pull request) will be smoother.
+[tool.black]
+line-length = 120
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+)/
+'''
