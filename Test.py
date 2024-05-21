@@ -17,6 +17,25 @@ def read_config(self):
 
 import yaml
 
+from pyspark.sql import functions as F
+
+# Assuming 'df' is your DataFrame already loaded with data.
+
+# Filter the DataFrame where 'account_id' is not null and 'tokenization_type' is 'ustaxid'
+filtered_df = df.filter(
+    (F.col("account_id").isNotNull()) & 
+    (F.col("tokenization_type") == "ustaxid")
+)
+
+# Select the required columns
+final_df = filtered_df.select(
+    "run_id", "account_id", "attribute", "value", "file_type", "tokenization_type"
+)
+
+# Show the resulting DataFrame
+final_df.show()
+
+
 class Configs:
     def __init__(self):
         self.yaml_file = '/path/to/your/app_config.yaml'  # Update the path as necessary
