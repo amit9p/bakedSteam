@@ -1,4 +1,8 @@
+# Create the data
+data = [("zXo9Hwxt",), ("value2",), ("value3",)]
 
+# Create the DataFrame
+final_df = spark.createDataFrame(data, schema)
 
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType
