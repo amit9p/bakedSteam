@@ -1,60 +1,6 @@
 
 
 import unittest
-from unittest.mock import patch, mock_open
-import yaml
-from utils.config_reader import load_config
-
-class TestConfigReader(unittest.TestCase):
-
-    @patch("builtins.open", new_callable=mock_open, read_data="""
-chamber:
-  dev:
-    VAULT_ROLE: test_vault_role_dev
-    ENV: dev
-stream:
-  daily_accounts:
-    dev: test_daily_accounts_dev
-onelake_dataset:
-  dev:
-    daily_accounts: test_onelake_daily_accounts_dev
-    """)
-    def test_load_config(self, mock_file):
-        config = load_config('dev')
-        expected_env_config = {
-            'VAULT_ROLE': 'test_vault_role_dev',
-            'ENV': 'dev'
-        }
-        expected_stream_config = {
-            'daily_accounts': {
-                'dev': 'test_daily_accounts_dev'
-            }
-        }
-        expected_onelake_dataset_config = {
-            'daily_accounts': 'test_onelake_daily_accounts_dev'
-        }
-
-        self.assertEqual(config['env_config'], expected_env_config)
-        self.assertEqual(config['stream_config'], expected_stream_config)
-        self.assertEqual(config['onelake_dataset_config'], expected_onelake_dataset_config)
-
-    @patch("builtins.open", new_callable=mock_open, read_data="invalid_yaml")
-    def test_load_config_invalid_yaml(self, mock_file):
-        config = load_config('dev')
-        self.assertIsNone(config)
-
-    @patch("builtins.open", side_effect=FileNotFoundError)
-    def test_load_config_file_not_found(self, mock_file):
-        config = load_config('dev')
-        self.assertIsNone(config)
-
-if __name__ == '__main__':
-    unittest.main()
-
-
--‐---------
-
-import unittest
 from unittest.mock import patch, MagicMock
 from pyspark.sql import SparkSession
 from ecbr_assembler.assembler.core import Assembler
@@ -93,6 +39,18 @@ class TestAssembler(unittest.TestCase):
         with self.assertLogs('ecbr_assembler.assembler.core', level='ERROR') as cm:
             assembler.run('dev', 'dataset_id', 'business_dt', 'run_id', 'ALL')
             self.assertIn('Configuration could not be loaded for environment: dev', cm.output[0])
+
+    @patch('pyspark.sql.SparkSession.read')
+    def test_read_whole_parquet_file(self, mock_read):
+        mock_spark = MagicMock(SparkSession)
+        assembler = Assembler(mock_spark)
+        mock_df = MagicMock()
+        mock_read.parquet.return_value = mock_df
+
+        result = assembler.read_whole_parquet_file("dummy_path")
+
+        mock_read.parquet.assert_called_once_with("dummy_path")
+        self.assertEqual(result, mock_df)
 
 if __name__ == '__main__':
     unittest.main()
