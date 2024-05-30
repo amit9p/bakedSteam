@@ -1,56 +1,38 @@
 
 
-import unittest
-from unittest.mock import patch, MagicMock
-from pyspark.sql import SparkSession
-from ecbr_assembler.assembler.core import Assembler
+import yaml
+import logging
+import os
 
-class TestAssembler(unittest.TestCase):
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-    @patch('utils.config_reader.load_config')
-    def test_run(self, mock_load_config):
-        mock_load_config.return_value = {
-            'env_config': {
-                'VAULT_ROLE': 'test_vault_role_dev',
-                'ENV': 'dev'
-            },
-            'stream_config': {
-                'daily_accounts': {
-                    'dev': 'test_daily_accounts_dev'
-                }
-            },
-            'onelake_dataset_config': {
-                'daily_accounts': 'test_onelake_daily_accounts_dev'
-            }
-        }
+def load_config(env: str, config_path: str = None):
+    if config_path is None:
+        # Default to an absolute path
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        config_path = os.path.join(base_path, '../config/app_config.yaml')
+    
+    try:
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+    except FileNotFoundError:
+        logger.error(f"Configuration file not found: {config_path}")
+        return None
+    except yaml.YAMLError as e:
+        logger.error(f"Error parsing YAML file: {e}")
+        return None
 
-        spark_session = SparkSession.builder.master("local").appName("test").getOrCreate()
-        assembler = Assembler(spark_session)
+    try:
+        env_config = config.get('chamber', {}).get(env, {})
+        stream_config = config.get('stream', {})
+        onelake_dataset_config = config.get('onelake_dataset', {})
+    except Exception as e:
+        logger.error(f"Error accessing configuration for environment '{env}': {e}")
+        return None
 
-        with patch.object(assembler, 'read_whole_parquet_file', return_value=None) as mock_read:
-            assembler.run('dev', 'dataset_id', 'business_dt', 'run_id', 'ALL')
-            mock_read.assert_not_called()  # Replace with actual method calls you expect
-
-    @patch('utils.config_reader.load_config', return_value=None)
-    def test_run_config_not_loaded(self, mock_load_config):
-        spark_session = SparkSession.builder.master("local").appName("test").getOrCreate()
-        assembler = Assembler(spark_session)
-
-        with self.assertLogs('ecbr_assembler.assembler.core', level='ERROR') as cm:
-            assembler.run('dev', 'dataset_id', 'business_dt', 'run_id', 'ALL')
-            self.assertIn('Configuration could not be loaded for environment: dev', cm.output[0])
-
-    @patch('pyspark.sql.SparkSession.read')
-    def test_read_whole_parquet_file(self, mock_read):
-        mock_spark = MagicMock(SparkSession)
-        assembler = Assembler(mock_spark)
-        mock_df = MagicMock()
-        mock_read.parquet.return_value = mock_df
-
-        result = assembler.read_whole_parquet_file("dummy_path")
-
-        mock_read.parquet.assert_called_once_with("dummy_path")
-        self.assertEqual(result, mock_df)
-
-if __name__ == '__main__':
-    unittest.main()
+    return {
+        'env_config': env_config,
+        'stream_config': stream_config,
+        'onelake_dataset_config': onelake_dataset_config.get(env, {}),
+    }
