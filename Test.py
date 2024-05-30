@@ -1,18 +1,29 @@
 
 
 import yaml
+import logging
+
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 def load_config(env: str, config_path: str = "config/app_config.yaml"):
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-    
-    # Extract the environment-specific configuration
-    env_config = config.get('chamber', {}).get(env, {})
-    
-    # Extract other top-level configurations that might be needed
-    stream_config = config.get('stream', {})
-    
-    # Return a combined dictionary with both environment and other relevant configurations
+    try:
+        with open(config_path, 'r') as file:
+            config = yaml.safe_load(file)
+    except FileNotFoundError:
+        logger.error(f"Configuration file not found: {config_path}")
+        return None
+    except yaml.YAMLError as e:
+        logger.error(f"Error parsing YAML file: {e}")
+        return None
+
+    try:
+        env_config = config.get('chamber', {}).get(env, {})
+        stream_config = config.get('stream', {})
+    except Exception as e:
+        logger.error(f"Error accessing configuration for environment '{env}': {e}")
+        return None
+
     return {
         'env_config': env_config,
         'stream_config': stream_config,
@@ -31,29 +42,40 @@ class Assembler:
         self.spark = spark_session
 
     def read_whole_parquet_file(self, path):
-        df = self.spark.read.parquet(path)
-        return df
+        try:
+            df = self.spark.read.parquet(path)
+            return df
+        except Exception as e:
+            logger.error(f"Error reading parquet file at {path}: {e}")
+            return None
 
     def run(self, env: str, dataset_id: str, business_dt: str, run_id: str, file_type: str = "ALL"):
-        config = load_config(env)
-        
-        env_config = config['env_config']
-        stream_config = config['stream_config']
-        
-        logger.info(f"Loaded environment config for {env}: {env_config}")
-        logger.info(f"Loaded stream config: {stream_config}")
+        try:
+            config = load_config(env)
+            if config is None:
+                raise ValueError(f"Configuration could not be loaded for environment: {env}")
+            
+            env_config = config['env_config']
+            stream_config = config['stream_config']
+            
+            logger.info(f"Loaded environment config for {env}: {env_config}")
+            logger.info(f"Loaded stream config: {stream_config}")
 
-        # Example of accessing environment-specific configurations
-        vault_role = env_config.get('VAULT_ROLE')
-        logger.info(f"Vault Role for {env}: {vault_role}")
-        
-        # Example of accessing stream-specific configurations
-        daily_accounts_config = stream_config.get('daily_accounts', {}).get(env)
-        logger.info(f"Daily Accounts Config for {env}: {daily_accounts_config}")
+            # Example of accessing environment-specific configurations
+            vault_role = env_config.get('VAULT_ROLE')
+            logger.info(f"Vault Role for {env}: {vault_role}")
+            
+            # Example of accessing stream-specific configurations
+            daily_accounts_config = stream_config.get('daily_accounts', {}).get(env)
+            logger.info(f"Daily Accounts Config for {env}: {daily_accounts_config}")
 
-        # Use config in your method calls
-        # For example:
-        # self.read_whole_parquet_file(env_config['some_key'])
+            # Use config in your method calls
+            # For example:
+            # self.read_whole_parquet_file(env_config['some_key'])
 
-        # Your other method calls using the config
-        pass
+            # Your other method calls using the config
+            pass
+        except ValueError as e:
+            logger.error(e)
+        except Exception as e:
+            logger.error(f"An error occurred during the run: {e}")
