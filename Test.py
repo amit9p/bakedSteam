@@ -1,56 +1,98 @@
 
-from pyspark.sql import SparkSession
-from ecbr.logging import logging
+
+import unittest
+from unittest.mock import patch, mock_open
+import yaml
 from utils.config_reader import load_config
 
-logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+class TestConfigReader(unittest.TestCase):
 
-class Assembler:
-    def __init__(self, spark_session: SparkSession):
-        self.spark = spark_session
+    @patch("builtins.open", new_callable=mock_open, read_data="""
+chamber:
+  dev:
+    VAULT_ROLE: test_vault_role_dev
+    ENV: dev
+stream:
+  daily_accounts:
+    dev: test_daily_accounts_dev
+onelake_dataset:
+  dev:
+    daily_accounts: test_onelake_daily_accounts_dev
+    """)
+    def test_load_config(self, mock_file):
+        config = load_config('dev')
+        expected_env_config = {
+            'VAULT_ROLE': 'test_vault_role_dev',
+            'ENV': 'dev'
+        }
+        expected_stream_config = {
+            'daily_accounts': {
+                'dev': 'test_daily_accounts_dev'
+            }
+        }
+        expected_onelake_dataset_config = {
+            'daily_accounts': 'test_onelake_daily_accounts_dev'
+        }
 
-    def read_whole_parquet_file(self, path):
-        try:
-            df = self.spark.read.parquet(path)
-            return df
-        except Exception as e:
-            logger.error(f"Error reading parquet file at {path}: {e}")
-            return None
+        self.assertEqual(config['env_config'], expected_env_config)
+        self.assertEqual(config['stream_config'], expected_stream_config)
+        self.assertEqual(config['onelake_dataset_config'], expected_onelake_dataset_config)
 
-    def run(self, env: str, dataset_id: str, business_dt: str, run_id: str, file_type: str = "ALL"):
-        try:
-            config = load_config(env)
-            if config is None:
-                raise ValueError(f"Configuration could not be loaded for environment: {env}")
-            
-            env_config = config['env_config']
-            stream_config = config['stream_config']
-            onelake_dataset_config = config['onelake_dataset_config']
-            
-            logger.info(f"Loaded environment config for {env}: {env_config}")
-            logger.info(f"Loaded stream config: {stream_config}")
-            logger.info(f"Loaded OneLake dataset config for {env}: {onelake_dataset_config}")
+    @patch("builtins.open", new_callable=mock_open, read_data="invalid_yaml")
+    def test_load_config_invalid_yaml(self, mock_file):
+        config = load_config('dev')
+        self.assertIsNone(config)
 
-            # Example of accessing environment-specific configurations
-            vault_role = env_config.get('VAULT_ROLE')
-            logger.info(f"Vault Role for {env}: {vault_role}")
-            
-            # Example of accessing stream-specific configurations
-            daily_accounts_config = stream_config.get('daily_accounts', {}).get(env)
-            logger.info(f"Daily Accounts Config for {env}: {daily_accounts_config}")
+    @patch("builtins.open", side_effect=FileNotFoundError)
+    def test_load_config_file_not_found(self, mock_file):
+        config = load_config('dev')
+        self.assertIsNone(config)
 
-            # Example of accessing OneLake dataset configurations
-            onelake_daily_accounts = onelake_dataset_config.get('daily_accounts')
-            logger.info(f"OneLake Daily Accounts for {env}: {onelake_daily_accounts}")
+if __name__ == '__main__':
+    unittest.main()
 
-            # Use config in your method calls
-            # For example:
-            # self.read_whole_parquet_file(env_config['some_key'])
 
-            # Your other method calls using the config
-            pass
-        except ValueError as e:
-            logger.error(e)
-        except Exception as e:
-            logger.error(f"An error occurred during the run: {e}")
+-‐---------
+
+import unittest
+from unittest.mock import patch, MagicMock
+from pyspark.sql import SparkSession
+from ecbr_assembler.assembler.core import Assembler
+
+class TestAssembler(unittest.TestCase):
+
+    @patch('utils.config_reader.load_config')
+    def test_run(self, mock_load_config):
+        mock_load_config.return_value = {
+            'env_config': {
+                'VAULT_ROLE': 'test_vault_role_dev',
+                'ENV': 'dev'
+            },
+            'stream_config': {
+                'daily_accounts': {
+                    'dev': 'test_daily_accounts_dev'
+                }
+            },
+            'onelake_dataset_config': {
+                'daily_accounts': 'test_onelake_daily_accounts_dev'
+            }
+        }
+
+        spark_session = SparkSession.builder.master("local").appName("test").getOrCreate()
+        assembler = Assembler(spark_session)
+
+        with patch.object(assembler, 'read_whole_parquet_file', return_value=None) as mock_read:
+            assembler.run('dev', 'dataset_id', 'business_dt', 'run_id', 'ALL')
+            mock_read.assert_not_called()  # Replace with actual method calls you expect
+
+    @patch('utils.config_reader.load_config', return_value=None)
+    def test_run_config_not_loaded(self, mock_load_config):
+        spark_session = SparkSession.builder.master("local").appName("test").getOrCreate()
+        assembler = Assembler(spark_session)
+
+        with self.assertLogs('ecbr_assembler.assembler.core', level='ERROR') as cm:
+            assembler.run('dev', 'dataset_id', 'business_dt', 'run_id', 'ALL')
+            self.assertIn('Configuration could not be loaded for environment: dev', cm.output[0])
+
+if __name__ == '__main__':
+    unittest.main()
