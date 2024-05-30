@@ -1,28 +1,9 @@
-# Create the data
-data = [("zXo9Hwxt",), ("value2",), ("value3",)]
 
-# Create the DataFrame
-final_df = spark.createDataFrame(data, schema)
 
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType
+# utils/config_reader.py
+import yaml
 
-# Initialize SparkSession
-spark = SparkSession.builder \
-    .appName("Create DataFrame Example") \
-    .getOrCreate()
-
-# Define the schema
-schema = StructType([
-    StructField("value", StringType(), True),
-    StructField("account_id", StringType(), True)
-])
-
-# Create the data
-data = [("z3P9Y75KL", "60331365887472428")]
-
-# Create the DataFrame
-df = spark.createDataFrame(data, schema)
-
-# Show the DataFrame
-df.show()
+def load_config(env: str, config_path: str = "config/app_config.yaml"):
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
+    return config.get('chamber', {}).get(env, {})
