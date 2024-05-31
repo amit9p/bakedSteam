@@ -1,4 +1,5 @@
 
+
 # config_reader.py
 import yaml
 import logging
@@ -36,8 +37,7 @@ def load_config(env: str, config_path: str = None):
         'onelake_dataset_config': onelake_dataset_config,
     }
 
-
-____________
+__________________<___
 
 # test_config_reader.py
 import pytest
@@ -90,7 +90,7 @@ def test_load_config_yaml_error(mock_logger):
          patch('os.path.join', return_value='config/app_config.yaml'):
         config = load_config('dev')
         assert config is None
-        assert mock_logger.call_count == 1
+        mock_logger.assert_called_once()
         assert "Error parsing YAML file" in mock_logger.call_args[0][0]
 
 def test_load_config_missing_keys(mock_logger):
@@ -105,7 +105,7 @@ def test_load_config_missing_keys(mock_logger):
         assert config['env_config']['key'] == 'value'
         assert config['stream_config'] is None
         assert config['onelake_dataset_config'] is None
-        assert mock_logger.call_count == 1
+        mock_logger.assert_called_once()
         assert "Error accessing configuration for environment dev: 'NoneType' object has no attribute 'get'" in mock_logger.call_args[0][0]
 
 # Running the tests
