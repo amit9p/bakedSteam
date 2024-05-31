@@ -1,34 +1,41 @@
 
+class Assembler:
+    def run(self, **kwargs):
+        env = kwargs.get('env')
+        dataset_id = kwargs.get('dataset_id')
+        business_dt = kwargs.get('business_dt')
+        run_id = kwargs.get('run_id')
+        file_type = kwargs.get('file_type', 'ALL')
 
-import os
-import unittest
-from unittest.mock import patch, MagicMock
+        try:
+            print('1')
+            config = load_config(env)
+            if config is None:
+                raise ValueError(f"Configuration could not be loaded for environment: {env}")
 
-# Assuming load_config is the function you are testing
-from your_module import load_config  # Replace 'your_module' with the actual module name
+            env_config = config['env_config']
+            stream_config = config['stream_config']
+            onelake_dataset_config = config['onelake_dataset_config']
 
-class TestLoadConfig(unittest.TestCase):
+            logger.info(f"Loaded environment config for {env}: {env_config}")
+            logger.info(f"Loaded stream config for {env}: {stream_config}")
+            logger.info(f"Loaded OneLake dataset config for {env}: {onelake_dataset_config}")
 
-    @patch('your_module.os.path.join', return_value='config/app_config.yaml')
-    @patch('your_module.open', side_effect=FileNotFoundError)
-    def test_load_config_file_not_found(self, mock_open, mock_path_join):
-        mock_logger = MagicMock()
-        
-        config = load_config('dev')
-        
-        self.assertIsNone(config)
-        mock_logger.assert_called_once_with('Configuration file not found: config/app_config.yaml')
+            vault_role = env_config.get("VAULT_ROLE")
+            logger.info(f"Vault Role for {env}: {vault_role}")
 
-    @patch('your_module.os.path.join', return_value='config/app_config.yaml')
-    @patch('your_module.open', new_callable=unittest.mock.mock_open, read_data='invalid_yaml_content')
-    def test_load_config_yaml_error(self, mock_open, mock_path_join):
-        mock_logger = MagicMock()
-        
-        config = load_config('dev')
-        
-        self.assertIsNone(config)
-        mock_logger.assert_called_once()
-        self.assertIn('Error parsing YAML file', mock_logger.call_args[0][0])
+            daily_accounts_config = stream_config.get("daily_accounts", {}).get(env)
+            logger.info(f"Daily Accounts Config for {env}: {daily_accounts_config}")
 
-if __name__ == '__main__':
-    unittest.main()
+            onelake_daily_accounts = onelake_dataset_config.get("daily_accounts")
+            logger.info(f"OneLake Daily Accounts for {env}: {onelake_daily_accounts}")
+
+            # Method call to read parquet file
+            # Method call to de tokeninze dataframes
+            # Method call to generate metro2 string for each file type
+            # Method call to write metro2 file on EFG s3
+
+        except ValueError as e:
+            logger.error(e)
+        except Exception as e:
+            logger.error(e)
