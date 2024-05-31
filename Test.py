@@ -2,7 +2,6 @@
 # test_config_reader.py
 import pytest
 from unittest.mock import patch, mock_open
-import yaml
 import logging
 from config_reader import load_config
 
