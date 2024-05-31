@@ -1,4 +1,24 @@
 
+def main():
+    print("hey there")
+    spark = SparkSession.builder.appName("test_app").getOrCreate()
+    assembler = Assembler(spark)
+    assembler.run(
+        env="dev",
+        dataset_id="fdfef7232twelvefdhytvdy",
+        business_dt="2024-05-30",
+        run_id="123243535353353",
+        file_type="TU"
+    )
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
 class Assembler:
     def run(self, **kwargs):
         env = kwargs.get('env')
