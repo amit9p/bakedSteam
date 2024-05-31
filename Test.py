@@ -12,6 +12,7 @@ def assembler():
     return Assembler(spark_session)
 
 def test_run_method(assembler):
+    # Confirm the correct import path for patching
     with patch('utils.config_reader.load_config') as mock_load_config, \
          patch('pyspark.sql.SparkSession'):
         # Mock the load_config method to return a dummy config
