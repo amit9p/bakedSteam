@@ -1,4 +1,5 @@
 
+
 import pytest
 from unittest.mock import patch, MagicMock
 from ecb_assembler.assembler.core import Assembler
@@ -10,7 +11,7 @@ def assembler():
     return Assembler(spark_session)
 
 @patch('utils.config_reader.load_config')
-@patch('ecb_assembler.assembler.core.SparkSession')
+@patch('pyspark.sql.SparkSession')
 def test_run_method(mock_spark_session, mock_load_config, assembler):
     # Mock the load_config method to return a dummy config
     mock_load_config.return_value = {
