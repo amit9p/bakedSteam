@@ -1,4 +1,19 @@
 
+
+def test_load_config_success():
+    """Test load_config method for successfully loading configuration."""
+    valid_yaml = "key: value"  # Ensure this is the data your function expects
+    with patch("builtins.open", mock_open(read_data=valid_yaml), create=True) as mocked_file:
+        with patch("os.path.join", return_value="fake_path/app_config.yaml"):
+            with patch("os.path.abspath", return_value="fake_path"):
+                config = config_read.load_config("dev")  # Passing environment as 'dev' if needed
+                assert config is not None
+                assert config['key'] == 'value'  # Ensure this is the correct key expected
+
+    mocked_file.assert_called_once_with("fake_path/app_config.yaml", 'r')  # Checks if file open was called correctly
+
+
+
 import pytest
 from unittest.mock import mock_open, patch
 from config_reader import config_read
