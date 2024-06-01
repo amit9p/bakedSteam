@@ -1,34 +1,36 @@
 
-def load_config(env):
-    import yaml
-    import os
 
-    base_path = os.path.dirname(os.path.abspath(__file__))
-    config_path = os.path.join(base_path, "/config/app_config.yaml")
-
-    try:
-        with open(config_path, 'r') as file:
-            config = yaml.safe_load(file)
-            print(f"Config after yaml load: {config}")  # Diagnostic print
-    except FileNotFoundError:
-        print(f"Configuration file not found: {config_path}")
-        return None
-    except yaml.YAMLError as e:
-        print(f"Error parsing YAML file: {e}")
-        return None
-
-    # Assuming there's a dictionary access pattern that needs to be followed here
-    try:
-        env_config = config.get('env_config')
-        stream_config = config.get('stream_config')
-        oneLake_dataset_config = config.get('oneLake_dataset_config')
-        print(f"Environment Config: {env_config}, Stream Config: {stream_config}, Dataset Config: {oneLake_dataset_config}")  # Diagnostic print
-    except Exception as e:
-        print(f"Error accessing configuration for environment {env}: {e}")
-        return None
-
-    return {
-        'env_config': env_config,
-        'stream_config': stream_config,
-        'oneLake_dataset_config': oneLake_dataset_config
+def test_load_config_success():
+    # This is the minimal expected YAML content as a string
+    yaml_content = """
+chamber:
+  dev:
+    VAULT_ROLE: "02f424c0-3b07-40cb-b6c0-73a732204e133"
+    LOCKBOX_ID: "5c9969ea-0b05-467c-8dde-09995ea5c70f"
+"""
+    # Expected dictionary that mirrors the YAML structure
+    expected_config = {
+        'chamber': {
+            'dev': {
+                'VAULT_ROLE': '02f424c0-3b07-40cb-b6c0-73a732204e133',
+                'LOCKBOX_ID': '5c9969ea-0b05-467c-8dde-09995ea5c70f'
+            }
+        }
     }
+
+    # Mock the open function to simulate reading the above YAML content
+    with patch("builtins.open", mock_open(read_data=yaml_content), create=True) as mocked_file:
+        # Mock yaml.safe_load to directly return the expected configuration
+        with patch("yaml.safe_load", return_value=expected_config) as mocked_yaml:
+            # Execute the load_config function which we're testing
+            config = config_read.load_config("dev")
+            print("Loaded config:", config)  # Output the result for debugging
+
+            # Assertions to check the function's effectiveness
+            assert mocked_file.called, "File open not called"
+            assert mocked_yaml.called, "YAML load not called"
+            assert config is not None, "Configuration is None"
+            assert 'chamber' in config, "Chamber config missing"
+            assert 'dev' in config['chamber'], "Dev config under chamber missing"
+            assert config['chamber']['dev']['VAULT_ROLE'] == '02f424c0-3b07-40cb-b6c0-73a732204e133', "VAULT_ROLE not matching"
+            assert config['chamber']['dev']['LOCKBOX_ID'] == '5c9969ea-0b05-467c-8dde-09995ea5c70f', "LOCKBOX_ID not matching"
