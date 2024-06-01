@@ -1,11 +1,9 @@
 
-
 import yaml
 from unittest.mock import patch, mock_open
 from config_reader import config_read
 
 def test_load_config_success():
-    """Test load_config method for successfully loading configuration."""
     valid_yaml_content = """
 dev:
     VAULT_ROLE: "02f424c0-3b07-40cb-b6c0-73a732204e133"
@@ -25,10 +23,10 @@ dev:
             with patch("os.path.abspath", return_value="/fake/path"):
                 with patch("yaml.safe_load", return_value=expected_dict) as mock_yaml:
                     config = config_read.load_config("dev")
-                    assert mock_yaml.called  # Just check if it was called
+                    print("Config Loaded:", config)  # Debug print the loaded config
+                    assert mock_yaml.called
                     assert config is not None
                     assert 'dev' in config
                     assert config['dev']['VAULT_ROLE'] == '02f424c0-3b07-40cb-b6c0-73a732204e133'
 
-    # Ensure the file was opened correctly
     m.assert_called_once_with("/fake/path/app_config.yaml", 'r')
