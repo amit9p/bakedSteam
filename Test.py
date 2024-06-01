@@ -1,43 +1,32 @@
 
-
 import pytest
-from unittest.mock import patch, MagicMock
-from ecb_assembler.assembler.core import Assembler
-import logging
+from unittest.mock import mock_open, patch
+from config_reader import config_read
 
-@pytest.fixture
-def assembler():
-    # Mock the SparkSession object
-    spark_session = MagicMock()
-    return Assembler(spark_session)
+# Sample data for tests
+valid_yaml = "key: value"
+invalid_yaml = "key: value:"
 
-def test_run_method(assembler):
-    # Confirm the correct import path for patching
-    with patch('utils.config_reader.load_config') as mock_load_config, \
-         patch('pyspark.sql.SparkSession'):
-        # Mock the load_config method to return a dummy config
-        mock_load_config.return_value = {
-            'env_config': {'key': 'value'},
-            'stream_config': {'key': 'value'},
-            'onelake_dataset_config': {'key': 'value'}
-        }
+def test_load_config_success():
+    """ Test load_config method for successfully loading configuration. """
+    with patch("builtins.open", mock_open(read_data=valid_yaml)):
+        with patch("os.path.join", return_value="fake_path/app_config.yaml"):
+            config = config_read.load_config()
+            assert config is not None
+            assert config['key'] == 'value'
 
-        # Adding debug logs
-        logging.basicConfig(level=logging.DEBUG)
-        logging.debug("Starting test for run method")
+def test_load_config_file_not_found():
+    """ Test load_config method when the configuration file is not found. """
+    with patch("builtins.open", side_effect=FileNotFoundError()):
+        with patch("os.path.join", return_value="fake_path/app_config.yaml"):
+            config = config_read.load_config()
+            assert config is None
 
-        # Call the run method with necessary kwargs
-        assembler.run(env='test_env', dataset_id='test_dataset', business_dt='2024-05-30', run_id='test_run')
+def test_load_config_yaml_error():
+    """ Test load_config method when there is a YAML parsing error. """
+    with patch("builtins.open", mock_open(read_data=invalid_yaml)):
+        with patch("os.path.join", return_value="fake_path/app_config.yaml"):
+            config = config_read.load_config()
+            assert config is None
 
-        logging.debug("Run method executed")
-
-        # Assertions to ensure the load_config was called correctly
-        try:
-            mock_load_config.assert_called_once_with('test_env')
-            logging.debug("load_config was called once with 'test_env'")
-        except AssertionError as e:
-            logging.error(f"AssertionError: {e}")
-            raise
-
-if __name__ == "__main__":
-    pytest.main()
+# Optionally, add more tests to cover other scenarios or exceptions
