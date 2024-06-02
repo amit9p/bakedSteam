@@ -3,23 +3,24 @@
 import pytest
 from unittest.mock import MagicMock, patch
 from pyspark.sql import SparkSession
-from assembler import YourClass  # Adjust this import to match your actual module/class structure
+from assembler import YourClass  # Update this with your actual import
 
 @pytest.fixture(scope="module")
 def spark_session():
     return SparkSession.builder.master("local").appName("TestApp").getOrCreate()
 
-def test_read_whole_parquet_file(spark_session):
-    # Assuming the path to the Parquet file relative to the root of your project
-    parquet_path = "tests/resources/input/TKNZD_SAMPLE.parquet"  # Update this path if necessary
+@pytest.fixture(scope="module")
+def assembler_instance(spark_session):
+    return YourClass(spark_session)
 
-    # Initialize the class with the Spark session
-    instance = YourClass(spark_session)
+def test_read_whole_parquet_file(assembler_instance, spark_session):
+    # Correct path to the Parquet file
+    parquet_path = "tests/resources/input/TKNZD_SAMPLE.parquet"
 
-    # Mock the read.parquet method to prevent actual file I/O in unit tests
+    # Use the patch on the exact Spark session instance's read.parquet
     with patch.object(spark_session.read, 'parquet', return_value=MagicMock()) as mock_read_parquet:
-        df = instance.read_whole_parquet_file(parquet_path)
+        result = assembler_instance.read_whole_parquet_file(parquet_path)
 
-        # Assertions
+        # Ensure that the mock was called correctly
         mock_read_parquet.assert_called_once_with(parquet_path)
-        assert df is not None, "DataFrame should not be None"
+        assert result is not None, "DataFrame should not be None"
