@@ -2,34 +2,24 @@
 
 import pytest
 from unittest.mock import MagicMock, patch
-from your_module import YourClass  # Import the class containing your method
+from pyspark.sql import SparkSession
+from assembler import YourClass  # Adjust this import to match your actual module/class structure
 
-@pytest.fixture
-def spark_session_mock():
-    # Create a mock Spark session
-    from pyspark.sql import SparkSession
-    spark = SparkSession.builder.master("local").appName("test_app").getOrCreate()
-    spark_read_mock = MagicMock()
-    spark.read.parquet = spark_read_mock
-    return spark, spark_read_mock
+@pytest.fixture(scope="module")
+def spark_session():
+    return SparkSession.builder.master("local").appName("TestApp").getOrCreate()
 
-def test_read_whole_parquet_file(spark_session_mock):
-    spark, spark_read_mock = spark_session_mock
-    # Set up the return value for the parquet reading operation
-    df_mock = MagicMock()
-    spark_read_mock.return_value = df_mock
+def test_read_whole_parquet_file(spark_session):
+    # Assuming the path to the Parquet file relative to the root of your project
+    parquet_path = "tests/resources/input/TKNZD_SAMPLE.parquet"  # Update this path if necessary
 
-    # Create an instance of your class, passing the mocked Spark session
-    your_instance = YourClass(spark)
+    # Initialize the class with the Spark session
+    instance = YourClass(spark_session)
 
-    # Call the method under test
-    result = your_instance.read_whole_parquet_file("dummy_path")
+    # Mock the read.parquet method to prevent actual file I/O in unit tests
+    with patch.object(spark_session.read, 'parquet', return_value=MagicMock()) as mock_read_parquet:
+        df = instance.read_whole_parquet_file(parquet_path)
 
-    # Assertions to check that Spark's read.parquet was called correctly
-    spark.read.parquet.assert_called_once_with("dummy_path")
-    assert result == df_mock, "The DataFrame returned is not as expected"
-
-@pytest.mark.usefixtures("spark_session_mock")
-def test_integration_of_read_parquet():
-    # Additional tests or integration tests can go here using the same fixture
-    pass
+        # Assertions
+        mock_read_parquet.assert_called_once_with(parquet_path)
+        assert df is not None, "DataFrame should not be None"
