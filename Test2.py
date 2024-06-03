@@ -1,5 +1,10 @@
 
 
+Step 3: Set JAVA_HOME PermanentlyTo make this change permanent, you need to add the export command to your shell profile file. Depending on the shell you are using (bash or zsh), this will be either .bash_profile or .zshrc.For Bash UsersOpen .bash_profile in a text editor:nano ~/.bash_profileAdd the following line to the file:export JAVA_HOME=$(/usr/libexec/java_home)Save the file and exit the editor (in nano, press Ctrl+X, then Y, then Enter).Apply the changes by sourcing the file:source ~/.bash_profile
+
+
+
+
 export JAVA_HOME=$(/usr/libexec/java_home)
 
 from pyspark.sql import SparkSession
