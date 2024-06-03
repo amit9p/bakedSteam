@@ -1,4 +1,22 @@
 
+
+import os
+import subprocess
+
+# Set the SPARK_LOCAL_IP environment variable in the current Python process
+os.environ['SPARK_LOCAL_IP'] = '127.0.0.1'
+
+# Verify the environment variable
+print('SPARK_LOCAL_IP:', os.environ['SPARK_LOCAL_IP'])
+
+# If you need to run a subprocess and ensure it has the environment variable
+command = 'echo $SPARK_LOCAL_IP'
+result = subprocess.run(command, shell=True, env=os.environ, capture_output=True, text=True)
+print('Subprocess SPARK_LOCAL_IP:', result.stdout.strip())
+
+
+
+
 from pyspark.sql import SparkSession
 import os
 import subprocess
