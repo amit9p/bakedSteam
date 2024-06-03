@@ -1,5 +1,20 @@
 
+import os
+import subprocess
 
+# Set the AWS_PROFILE environment variable
+os.environ['AWS_PROFILE'] = 'GR_GG_COF_AWS_592502317603_Developer'
+
+# Verify that the environment variable is set by printing it
+print('AWS_PROFILE:', os.environ['AWS_PROFILE'])
+
+# If you want to run a command that uses this environment variable in a subprocess
+command = 'echo $AWS_PROFILE'
+result = subprocess.run(command, shell=True, env=os.environ, capture_output=True, text=True)
+print('Subprocess AWS_PROFILE:', result.stdout.strip())
+
+
+______
 
 import os
 import subprocess
