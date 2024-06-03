@@ -1,5 +1,22 @@
 
 
+
+import subprocess
+
+# Define the command to export JAVA_HOME
+command = 'export JAVA_HOME=$(/usr/libexec/java_home)'
+
+# Run the command using subprocess
+process = subprocess.Popen(command, shell=True, executable='/bin/bash')
+process.communicate()
+
+# Print JAVA_HOME to verify (this will not reflect the change in the current Python process)
+process = subprocess.Popen('echo $JAVA_HOME', shell=True, executable='/bin/bash')
+stdout, stderr = process.communicate()
+print('JAVA_HOME:', stdout.decode().strip())
+
+
+
 export JAVA_HOME=$(/usr/libexec/java_home)
 export PATH=$JAVA_HOME/bin:$PATH
 
