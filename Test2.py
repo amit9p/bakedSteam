@@ -1,6 +1,22 @@
 
 
 
+import os
+import subprocess
+
+# Get the JAVA_HOME path using the system command
+java_home = subprocess.check_output(['/usr/libexec/java_home']).strip().decode('utf-8')
+
+# Set the environment variable in the current Python process
+os.environ['JAVA_HOME'] = java_home
+
+# Verify the environment variable
+print('JAVA_HOME:', os.environ['JAVA_HOME'])
+
+_____
+
+
+
 import subprocess
 
 # Define the command to export JAVA_HOME
