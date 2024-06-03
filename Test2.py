@@ -1,5 +1,7 @@
 
 
+export JAVA_HOME=$(/usr/libexec/java_home)
+
 from pyspark.sql import SparkSession
 
 # Define your AWS credentials
