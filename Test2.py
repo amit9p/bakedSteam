@@ -4,10 +4,10 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when
 
 # Start a Spark session
-spark = SparkSession.builder.appName("Update Values").getOrCreate()
+spark = SparkSession.builder.appName("Update Social Security Numbers").getOrCreate()
 
-# Manually define the new values data from the output image
-data = [
+# Define the new values data from your input
+new_values_data = [
     ("45222355101215271", "xZo9Hwvxt"),
     ("45263507888435271", "3EmFHfJ9y"),
     ("92842214958721143", "JQSRHZyjz"),
@@ -24,11 +24,9 @@ data = [
     ("74318433636492202", "9Mw0yI8Xz")
 ]
 
-# Define the schema for the new values DataFrame
-schema = "account_id STRING, value STRING"
-
-# Create a DataFrame with the new values
-df_new_values = spark.createDataFrame(data, schema=schema)
+# Create a DataFrame for the new values
+schema = "account_id STRING, new_value STRING"
+df_new_values = spark.createDataFrame(new_values_data, schema=schema)
 
 # Load your main DataFrame (df_main)
 # Assuming df_main is loaded with the schema shown in your image
@@ -37,11 +35,11 @@ df_new_values = spark.createDataFrame(data, schema=schema)
 # Join the DataFrames on account_id
 df_joined = df_main.join(df_new_values, "account_id", "left")
 
-# Update the value column only where attribute is 'social security number'
-df_updated = df_joined.withColumn("value", when(col("attribute") == "social security number", col("df_new_values.value")).otherwise(col("df_main.value")))
+# Update the 'value' column for rows where attribute is 'social security number'
+df_updated = df_joined.withColumn("value", when((col("attribute") == "social security number"), col("new_value")).otherwise(col("value")))
 
-# Drop any redundant or unwanted columns, if necessary
-df_final = df_updated.drop(df_new_values.value)
+# Drop the 'new_value' column after updating
+df_final = df_updated.drop("new_value")
 
 # Show the updated DataFrame
 df_final.show()
