@@ -1,45 +1,19 @@
 
+import pandas as pd
 
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, when
+# Assuming df1 and df2 are already loaded DataFrames with the 'account_id' and 'value' columns properly set
+# For example:
+# df1 = pd.DataFrame({
+#     'account_id': [1, 2, 3],
+#     'value': [100, 200, 300]
+# })
+# df2 = pd.DataFrame({
+#     'account_id': [1, 2, 3],
+#     'value': [110, 210, 310]
+# })
 
-# Start a Spark session
-spark = SparkSession.builder.appName("Update Social Security Numbers").getOrCreate()
+# Merge the DataFrames on 'account_id'
+final_df = df1.merge(df2, on='account_id', suffixes=('_original', '_manipulated'))
 
-# Define the new values data from your input
-new_values_data = [
-    ("45222355101215271", "xZo9Hwvxt"),
-    ("45263507888435271", "3EmFHfJ9y"),
-    ("92842214958721143", "JQSRHZyjz"),
-    ("85045324729033015", "jIAEVD1YL"),
-    ("65119352382665432", "2EiCecUKd"),
-    ("94130412571123703", "xM90suRIM"),
-    ("83213355553618025", "b8OAzy78s"),
-    ("94130595791703703", "q8qe3dOHX"),
-    ("92842351896971143", "2XaGMJ9h0"),
-    ("65119367539575432", "YPe8s9H63"),
-    ("92842398982541143", "HAlRraLH3"),
-    ("60331430580262428", "H4E6SDXLF"),
-    ("60331365887472428", "YIyGQNvsJ"),
-    ("74318433636492202", "9Mw0yI8Xz")
-]
-
-# Create a DataFrame for the new values
-schema = "account_id STRING, new_value STRING"
-df_new_values = spark.createDataFrame(new_values_data, schema=schema)
-
-# Load your main DataFrame (df_main)
-# Assuming df_main is loaded with the schema shown in your image
-# Example: df_main = spark.read.parquet("path_to_main_dataframe")
-
-# Join the DataFrames on account_id
-df_joined = df_main.join(df_new_values, "account_id", "left")
-
-# Update the 'value' column for rows where attribute is 'social security number'
-df_updated = df_joined.withColumn("value", when((col("attribute") == "social security number"), col("new_value")).otherwise(col("value")))
-
-# Drop the 'new_value' column after updating
-df_final = df_updated.drop("new_value")
-
-# Show the updated DataFrame
-df_final.show()
+# Display the final DataFrame
+print(final_df)
