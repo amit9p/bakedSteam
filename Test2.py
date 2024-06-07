@@ -1,19 +1,18 @@
 
-import pandas as pd
+from pyspark.sql import SparkSession
 
-# Assuming df1 and df2 are already loaded DataFrames with the 'account_id' and 'value' columns properly set
-# For example:
-# df1 = pd.DataFrame({
-#     'account_id': [1, 2, 3],
-#     'value': [100, 200, 300]
-# })
-# df2 = pd.DataFrame({
-#     'account_id': [1, 2, 3],
-#     'value': [110, 210, 310]
-# })
+# Create a Spark session
+spark = SparkSession.builder.appName("Example").getOrCreate()
 
-# Merge the DataFrames on 'account_id'
-final_df = df1.merge(df2, on='account_id', suffixes=('_original', '_manipulated'))
+# Assuming df1 and df2 are already loaded as PySpark DataFrames and not pandas DataFrames
+# Example loading if needed (you would normally load from a file or other source):
+# df1 = spark.createDataFrame([(1, 100), (2, 200), (3, 300)], ["account_id", "value"])
+# df2 = spark.createDataFrame([(1, 110), (2, 210), (3, 310)], ["account_id", "value"])
 
-# Display the final DataFrame
-print(final_df)
+# Join the DataFrames on 'account_id'
+final_df = df1.join(df2, "account_id", "inner") \
+              .withColumnRenamed("value", "value_original") \
+              .withColumnRenamed("value", "value_manipulated")
+
+# Show the final DataFrame
+final_df.show()
