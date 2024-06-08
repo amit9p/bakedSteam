@@ -1,18 +1,28 @@
 
 
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
 
-# Create a Spark session
-spark = SparkSession.builder.appName("Example").getOrCreate()
+def main():
+    # Retrieve configuration for paths
+    input_path = config.get('Paths', 'InputPath', fallback='default/path/if/not/set')
+    output_dir = config.get('Paths', 'OutputDir', fallback='default/output/path/if/not/set')
 
-# Assuming df1 and df2 are already loaded as PySpark DataFrames and not pandas DataFrames
-# Example loading if needed (you would normally load from a file or other source):
-# df1 = spark.createDataFrame([(1, 100), (2, 200), (3, 300)], ["account_id", "value"])
-# df2 = spark.createDataFrame([(1, 110), (2, 210), (3, 310)], ["account_id", "value"])
+    # Start the Spark session
+    spark = SparkSession.builder.appName("cbr_assembler").getOrCreate()
 
-# Join the DataFrames on 'account_id'
-final_df = df1.join(df2, df1["account_id"] == df2["account_id"], "inner") \
-              .select(df1["account_id"], df1["value"].alias("value_original"), df2["value"].alias("value_manipulated"))
+    # Read the data
+    df = spark.read.parquet(input_path)
 
-# Show the final DataFrame
-final_df.show()
+    # Filter data for USTAXID or PAN
+    t_df = df.filter((col("tokenization_type") == "USTAXID") | (col("tokenization_type") == "PAN"))
+
+    # Select columns and remove duplicates
+    t_df = t_df.select(col("value"), col("account_id")).distinct()
+
+    # Show the DataFrame and print schema
+    t_df.show()
+    t_df.printSchema()
+
+if __name__ == "__main__":
+    main()
