@@ -1,28 +1,26 @@
-
-
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
 
-def main():
-    # Retrieve configuration for paths
-    input_path = config.get('Paths', 'InputPath', fallback='default/path/if/not/set')
-    output_dir = config.get('Paths', 'OutputDir', fallback='default/output/path/if/not/set')
+# Create Spark session
+spark = SparkSession.builder.appName("DataFrame Join Example").getOrCreate()
 
-    # Start the Spark session
-    spark = SparkSession.builder.appName("cbr_assembler").getOrCreate()
+# Sample data for DataFrame 1
+data1 = [("val1", "123", "USTAXID"), ("val2", "456", "PAN")]
+df1 = spark.createDataFrame(data1, ["value", "account_id", "tokenization_type"])
 
-    # Read the data
-    df = spark.read.parquet(input_path)
+# Sample data for DataFrame 2
+data2 = [("val3", "123", "USTAXID"), ("val4", "456", "PAN")]
+df2 = spark.createDataFrame(data2, ["value", "account_id", "tokenization_type"])
 
-    # Filter data for USTAXID or PAN
-    t_df = df.filter((col("tokenization_type") == "USTAXID") | (col("tokenization_type") == "PAN"))
+# Rename the 'value' column in df1 and df2 to make them distinguishable
+df1_renamed = df1.withColumnRenamed("value", "value_df1")
+df2_renamed = df2.withColumnRenamed("value", "value_df2")
 
-    # Select columns and remove duplicates
-    t_df = t_df.select(col("value"), col("account_id")).distinct()
+# Perform an inner join on 'account_id' and 'tokenization_type'
+df_joined = df1_renamed.join(df2_renamed, ["account_id", "tokenization_type"], "inner")
 
-    # Show the DataFrame and print schema
-    t_df.show()
-    t_df.printSchema()
+# Show the resulting DataFrame
+df_joined.show()
 
-if __name__ == "__main__":
-    main()
+# Optionally, if you want to rearrange the columns in specific order
+df_final = df_joined.select("value_df1", "value_df2", "account_id", "tokenization_type")
+df_final.show()
