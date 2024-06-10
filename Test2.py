@@ -1,3 +1,9 @@
+
+
+[packages]
+urllib3 = ">=2.0.1,<3"
+
+
 from pyspark.sql import SparkSession
 
 # Create Spark session
