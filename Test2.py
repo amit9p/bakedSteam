@@ -1,4 +1,9 @@
 
+
+
+pip install chardet --extra-index-url https://<username>:<password>@<artifactory_url>/artifactory/api/pypi/<repository>/simple
+
+
 The error "No module named chardet" in AWS Lambda indicates that the `chardet` module is not included in your Lambda function's deployment package. To resolve this, you need to add the `chardet` module to your Lambda function's deployment package.
 
 Here are the steps to do that:
