@@ -1,5 +1,11 @@
 
 
+def lambda_handler(event, context):
+    return {
+        'statusCode': 200,
+        'body': 'Hello, World!'
+    }
+
 
 pip install chardet --extra-index-url https://<username>:<password>@<artifactory_url>/artifactory/api/pypi/<repository>/simple
 
