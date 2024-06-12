@@ -1,5 +1,7 @@
 
+
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import coalesce
 
 # Initialize SparkSession
 spark = SparkSession.builder \
@@ -22,6 +24,10 @@ df2_updated = df2.join(df1_selected, on=["account_id", "tokenization_type"], how
 
 # Replace the original 'value' column with the new 'plain_text' column
 df2_final = df2_updated.withColumn("value", coalesce(df1_selected["new_value"], df2["value"])).drop("new_value")
+
+# Reorder the columns to match the original df2 schema
+df2_columns = df2.columns
+df2_final = df2_final.select(df2_columns)
 
 # Show the result
 df2_final.show()
