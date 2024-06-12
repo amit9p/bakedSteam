@@ -1,4 +1,34 @@
 
+from pyspark.sql.functions import col
+
+def get_token_cache(df, env):
+    try:
+        # Filter the DataFrame based on tokenization_type
+        t_df = df.filter(
+            (col("tokenization_type") == "USTAXID") | 
+            (col("tokenization_type") == "PAN")
+        )
+
+        # Drop duplicate records based on account_id
+        t_df_unique = t_df.dropDuplicates(["account_id"])
+
+        cli_cred = get_cli_creds("config")
+        turing_df_ustaxid = create_turing_df(
+            cli_cred,
+            t_df_unique.filter(col("tokenization_type") == "USTAXID"),
+            env
+        )
+
+        # Further processing can go here
+
+    except Exception as e:
+        # Handle exceptions
+        print(f"An error occurred: {e}")
+
+    return t_df_unique
+
+
+
 
 def lambda_handler(event, context):
     return {
