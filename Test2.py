@@ -1,4 +1,37 @@
 
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+# Initialize SparkSession
+spark = SparkSession.builder \
+    .appName("Replace Value Column") \
+    .getOrCreate()
+
+# Load the two DataFrames from the provided file paths
+df1 = spark.read.option("header", "true").csv("/mnt/data/file-BeZjudu5JkBPnVKOJ1KQzqTw")
+df2 = spark.read.option("header", "true").csv("/mnt/data/file-jEGiRvtcsHK3q8aSabrFf6wY")
+
+# Show the schemas of both DataFrames to understand their structure
+df1.printSchema()
+df2.printSchema()
+
+# Select the necessary columns from df1 (assuming 'account_id' and 'value')
+df1_selected = df1.select("account_id", "value")
+
+# Perform the join on 'account_id' and select the columns, replacing df2's value column
+df2_updated = df2.join(df1_selected, on="account_id", how="left") \
+    .select(df2["*"], df1_selected["value"].alias("new_value"))
+
+# Replace the original 'value' column with the new 'value' column
+df2_final = df2_updated.withColumn("value", col("new_value")).drop("new_value")
+
+# Show the result
+df2_final.show()
+
+# Stop the Spark session
+spark.stop()
+
+
 from pyspark.sql.functions import col
 
 def get_token_cache(df, env):
