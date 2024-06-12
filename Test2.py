@@ -1,6 +1,6 @@
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+from pyspark.sql.functions import coalesce
 
 # Initialize SparkSession
 spark = SparkSession.builder \
@@ -16,138 +16,16 @@ df1.printSchema()
 df2.printSchema()
 
 # Select the necessary columns from df1 (assuming 'account_id' and 'value')
-df1_selected = df1.select("account_id", "value")
+df1_selected = df1.select("account_id", "value").withColumnRenamed("value", "new_value")
 
-# Perform the join on 'account_id' and select the columns, replacing df2's value column
-df2_updated = df2.join(df1_selected, on="account_id", how="left") \
-    .select(df2["*"], df1_selected["value"].alias("new_value"))
+# Perform the left join on 'account_id' to keep all rows from df2
+df2_updated = df2.join(df1_selected, on="account_id", how="left")
 
-# Replace the original 'value' column with the new 'value' column
-df2_final = df2_updated.withColumn("value", col("new_value")).drop("new_value")
+# Replace the original 'value' column with the new 'value' column from df1
+df2_final = df2_updated.withColumn("value", coalesce(df1_selected["new_value"], df2["value"])).drop("new_value")
 
 # Show the result
 df2_final.show()
 
 # Stop the Spark session
 spark.stop()
-
-
-from pyspark.sql.functions import col
-
-def get_token_cache(df, env):
-    try:
-        # Filter the DataFrame based on tokenization_type
-        t_df = df.filter(
-            (col("tokenization_type") == "USTAXID") | 
-            (col("tokenization_type") == "PAN")
-        )
-
-        # Drop duplicate records based on account_id
-        t_df_unique = t_df.dropDuplicates(["account_id"])
-
-        cli_cred = get_cli_creds("config")
-        turing_df_ustaxid = create_turing_df(
-            cli_cred,
-            t_df_unique.filter(col("tokenization_type") == "USTAXID"),
-            env
-        )
-
-        # Further processing can go here
-
-    except Exception as e:
-        # Handle exceptions
-        print(f"An error occurred: {e}")
-
-    return t_df_unique
-
-
-
-
-def lambda_handler(event, context):
-    return {
-        'statusCode': 200,
-        'body': 'Hello, World!'
-    }
-
-
-pip install chardet --extra-index-url https://<username>:<password>@<artifactory_url>/artifactory/api/pypi/<repository>/simple
-
-
-The error "No module named chardet" in AWS Lambda indicates that the `chardet` module is not included in your Lambda function's deployment package. To resolve this, you need to add the `chardet` module to your Lambda function's deployment package.
-
-Here are the steps to do that:
-
-1. **Create a directory for your Lambda function**:
-    ```sh
-    mkdir my_lambda_function
-    cd my_lambda_function
-    ```
-
-2. **Create a virtual environment**:
-    ```sh
-    python3 -m venv v-env
-    source v-env/bin/activate
-    ```
-
-3. **Install the `chardet` module**:
-    ```sh
-    pip install chardet
-    ```
-
-4. **Create a deployment package**:
-    ```sh
-    mkdir package
-    cd package
-    cp -r ../v-env/lib/python3.*/site-packages/* .
-    cp -r ../v-env/lib64/python3.*/site-packages/* .
-    ```
-
-5. **Add your Lambda function code to the package**:
-    ```sh
-    cp ../my_lambda_function.py .
-    ```
-
-6. **Zip the package**:
-    ```sh
-    zip -r9 ../my_lambda_function.zip .
-    cd ..
-    ```
-
-7. **Upload the deployment package to AWS Lambda**:
-    - Go to the AWS Lambda console.
-    - Select your function.
-    - Under "Function code," select "Upload from" and then "ZIP file."
-    - Upload the `my_lambda_function.zip` file.
-
-Alternatively, you can use AWS Lambda Layers to include the `chardet` module. Here are the steps:
-
-1. **Create a layer directory**:
-    ```sh
-    mkdir python
-    cd python
-    ```
-
-2. **Install the `chardet` module in the layer directory**:
-    ```sh
-    pip install chardet -t .
-    ```
-
-3. **Zip the layer directory**:
-    ```sh
-    zip -r9 ../chardet_layer.zip .
-    cd ..
-    ```
-
-4. **Create a new Lambda layer**:
-    - Go to the AWS Lambda console.
-    - Select "Layers" from the left-hand menu.
-    - Create a new layer.
-    - Upload the `chardet_layer.zip` file.
-
-5. **Add the layer to your Lambda function**:
-    - Go to your Lambda function in the console.
-    - In the "Layers" section, click "Add a layer."
-    - Select "Custom layers."
-    - Choose the layer you created and add it to your function.
-
-Using these methods, the `chardet` module should be available to your AWS Lambda function.
