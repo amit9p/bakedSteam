@@ -1,5 +1,5 @@
 
-
+docker pull public.ecr.aws/sam/emulation-python3.8
 
 # hello_world/app.py
 import json
