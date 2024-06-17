@@ -1,4 +1,13 @@
 
+
+aws glue create-job \
+  --name your-job-name \
+  --role your-iam-role \
+  --command '{"Name": "glueetl", "ScriptLocation": "s3://your-bucket/path/to/your-script.py"}' \
+  --default-arguments '{"--extra-jars":"s3://your-bucket/path/to/your-jar1.jar,s3://your-bucket/path/to/your-jar2.jar"}'
+
+
+
 docker pull public.ecr.aws/sam/emulation-python3.8
 
 # hello_world/app.py
