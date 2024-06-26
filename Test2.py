@@ -1,50 +1,68 @@
 
-from pyspark.sql import DataFrame
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, concat_ws, lit
+from pyspark.sql.types import StructType, StructField, StringType, LongType
 import logging
 
 logger = logging.getLogger(__name__)
 
-def process_file_type(df: DataFrame, record_separator: str) -> str:
+# Define constants
+RUN_ID = "run_id"
+SEGMENT = "segment"
+ATTRIBUTE = "attribute"
+VALUE = "value"
+ROW_SEQUENCE = "row_sequence"
+COLUMN_SEQUENCE = "column_sequence"
+SITE_TYPE = "site_type"
+BUSINESS_DATE = "business_date"
+INDEX_LEVEL = "__index_level_0__"
+TOKENIZATION_TYPE = "tokenization_type"
+
+def read_parquet_file(spark, path):
     try:
-        # Selecting required columns and ordering based on row_position and column_position
-        ordered_df = df.select("value", "row_position", "column_position").orderBy(
-            col("row_position").asc(), col("column_position").asc()
-        )
-
-        # Fill None with empty strings
-        ordered_df = ordered_df.fillna({"value": ""})
-
-        # Pivot the DataFrame
-        pivot_df = ordered_df.groupBy("row_position").pivot("column_position").agg(lit("")).na.fill("")
-
-        # Concatenate all columns into a single string for each row, resulting in a Metro2 string
-        columns = [col(column) for column in pivot_df.columns if column != "row_position"]
-        pivot_df = pivot_df.withColumn("metro2_string", concat_ws("", *columns))
-
-        # Collect the Metro2 strings and join them with the record separator
-        metro2_strings = pivot_df.select("metro2_string").rdd.flatMap(lambda x: x).collect()
-        final_output_string = record_separator.join(metro2_strings)
-
-        return final_output_string
-
+        schema = StructType([
+            StructField("ACCOUNT_ID", StringType(), True),
+            StructField(RUN_ID, StringType(), True),
+            StructField(SEGMENT, StringType(), True),
+            StructField(ATTRIBUTE, StringType(), True),
+            StructField(VALUE, StringType(), True),
+            StructField(ROW_SEQUENCE, LongType(), True),
+            StructField(COLUMN_SEQUENCE, LongType(), True),
+            StructField(SITE_TYPE, StringType(), True),
+            StructField(BUSINESS_DATE, StringType(), True),
+            StructField(INDEX_LEVEL, LongType(), True),
+            StructField(TOKENIZATION_TYPE, StringType(), True)
+        ])
+        
+        df = spark.read.schema(schema).parquet(path)
+        df.printSchema()
+        return df
     except Exception as e:
         logger.error(e)
-        return ""
+        return None
 
 if __name__ == "__main__":
     spark = SparkSession.builder.master("local").appName("TestApp").getOrCreate()
-    # Example DataFrame
-    data = [
-        ("value1", 1, 1),
-        ("value2", 1, 2),
-        ("value3", 2, 1),
-        ("value4", 2, 2)
-    ]
-    columns = ["value", "row_position", "column_position"]
-    df = spark.createDataFrame(data, columns)
+    df = read_parquet_file(spark, "path/to/parquet/file")
 
-    record_separator = "|"
-    result = process_file_type(df, record_separator)
-    print(result)
+
+import pytest
+from unittest.mock import Mock, patch
+import parquet_reader
+
+@patch('parquet_reader.SparkSession')
+def test_read_parquet_file_exception(mock_spark_session):
+    # Mock the read method to raise an exception
+    mock_spark = Mock()
+    mock_read = Mock()
+    mock_read.schema.return_value.parquet.side_effect = Exception("Test Exception")
+    mock_spark.read = mock_read
+    mock_spark_session.builder.master.return_value.appName.return_value.getOrCreate.return_value = mock_spark
+    
+    # Call the function with the mocked SparkSession
+    result = parquet_reader.read_parquet_file(mock_spark, "invalid/path")
+    
+    # Check if the result is None which means the exception block was executed
+    assert result is None
+
+if __name__ == "__main__":
+    pytest.main()
