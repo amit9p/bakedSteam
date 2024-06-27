@@ -1,11 +1,11 @@
 
-Certainly! Here's a concise script for presenting your PI readout slide effectively within 3 minutes:
+Certainly! Here is a concise script for presenting your PI readout slide within 3 minutes:
 
 ---
 
 **Introduction:**
 
-"Good [morning/afternoon], everyone. I’m here to present the PI readout for the CoBRa Swift team."
+"Good [morning/afternoon], everyone. I’m here to present the PI readout for the CoBRa Swift team, as of June 25, 2024."
 
 **Sprint Capacity:**
 
@@ -27,7 +27,7 @@ Certainly! Here's a concise script for presenting your PI readout slide effectiv
 
 "We have dependencies on:
 - **7PS Testing:** Utilizing the AWS Glue pilot.
-- **Turing Team:** For onboarding Card ECBR use cases and volume understanding.
+- **Turing Team:** For onboarding Card ECBR use cases and volume understanding, and performance testing in QA.
 - **Testing:** We require test data of unique SSNs/PANs in QA working with TDM."
 
 **Risks/Impediments:**
@@ -36,8 +36,8 @@ Certainly! Here's a concise script for presenting your PI readout slide effectiv
 
 **Conclusion:**
 
-"In summary, we’re confident in our progress with a confidence vote of 4. Thank you for your attention."
+"In summary, we’re confident in our progress with a confidence vote of 4.4. Thank you for your attention."
 
 ---
 
-Make sure to speak clearly and keep an eye on the time to ensure you cover all points succinctly.
+Make sure to speak clearly, keep an eye on the time, and ensure you cover all points succinctly.
