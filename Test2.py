@@ -1,8 +1,12 @@
 
-@patch("botocore.auth.SigV4Auth.add_auth", return_value=None)
+import pytest
+from unittest.mock import patch, Mock
+from utils.credentials_utils import get_cli_creds
+
 @patch("utils.config_reader.load_config")
 @patch("secret_sauce.IamClient")
-def test_get_cli_creds_success_non_qa(mock_iam_client_class, mock_load_config, mock_add_auth):
+@patch("requests.post")
+def test_get_cli_creds_success_non_qa(mock_post, mock_iam_client_class, mock_load_config):
     # Mock the necessary objects and their methods
     mock_chamber_config = {
         "env_config": {
@@ -14,6 +18,12 @@ def test_get_cli_creds_success_non_qa(mock_iam_client_class, mock_load_config, m
         }
     }
     mock_load_config.return_value = mock_chamber_config
+
+    # Mock the response of the HTTP request
+    mock_response = Mock()
+    mock_response.status_code = 200
+    mock_response.json.return_value = {"token": "mock_token"}
+    mock_post.return_value = mock_response
 
     # Create a mock instance for IamClient and its methods
     mock_iam_client = Mock()
