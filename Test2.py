@@ -1,4 +1,5 @@
 
+
 import json
 from unittest.mock import patch, Mock
 from utils.credentials_utils import get_cli_creds
@@ -23,14 +24,14 @@ def test_get_cli_creds_success_non_qa(mock_add_auth, mock_post, mock_iam_client_
 
     mock_response = Mock()
     mock_response.status_code = 200
-    mock_response._content = json.dumps({"auth": {"client_token": "mock_token"}}).encode('utf-8')
+    mock_response.json.return_value = {"auth": {"client_token": "mock_token"}}
     mock_post.return_value = mock_response
 
     # Create a mock instance for IamClient and its methods
     mock_iam_client = Mock()
     mock_iam_client.get_secret_from_path.side_effect = lambda path, secret_key: f"{secret_key}_value"
     mock_iam_client.get_token.return_value = "mock_token"
-    mock_iam_client.request_vault.return_value = json.loads(mock_response._content)
+    mock_iam_client.request_vault.return_value = {"auth": {"client_token": "mock_token"}}
 
     # Ensure that initializing IamClient doesn't trigger real network calls
     mock_iam_client_class.return_value = mock_iam_client
