@@ -6,8 +6,8 @@ from ecbr_assembler.credentials_utils import get_cli_creds
 
 @patch('utils.config_reader.load_config')
 @patch('secret_sauce.IamClient')
-@patch('ecbr_logging.getLogger')  # Correctly patching the logger
-def test_get_cli_creds_exception(mock_get_logger, mock_iam_client_class, mock_load_config):
+@patch('ecbr_assembler.credentials_utils.logger')  # Patch the logger used in credentials_utils
+def test_get_cli_creds_exception(mock_logger, mock_iam_client_class, mock_load_config):
     # Mock the necessary objects and their methods
     mock_chamber_config = {
         "env_config": {
@@ -23,8 +23,8 @@ def test_get_cli_creds_exception(mock_get_logger, mock_iam_client_class, mock_lo
     mock_iam_client_class.side_effect = ValueError("test exception")
     
     # Create a mock logger
-    mock_logger = Mock()
-    mock_get_logger.return_value = mock_logger
+    mock_logger_instance = Mock()
+    mock_logger.return_value = mock_logger_instance
     
     env = "prod"
     
@@ -32,7 +32,7 @@ def test_get_cli_creds_exception(mock_get_logger, mock_iam_client_class, mock_lo
         get_cli_creds(chamber_config=mock_chamber_config, env=env)
     
     # Ensure the error was logged
-    mock_logger.error.assert_called_once_with("test exception")
+    mock_logger_instance.error.assert_called_once_with("test exception")
 
 if __name__ == "__main__":
     pytest.main()
