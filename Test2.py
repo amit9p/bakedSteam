@@ -24,7 +24,7 @@ def test_get_cli_creds_success_non_qa(mock_add_auth, mock_post, mock_iam_client_
     mock_response = Mock()
     mock_response.status_code = 200
     mock_response.json.return_value = {"token": "mock_token"}
-    mock_response.text = '{"token": "mock_token"}'
+    mock_response.content = b'{"token": "mock_token"}'
     mock_post.return_value = mock_response
 
     # Create a mock instance for IamClient and its methods
