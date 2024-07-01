@@ -1,4 +1,5 @@
 
+
 import pytest
 from unittest.mock import patch, Mock
 
@@ -8,7 +9,7 @@ from ecbr_assembler.credentials_utils import get_cli_creds
 # Define the test case
 @patch('utils.config_reader.load_config')
 @patch('secret_sauce.IamClient')
-@patch('ecbr_assembler.credentials_utils.logging.getLogger')
+@patch('ecbr_logging.getLogger')  # Correctly patching the logger
 def test_get_cli_creds_exception(mock_get_logger, mock_iam_client_class, mock_load_config):
     # Mock the necessary objects and their methods
     mock_chamber_config = {
