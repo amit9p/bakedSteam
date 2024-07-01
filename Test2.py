@@ -98,3 +98,6 @@ def test_load_config_env_key_error(mock_dirname, mock_path_join, mock_file):
     # Testing config load with missing env key
     config = load_config("chamber", "dev_nonexistent")
     assert config is None
+
+if __name__ == "__main__":
+    pytest.main()
