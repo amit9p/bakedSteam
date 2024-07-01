@@ -6,9 +6,10 @@ from unittest.mock import patch, Mock
 from ecbr_assembler.credentials_utils import get_cli_creds
 
 # Define the test case
-@patch('utils.config_reader.load_config', return_value=None)
+@patch('utils.config_reader.load_config')
 @patch('secret_sauce.IamClient')
-def test_get_cli_creds_exception(mock_iam_client_class, mock_load_config):
+@patch('ecbr_assembler.credentials_utils.logging.getLogger')
+def test_get_cli_creds_exception(mock_get_logger, mock_iam_client_class, mock_load_config):
     # Mock the necessary objects and their methods
     mock_chamber_config = {
         "env_config": {
@@ -23,12 +24,17 @@ def test_get_cli_creds_exception(mock_iam_client_class, mock_load_config):
     mock_load_config.return_value = mock_chamber_config
     mock_iam_client_class.side_effect = Exception("test exception")
     
+    # Create a mock logger
+    mock_logger = Mock()
+    mock_get_logger.return_value = mock_logger
+    
     env = "prod"
     
-    with patch('ecbr_logging.logging') as mock_logger:
-        with pytest.raises(Exception):
-            get_cli_creds(chamber_config=mock_chamber_config, env=env)
-        mock_logger.error.assert_called_once_with("test exception")
+    with pytest.raises(Exception):
+        get_cli_creds(chamber_config=mock_chamber_config, env=env)
+    
+    # Ensure the error was logged
+    mock_logger.error.assert_called_once_with("test exception")
 
 if __name__ == "__main__":
     pytest.main()
