@@ -21,10 +21,10 @@ def test_get_cli_creds_success_non_qa(mock_iam_client_class, mock_load_config):
     # Create a mock instance for IamClient and its methods
     mock_iam_client = Mock()
     mock_iam_client.get_secret_from_path.side_effect = lambda path, secret_key: f"{secret_key}_value"
-    mock_iam_client.get_token = Mock()
-    mock_iam_client.request_vault = Mock()
-    
-    # Set the return value of IamClient to the mock instance
+    mock_iam_client.get_token.return_value = "mock_token"
+    mock_iam_client.request_vault.return_value = None
+
+    # Ensure that initializing IamClient doesn't trigger real network calls
     mock_iam_client_class.return_value = mock_iam_client
 
     env = "prod"
