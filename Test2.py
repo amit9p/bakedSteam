@@ -1,6 +1,7 @@
 
-import unittest
+import pytest
 from unittest.mock import patch, Mock
+from utils.credentials_utils import get_cli_creds  # Import your function here
 
 @patch("utils.config_reader.load_config", return_value=None)
 @patch("requests.post")
@@ -48,4 +49,4 @@ def test_get_cli_creds_success_non_qa(mock_iam_client_class, mock_add_auth, mock
     mock_iam_client.get_secret_from_path.assert_any_call(path="client_secret_path", secret_key="client_secret")
 
 if __name__ == "__main__":
-    unittest.main()
+    pytest.main()
