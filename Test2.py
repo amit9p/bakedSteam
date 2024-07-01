@@ -22,7 +22,8 @@ def test_get_cli_creds_success_non_qa(mock_iam_client_class, mock_load_config):
     mock_iam_client_class.return_value = mock_iam_client
     env = "prod"
 
-    result = get_cli_creds("chamber_config", env)
+    with patch("utils.credentials_utils.IamClient.get_secret_from_path", side_effect=lambda path, secret_key: f"{secret_key}_value"):
+        result = get_cli_creds("chamber_config", env)
 
     mock_load_config.assert_called_once_with("CONFIGS_CHAMBER", env)
     mock_iam_client_class.assert_called_once_with(domain="https://example.com", role="vault_role", lockbox_id="lockbox_id")
