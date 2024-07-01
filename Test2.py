@@ -1,12 +1,11 @@
 
-
 import pytest
 from unittest.mock import patch, Mock
 from utils.credentials_utils import get_cli_creds
 
 @patch("utils.config_reader.load_config")
 @patch("secret_sauce.IamClient")
-def test_get_cli_creds_success_qa(mock_iam_client_class, mock_load_config):
+def test_get_cli_creds_success_non_qa(mock_iam_client_class, mock_load_config):
     # Mock the necessary objects and their methods
     mock_chamber_config = {
         "env_config": {
@@ -18,14 +17,20 @@ def test_get_cli_creds_success_qa(mock_iam_client_class, mock_load_config):
         }
     }
     mock_load_config.return_value = mock_chamber_config
-    env = "qa"
+    mock_iam_client = Mock()
+    mock_iam_client.get_secret_from_path.side_effect = lambda path, secret_key: f"{secret_key}_value"
+    mock_iam_client_class.return_value = mock_iam_client
+    env = "prod"
 
     result = get_cli_creds("chamber_config", env)
 
-    # The expected result should match what the function returns for this input
+    mock_load_config.assert_called_once_with("CONFIGS_CHAMBER", env)
+    mock_iam_client_class.assert_called_once_with(domain="https://example.com", role="vault_role", lockbox_id="lockbox_id")
+    mock_iam_client.get_secret_from_path.assert_any_call(path="client_id_path", secret_key="client_id")
+    mock_iam_client.get_secret_from_path.assert_any_call(path="client_secret_path", secret_key="client_secret")
     assert result == {
-        "client_id": "CLIENTID",
-        "client_secret": "CLIENTSECRET"
+        "client_id": "client_id_value",
+        "client_secret": "client_secret_value"
     }
 
 if __name__ == "__main__":
