@@ -1,11 +1,8 @@
 
-import pytest
-from unittest.mock import patch, Mock
-from utils.credentials_utils import get_cli_creds
-
+@patch("botocore.auth.SigV4Auth.add_auth", return_value=None)
 @patch("utils.config_reader.load_config")
 @patch("secret_sauce.IamClient")
-def test_get_cli_creds_success_non_qa(mock_iam_client_class, mock_load_config):
+def test_get_cli_creds_success_non_qa(mock_iam_client_class, mock_load_config, mock_add_auth):
     # Mock the necessary objects and their methods
     mock_chamber_config = {
         "env_config": {
@@ -23,8 +20,8 @@ def test_get_cli_creds_success_non_qa(mock_iam_client_class, mock_load_config):
     mock_iam_client.get_secret_from_path.side_effect = lambda path, secret_key: f"{secret_key}_value"
     
     # Mock additional methods to prevent real network calls and errors
-    mock_iam_client.get_token = Mock(return_value="mock_token")
-    mock_iam_client.request_vault = Mock(return_value="mock_vault_response")
+    mock_iam_client.get_token.return_value = "mock_token"
+    mock_iam_client.request_vault.return_value = None
 
     # Ensure that initializing IamClient doesn't trigger real network calls
     mock_iam_client_class.return_value = mock_iam_client
