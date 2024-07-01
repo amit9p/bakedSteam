@@ -1,8 +1,11 @@
 
-
-from unittest.mock import Mock, patch
 import pytest
+from unittest.mock import patch, Mock
 
+# Import the necessary components
+from ecbr_assembler.credentials_utils import get_cli_creds
+
+# Define the test case
 @patch('utils.config_reader.load_config', return_value=None)
 @patch('secret_sauce.IamClient')
 def test_get_cli_creds_exception(mock_iam_client_class, mock_load_config):
@@ -16,11 +19,12 @@ def test_get_cli_creds_exception(mock_iam_client_class, mock_load_config):
             "CLIENT_SECRET_PATH": "client_secret_path"
         }
     }
-
+    
     mock_load_config.return_value = mock_chamber_config
     mock_iam_client_class.side_effect = Exception("test exception")
+    
     env = "prod"
-
+    
     with patch('ecbr_logging.logging') as mock_logger:
         with pytest.raises(Exception):
             get_cli_creds(chamber_config=mock_chamber_config, env=env)
