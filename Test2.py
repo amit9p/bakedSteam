@@ -1,4 +1,5 @@
 
+
 import pytest
 import os
 from unittest.mock import patch, mock_open
@@ -38,7 +39,8 @@ def mock_os_path():
 
 def test_load_config_success(mock_open_yaml, mock_yaml_safe_load, mock_os_path):
     result = load_config("dev", "qa")
-    assert result == {"env_config": yaml.safe_load(sample_yaml_content)["dev"]}
+    expected_config = yaml.safe_load(sample_yaml_content)["dev"]
+    assert result == {"env_config": expected_config}
 
 def test_load_config_file_not_found(mock_os_path):
     with patch("builtins.open", side_effect=FileNotFoundError):
@@ -50,12 +52,16 @@ def test_load_config_yaml_error(mock_open_yaml, mock_os_path):
         result = load_config("dev", "qa")
         assert result is None
 
-def test_load_config_key_error(mock_open_yaml, mock_yaml_safe_load, mock_os_path):
-    with patch("yaml.safe_load", return_value={}):
+def test_load_config_key_error(mock_open_yaml, mock_os_path):
+    incomplete_yaml_content = """
+    dev:
+      VAULT_ROLE: dummy_vault_role
+    """
+    with patch("builtins.open", mock_open(read_data=incomplete_yaml_content)):
         result = load_config("dev", "qa")
         assert result is None
 
-def test_load_config_generic_exception(mock_open_yaml, mock_yaml_safe_load, mock_os_path):
+def test_load_config_generic_exception(mock_open_yaml, mock_os_path):
     with patch("yaml.safe_load", side_effect=Exception):
         result = load_config("dev", "qa")
         assert result is None
