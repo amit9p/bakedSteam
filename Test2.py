@@ -1,4 +1,5 @@
 
+
 import pytest
 from unittest.mock import patch, MagicMock
 from credentials_utils import get_cli_creds
@@ -20,11 +21,6 @@ def mock_load_config():
         yield mock
 
 @pytest.fixture
-def mock_iam_client():
-    with patch('credentials_utils.IamClient') as mock:
-        yield mock
-
-@pytest.fixture
 def mock_logging():
     with patch('credentials_utils.logging') as mock:
         yield mock
@@ -40,20 +36,19 @@ def test_get_cli_creds_qa(mock_load_config, mock_logging):
     assert creds['client_id'] == 'CLIENTID'
     assert creds['client_secret'] == 'CLIENTSECRET'
 
-def test_get_cli_creds_prod(mock_load_config, mock_iam_client, mock_logging):
+def test_get_cli_creds_prod(mock_load_config, mock_logging):
     # Mock the load_config to return sample_chamber_config
     mock_load_config.return_value = sample_chamber_config
     
     # Mock IamClient methods
     mock_iam_instance = MagicMock()
     mock_iam_instance.get_secret_from_path.side_effect = lambda path, secret_key: "mock_secret" if "client_id" in path else "mock_secret2"
-    mock_iam_client.return_value = mock_iam_instance
-    
-    # Test for 'prod' environment
-    env = 'prod'
+
+    # Use the correct import path to patch IamClient
     with patch('credentials_utils.IamClient', return_value=mock_iam_instance):
+        env = 'prod'
         creds = get_cli_creds("test_chamber", env)
-    
+
     assert creds['client_id'] == 'mock_secret'
     assert creds['client_secret'] == 'mock_secret2'
 
