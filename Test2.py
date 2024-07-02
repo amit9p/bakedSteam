@@ -51,7 +51,8 @@ def test_get_cli_creds_prod(mock_load_config, mock_iam_client, mock_logging):
     
     # Test for 'prod' environment
     env = 'prod'
-    creds = get_cli_creds("test_chamber", env)
+    with patch('credentials_utils.IamClient', return_value=mock_iam_instance):
+        creds = get_cli_creds("test_chamber", env)
     
     assert creds['client_id'] == 'mock_secret'
     assert creds['client_secret'] == 'mock_secret2'
