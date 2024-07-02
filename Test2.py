@@ -60,3 +60,6 @@ def test_get_cli_creds_config_not_found(mock_load_config, mock_logging):
     env = 'qa'
     with pytest.raises(ValueError, match=f"Configuration could not be loaded for environment: {env}"):
         get_cli_creds("test_chamber", env)
+
+if __name__ == "__main__":
+    pytest.main()
