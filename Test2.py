@@ -1,38 +1,66 @@
 
-
 import pytest
-from unittest.mock import patch, Mock
-from ecbr_assembler.credentials_utils import get_cli_creds
+from unittest.mock import patch, MagicMock
+from credentials_utils import get_cli_creds
 
-@patch('utils.config_reader.load_config')
-@patch('secret_sauce.IamClient')
-@patch('ecbr_assembler.credentials_utils.logger')  # Patch the logger used in credentials_utils
-def test_get_cli_creds_exception(mock_logger, mock_iam_client_class, mock_load_config):
-    # Mock the necessary objects and their methods
-    mock_chamber_config = {
-        "env_config": {
-            "CHAMBER_URL": "https://example.com",
-            "VAULT_ROLE": "vault_role",
-            "LOCKBOX_ID": "lockbox_id",
-            "CLIENT_ID_PATH": "client_id_path",
-            "CLIENT_SECRET_PATH": "client_secret_path"
-        }
+# Sample chamber config and env config for testing
+sample_chamber_config = {
+    "env_config": {
+        "CHAMBER_URL": "test_url",
+        "VAULT_ROLE": "test_role",
+        "LOCKBOX_ID": "test_lockbox_id",
+        "CLIENT_ID_PATH": "test_client_id_path",
+        "CLIENT_SECRET_PATH": "test_client_secret_path"
     }
-    
-    mock_load_config.return_value = mock_chamber_config
-    mock_iam_client_class.side_effect = ValueError("test exception")
-    
-    # Create a mock logger
-    mock_logger_instance = Mock()
-    mock_logger.return_value = mock_logger_instance
-    
-    env = "prod"
-    
-    with pytest.raises(ValueError):
-        get_cli_creds(chamber_config=mock_chamber_config, env=env)
-    
-    # Ensure the error was logged
-    mock_logger_instance.error.assert_called_once_with("test exception")
+}
 
-if __name__ == "__main__":
-    pytest.main()
+@pytest.fixture
+def mock_load_config():
+    with patch('credentials_utils.load_config') as mock:
+        yield mock
+
+@pytest.fixture
+def mock_iam_client():
+    with patch('credentials_utils.IamClient') as mock:
+        yield mock
+
+@pytest.fixture
+def mock_logging():
+    with patch('credentials_utils.logging') as mock:
+        yield mock
+
+def test_get_cli_creds_qa(mock_load_config, mock_logging):
+    # Mock the load_config to return sample_chamber_config
+    mock_load_config.return_value = sample_chamber_config
+    
+    # Test for 'qa' environment
+    env = 'qa'
+    creds = get_cli_creds("test_chamber", env)
+    
+    assert creds['client_id'] == 'CLIENTID'
+    assert creds['client_secret'] == 'CLIENTSECRET'
+
+def test_get_cli_creds_prod(mock_load_config, mock_iam_client, mock_logging):
+    # Mock the load_config to return sample_chamber_config
+    mock_load_config.return_value = sample_chamber_config
+    
+    # Mock IamClient methods
+    mock_iam_instance = MagicMock()
+    mock_iam_instance.get_secret_from_path.side_effect = lambda path, secret_key: "mock_secret" if "client_id" in path else "mock_secret2"
+    mock_iam_client.return_value = mock_iam_instance
+    
+    # Test for 'prod' environment
+    env = 'prod'
+    creds = get_cli_creds("test_chamber", env)
+    
+    assert creds['client_id'] == 'mock_secret'
+    assert creds['client_secret'] == 'mock_secret2'
+
+def test_get_cli_creds_config_not_found(mock_load_config, mock_logging):
+    # Mock the load_config to return None
+    mock_load_config.return_value = None
+    
+    # Test for ValueError
+    env = 'qa'
+    with pytest.raises(ValueError, match=f"Configuration could not be loaded for environment: {env}"):
+        get_cli_creds("test_chamber", env)
