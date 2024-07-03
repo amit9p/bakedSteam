@@ -1,21 +1,17 @@
 
 import pytest
-from unittest.mock import patch
-from your_module import get_trade_lines
+from unittest.mock import patch, MagicMock
+from assembler import get_trade_lines  # Adjust this import according to your actual module structure
 
-@patch('your_module.read_parquet_based_on_date_and_runid')
-def test_get_trade_lines(mock_read_parquet):
-    # Setup your arguments
+@pytest.mark.parametrize("file_type", ["ALL"])  # Add other file types as needed
+def test_get_trade_lines(file_type):
     kwargs = {
         'env': 'test_env',
         'business_dt': '2022-01-01',
         'run_id': '123',
         'input_df': MagicMock(),
-        'file_type': 'ALL'
+        'file_type': file_type
     }
-
-    # Call the function
-    get_trade_lines(**kwargs)
-
-    # Check if the mock was called
-    mock_read_parquet.assert_called_once()
+    with patch('assembler.ecbr_assembler.reader.read_parquet_based_on_date_and_runid') as mock_read_parquet:
+        get_trade_lines(**kwargs)
+        mock_read_parquet.assert_called_once()
