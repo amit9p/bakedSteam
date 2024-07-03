@@ -17,28 +17,30 @@ def test_get_token_cache(capfd):
     assert "Token cache invoked1" in out
     assert "Error occurred:" not in out
 
+######
+
+import pytest
+from token_util import get_token_cache
+
 def test_get_token_cache_exception(capfd):
     # Arrange
     df = None  # Replace with actual DataFrame if needed
     env = 'test_env'
-    
-    # Define a function that will raise an exception when called
+
+    # Temporarily modify the function to raise an exception
     def raise_exception(*args, **kwargs):
         raise Exception("Test Exception")
-    
-    # Replace the original function with the one that raises an exception
-    original_function = get_token_cache
-    get_token_cache = raise_exception
-    
+
     # Act
+    original_function = get_token_cache
     try:
+        get_token_cache = raise_exception
         result = get_token_cache(df, env)
-    except Exception as e:
-        pass
-    
-    # Restore the original function
-    get_token_cache = original_function
-    
+    except Exception:
+        result = None
+    finally:
+        get_token_cache = original_function
+
     # Assert
     out, err = capfd.readouterr()
     assert result is None
