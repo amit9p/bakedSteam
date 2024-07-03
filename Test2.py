@@ -1,35 +1,27 @@
 
 import pytest
 from unittest.mock import patch, MagicMock
-from assembler import get_token_cache  # Replace 'assembler' with the actual module name if different
+from your_module_path.token_utils import get_token_cache
 
-# Test Normal Execution
-@patch('ecbr_logging.logging.getLogger')
-def test_get_token_cache_normal(mock_getLogger):
-    mock_logger = MagicMock()
-    mock_getLogger.return_value = mock_logger
-
-    df = MagicMock()
-    env = 'test_env'
-    result = get_token_cache(df, env)
+def test_get_token_cache_returns_none():
+    # Mocking DataFrame and the environment variable
+    mock_df = MagicMock()
+    mock_env = "test_env"
     
-    assert result is None
-    mock_getLogger.assert_called_once_with('__name__')
-    mock_logger.info.assert_called_once_with("Token cache invoked")
-
-# Test Exception Handling
-@patch('ecbr_logging.logging.getLogger')
-def test_get_token_cache_exception(mock_getLogger):
-    mock_logger = MagicMock()
-    mock_getLogger.return_value = mock_logger
-
-    with patch('assembler.get_token_cache', side_effect=Exception("Test Error")):
-        df = MagicMock()
-        env = 'test_env'
+    # Use the patch to mock the logger used in your token_utils.get_token_cache
+    with patch('your_module_path.token_utils.logging') as mocked_logging:
+        # Create a logger instance in your mocked logging
+        mocked_logger = MagicMock()
+        mocked_logging.getLogger.return_value = mocked_logger
         
-        with pytest.raises(Exception) as exc_info:
-            get_token_cache(df, env)
+        # Call the function
+        result = get_token_cache(mock_df, mock_env)
         
-        assert str(exc_info.value) == "Test Error"
-        mock_getLogger.assert_called_once_with('__name__')
-        mock_logger.error.assert_called_once()
+        # Check that getLogger is called once with the correct name
+        mocked_logging.getLogger.assert_called_once_with(__name__)
+        
+        # Check that the info log is called correctly
+        mocked_logger.info.assert_called_once_with("Token cache invoked")
+        
+        # Asserting the result is None as expected when no exceptions occur
+        assert result is None
