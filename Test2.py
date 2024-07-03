@@ -48,3 +48,16 @@ def test_get_trade_lines_value_error(mock_dependencies):
         get_trade_lines(**kwargs)
 
 # Additional tests can be created for each type of file_type and other exceptions
+
+
+#########
+from unittest.mock import patch
+import pytest
+
+# Mock your custom logger if it's used in the function
+@patch('your_module.logger')  # Adjust the path to where the logger is used
+def test_your_function(mock_logger):
+    # Set up your test, trigger the function that logs the error
+    # Verify it called the logger correctly
+    assert mock_logger.error.called
+
