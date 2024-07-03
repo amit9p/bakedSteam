@@ -1,13 +1,9 @@
 
 import pytest
-from unittest import mock
 from token_util import get_token_cache
 
-# Correct the patch path to match the import in token_util.py
-@mock.patch('token_util.logging.getLogger')
-def test_get_token_cache(mock_get_logger):
+def test_get_token_cache(capfd):
     # Arrange
-    mock_logger = mock_get_logger.return_value
     df = None  # Replace with actual DataFrame if needed
     env = 'test_env'
     
@@ -15,27 +11,41 @@ def test_get_token_cache(mock_get_logger):
     result = get_token_cache(df, env)
     
     # Assert
+    out, err = capfd.readouterr()
     assert result is None
-    mock_logger.info.assert_called_once_with('Token cache invoked')
-    mock_logger.error.assert_not_called()
+    assert "Inside get_token_cache function" in out
+    assert "Token cache invoked1" in out
+    assert "Error occurred:" not in out
 
-# Test case for exception handling
-@mock.patch('token_util.logging.getLogger')
-def test_get_token_cache_exception(mock_get_logger):
+def test_get_token_cache_exception(capfd):
     # Arrange
-    mock_logger = mock_get_logger.return_value
     df = None  # Replace with actual DataFrame if needed
     env = 'test_env'
     
-    # Simulate an exception
-    with mock.patch('token_util.get_token_cache', side_effect=Exception('Test Exception')):
-        # Act
-        result = get_token_cache(df, env)
+    # Define a function that will raise an exception when called
+    def raise_exception(*args, **kwargs):
+        raise Exception("Test Exception")
     
-        # Assert
-        assert result is None
-        mock_logger.info.assert_called_once_with('Token cache invoked')
-        mock_logger.error.assert_called_once()
+    # Replace the original function with the one that raises an exception
+    original_function = get_token_cache
+    get_token_cache = raise_exception
+    
+    # Act
+    try:
+        result = get_token_cache(df, env)
+    except Exception as e:
+        pass
+    
+    # Restore the original function
+    get_token_cache = original_function
+    
+    # Assert
+    out, err = capfd.readouterr()
+    assert result is None
+    assert "Inside get_token_cache function" in out
+    assert "Token cache invoked1" not in out
+    assert "Error occurred:" in out
+    assert "Test Exception" in out
 
 if __name__ == "__main__":
     pytest.main()
