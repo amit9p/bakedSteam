@@ -1,5 +1,4 @@
 
-
 import pytest
 from unittest.mock import patch, MagicMock
 from utils.token_util import get_token_cache
@@ -19,7 +18,7 @@ def test_get_token_cache_returns_none():
         result = get_token_cache(mock_df, mock_env)
 
         # Check that getLogger is called once with the correct name
-        mock_getLogger.assert_called_once_with(__name__)
+        mock_getLogger.assert_called_once_with('utils.token_util')
 
         # Check that the info log is called correctly
         mocked_logger.info.assert_called_once_with("Token cache invoked")
