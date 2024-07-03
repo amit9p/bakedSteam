@@ -1,36 +1,19 @@
 
 import pytest
-from token_util import get_token_cache
+from token_util import read_parquet_based_on_date_and_runid
 
-def test_get_token_cache_exception(capfd, caplog):
+def test_read_parquet_based_on_date_and_runid(caplog):
     # Arrange
-    df = None  # Replace with actual DataFrame if needed
-    env = 'test_env'
-
-    # Temporarily modify the function to raise an exception
-    def raise_exception(*args, **kwargs):
-        print("Inside get_token_cache function")
-        raise Exception("Test Exception")
-
+    input_df = None  # Replace with actual DataFrame if needed
+    business_date = '2024-07-03'
+    run_id = 'test_run_id'
+    file_type = 'parquet'
+    
     # Act
-    original_function = get_token_cache
-    try:
-        get_token_cache = raise_exception
-        with caplog.at_level("DEBUG"):
-            result = get_token_cache(df, env)
-    except Exception as e:
-        result = None
-        print("Error occurred:", e)
-    finally:
-        get_token_cache = original_function
-
+    with caplog.at_level("INFO"):
+        result = read_parquet_based_on_date_and_runid(input_df, business_date, run_id, file_type)
+    
     # Assert
-    out, err = capfd.readouterr()
-    assert result is None
-    assert "Inside get_token_cache function" in out
-    assert "Token cache invoked1" not in caplog.text
-    assert "Error occurred:" in out
-    assert "Test Exception" in out
-
-if __name__ == "__main__":
-    pytest.main()
+    assert result == {}
+    assert "read based on business date and run id" in caplog.text
+    assert "Error occurred:" not in caplog.text
