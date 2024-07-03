@@ -10,16 +10,16 @@ def test_get_token_cache_returns_none():
     mock_env = "test_env"
 
     # Use the patch to mock the logger used in your token_util.get_token_cache
-    with patch('utils.token_util.logging') as mocked_logging:
-        # Create a logger instance in your mocked logging
+    with patch('utils.token_util.logging.getLogger') as mock_getLogger:
+        # Create a logger instance in your mocked getLogger
         mocked_logger = MagicMock()
-        mocked_logging.getLogger.return_value = mocked_logger
+        mock_getLogger.return_value = mocked_logger
 
         # Call the function
         result = get_token_cache(mock_df, mock_env)
 
         # Check that getLogger is called once with the correct name
-        mocked_logging.getLogger.assert_called_once_with('utils.token_util')
+        mock_getLogger.assert_called_once_with(__name__)
 
         # Check that the info log is called correctly
         mocked_logger.info.assert_called_once_with("Token cache invoked")
