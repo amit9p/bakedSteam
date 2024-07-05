@@ -1,35 +1,46 @@
 
-import pytest
-from token_util import replace_tokenized_values
+import requests
 
-def test_replace_tokenized_values_exception(capfd, caplog):
-    # Arrange
-    df_input = None  # Replace with actual DataFrame if needed
-    token_cache_df = None  # Replace with actual DataFrame if needed
+# Step 1: Fetch the bearer token
+token_url = 'https://api-precede.cloud.capitalone.com/oauth2/token'
+token_data = {
+    'client_id': 'some value',
+    'client_secret': 'some value',
+    'grant_type': 'client_credentials',
+    'scope': 'tokenize:ustaxid detokenize:ustaxid'
+}
+token_headers = {
+    'Content-Type': 'application/x-www-form-urlencoded'
+}
 
-    # Temporarily modify the function to raise an exception
-    def raise_exception(*args, **kwargs):
-        logger.info("replacing tokenized values")
-        raise Exception("Test Exception")
+response = requests.post(token_url, data=token_data, headers=token_headers)
 
-    # Act
-    original_function = replace_tokenized_values
-    try:
-        replace_tokenized_values = raise_exception
-        with caplog.at_level("INFO"):
-            result = replace_tokenized_values(df_input, token_cache_df)
-    except Exception as e:
-        result = None
-        print("Error occurred:", e)
-    finally:
-        replace_tokenized_values = original_function
+if response.status_code == 200:
+    token = response.json().get('access_token')
+    print(f"Token: {token}")
+else:
+    print(f"Failed to fetch token: {response.status_code}, {response.text}")
+    exit()
 
-    # Assert
-    out, err = capfd.readouterr()
-    assert result is None
-    assert "replacing tokenized values" in caplog.text
-    assert "Error occurred:" in out
-    assert "Test Exception" in out
+# Step 2: Use the bearer token to call the second API
+api_url = 'https://api-turing-precede.cloud.capitalone.com/enterprise/detokenize?type=USTAXID'
+api_headers = {
+    'Accept': 'application/json;v=3',
+    'Authorization': f'Bearer {token}',
+    'Content-Type': 'application/json'
+}
+api_data = {
+    "values": [
+        {
+            "id": "Request 1",
+            "value": "3EmFHFJgY"
+        }
+    ]
+}
 
-if __name__ == "__main__":
-    pytest.main()
+response = requests.post(api_url, json=api_data, headers=api_headers)
+
+if response.status_code == 200:
+    print("API Response:", response.json())
+else:
+    print(f"Failed to call API: {response.status_code}, {response.text}")
