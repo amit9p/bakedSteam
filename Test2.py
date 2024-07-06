@@ -35,6 +35,9 @@ num_accounts = 1_000_000
 # Batch size to process data in chunks
 batch_size = 10_000
 
+# Number of partitions desired
+num_partitions = 1000
+
 # Function to generate records for a batch of account IDs
 def generate_batch(batch_size):
     batch_data = []
@@ -72,6 +75,9 @@ df = spark.createDataFrame(all_data)
 # Reorder the columns to ensure account_id, run_id, and segment are first
 columns = ["account_id", "run_id", "segment"] + [col for col in df.columns if col not in ["account_id", "run_id", "segment"]]
 df = df.select(columns)
+
+# Repartition the DataFrame to the desired number of partitions
+df = df.repartition(num_partitions)
 
 # Write the DataFrame to Parquet format with partitions
 output_path = "output/account_data"
