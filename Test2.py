@@ -6,7 +6,11 @@ import random
 import string
 
 # Initialize Spark session
-spark = SparkSession.builder.appName("GenerateMultipleAccountRecords").getOrCreate()
+spark = SparkSession.builder \
+    .appName("GenerateMultipleAccountRecords") \
+    .config("spark.executor.memory", "4g") \
+    .config("spark.driver.memory", "4g") \
+    .getOrCreate()
 
 # Define the function to generate a 17-digit random number
 def generate_17_digit_number():
@@ -26,34 +30,48 @@ template_data = [
 ]
 
 # Number of account IDs to generate
-num_accounts = 10
+num_accounts = 1_000_000
 
-# Initialize a list to hold all records
+# Batch size to process data in chunks
+batch_size = 10_000
+
+# Function to generate records for a batch of account IDs
+def generate_batch(batch_size):
+    batch_data = []
+    for _ in range(batch_size):
+        account_id = generate_17_digit_number()
+        run_id = "dfd8c4e9-4db7-4b12-8e3e-d5dc4dbf8c22"  # Keeping run_id same for simplicity
+        segment = "BASE"
+
+        for record in template_data:
+            # Copy the template record and update the account_id and value if needed
+            new_record = record.copy()
+            new_record["account_id"] = account_id
+            new_record["run_id"] = run_id
+            if new_record["attribute"] == "Telephone Number":
+                new_record["segment"] = "J2"
+            else:
+                new_record["segment"] = segment
+            if new_record["attribute"] == "Consumer Account Number":
+                new_record["value"] = account_id + " " * 13
+            elif new_record["attribute"] == "Social Security Number":
+                new_record["value"] = generate_9_character_string()
+
+            batch_data.append(Row(**new_record))
+    
+    return batch_data
+
+# Generate data in batches and combine into a single DataFrame
 all_data = []
-
-for _ in range(num_accounts):
-    account_id = generate_17_digit_number()
-    run_id = "dfd8c4e9-4db7-4b12-8e3e-d5dc4dbf8c22"  # Keeping run_id same for simplicity
-    segment = "BASE"
-
-    for record in template_data:
-        # Copy the template record and update the account_id and value if needed
-        new_record = record.copy()
-        new_record["account_id"] = account_id
-        new_record["run_id"] = run_id
-        if new_record["attribute"] == "Telephone Number":
-            new_record["segment"] = "J2"
-        else:
-            new_record["segment"] = segment
-        if new_record["attribute"] == "Consumer Account Number":
-            new_record["value"] = account_id + " " * 13
-        elif new_record["attribute"] == "Social Security Number":
-            new_record["value"] = generate_9_character_string()
-        
-        all_data.append(Row(**new_record))
+for _ in range(num_accounts // batch_size):
+    all_data.extend(generate_batch(batch_size))
 
 # Convert the list of dictionaries to a PySpark DataFrame
 df = spark.createDataFrame(all_data)
+
+# Write the DataFrame to Parquet format with partitions
+output_path = "output/account_data"
+df.write.partitionBy("account_id").parquet(output_path)
 
 # Show the DataFrame
 df.show(truncate=False)
