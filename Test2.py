@@ -69,6 +69,10 @@ for _ in range(num_accounts // batch_size):
 # Convert the list of dictionaries to a PySpark DataFrame
 df = spark.createDataFrame(all_data)
 
+# Reorder the columns to ensure account_id, run_id, and segment are first
+columns = ["account_id", "run_id", "segment"] + [col for col in df.columns if col not in ["account_id", "run_id", "segment"]]
+df = df.select(columns)
+
 # Write the DataFrame to Parquet format with partitions
 output_path = "output/account_data"
 df.write.partitionBy("account_id").parquet(output_path)
