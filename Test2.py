@@ -1,17 +1,16 @@
 
-from pyspark.sql.functions import udf
-from pyspark.sql.types import StringType
+import random
 
-# Define a UDF to convert the string to its Unicode code points
-def to_unicode_repr(value):
-    if value is None:
-        return None
-    return ''.join([f'\\u{ord(char):04x}' for char in value])
+def generate_17_digit_number():
+    # Generate a random 17-digit number
+    number = random.randint(10**16, 10**17 - 1)
+    return number
 
-unicode_repr_udf = udf(to_unicode_repr, StringType())
+def generate_9_digit_number():
+    # Generate a random 9-digit number
+    number = random.randint(10**8, 10**9 - 1)
+    return number
 
-# Add a new column with the Unicode representation of the value
-df = df.withColumn('value_unicode', unicode_repr_udf(df['value']))
-
-# Show the DataFrame with the new column to inspect hidden characters
-df.select('value', 'value_unicode', 'value_length').show(truncate=False)
+# Test the methods
+print("17-digit number:", generate_17_digit_number())
+print("9-digit number:", generate_9_digit_number())
