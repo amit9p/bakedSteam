@@ -1,5 +1,4 @@
 
-
 from pyspark.sql import SparkSession
 from pyspark.sql import Row
 from pyspark.sql.functions import when, lit, concat
@@ -37,7 +36,10 @@ for _ in range(num_accounts):
         new_record = record.copy()
         new_record["account_id"] = account_id
         new_record["run_id"] = run_id
-        new_record["segment"] = segment
+        if new_record["attribute"] == "Telephone Number":
+            new_record["segment"] = "J2"
+        else:
+            new_record["segment"] = segment
         if new_record["attribute"] == "Consumer Account Number":
             new_record["value"] = account_id + " " * 13
         
