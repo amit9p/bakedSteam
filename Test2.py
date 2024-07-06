@@ -1,4 +1,9 @@
 
+
+df.write.mode("overwrite").partitionBy("account_id").parquet("output/account_data")
+
+
+
 from pyspark.sql import SparkSession
 from pyspark.sql import Row
 from pyspark.sql.functions import when, lit, concat
