@@ -3,6 +3,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql import Row
 from pyspark.sql.functions import when, lit, concat
 import random
+import string
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("GenerateMultipleAccountRecords").getOrCreate()
@@ -10,6 +11,10 @@ spark = SparkSession.builder.appName("GenerateMultipleAccountRecords").getOrCrea
 # Define the function to generate a 17-digit random number
 def generate_17_digit_number():
     return str(random.randint(10**16, 10**17 - 1))
+
+# Define the function to generate a 9-character random string
+def generate_9_character_string():
+    return ''.join(random.choices(string.ascii_uppercase + string.digits, k=9))
 
 # Define the template data
 template_data = [
@@ -42,6 +47,8 @@ for _ in range(num_accounts):
             new_record["segment"] = segment
         if new_record["attribute"] == "Consumer Account Number":
             new_record["value"] = account_id + " " * 13
+        elif new_record["attribute"] == "Social Security Number":
+            new_record["value"] = generate_9_character_string()
         
         all_data.append(Row(**new_record))
 
