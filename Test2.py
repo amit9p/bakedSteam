@@ -1,54 +1,4 @@
 
-
-import logging
-
-def get_trade_lines(business_dt, run_id, input_df, env, file_type="ALL"):
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)
-
-    try:
-        record_separator = ""
-        trade_lines_dict = {}
-
-        # get token cache df
-        token_cache_df = get_token_cache(input_df, env)
-
-        # get detokenized df for metro2 file creation
-        detokenized_df = replace_tokenized_values(input_df, token_cache_df)
-
-        # get dict of dataframes based on fileTypes
-        dataframes_dict = read_parquet_based_on_date_and_runid(detokenized_df, business_dt, run_id, file_type)
-
-        for key, df in dataframes_dict.items():
-            if "+" in key:
-                file_type_extract = key.split("+")[1]
-            else:
-                file_type_extract = key
-
-            match file_type_extract:
-                case "TU":
-                    record_separator = TU_REC_SEP
-                case "EQ":
-                    record_separator = EQ_REC_SEP
-                case "EX":
-                    record_separator = EX_REC_SEP
-                case _:
-                    record_separator = ""
-
-            logger.debug(f"Key: {key}, File Type: {file_type_extract}, Record Separator: {record_separator}")
-            
-            trade_lines = format(df, record_separator)
-            trade_lines_dict[file_type_extract] = trade_lines
-
-        return trade_lines_dict
-
-    except ValueError as e:
-        logger.error(f"ValueError: {e}")
-        raise
-
-
-
-#####
 import pytest
 from unittest.mock import patch, MagicMock
 from ecb_assembler.assemble import get_trade_lines
@@ -88,8 +38,14 @@ def test_get_trade_lines_success(mock_dependencies):
     )
     
     assert result is not None
-    assert "test" in result  # Check if the result contains an entry for each file type
-    assert result["test"] == "formatted_data"
+    assert "TU" in result
+    assert "EQ" in result
+    assert "EX" in result
+    assert "OTHER" in result
+    assert result["TU"] == "formatted_data"
+    assert result["EQ"] == "formatted_data"
+    assert result["EX"] == "formatted_data"
+    assert result["OTHER"] == "formatted_data"
     mock_dependencies["read_parquet"].assert_called_once()
 
 # Test the file type extraction and record_separator logic
@@ -136,4 +92,3 @@ def test_all_keys_processed(mock_dependencies):
     for key in mock_dependencies["read_parquet"].return_value.keys():
         file_type_extract = key.split("+")[1] if "+" in key else key
         assert file_type_extract in result
-
