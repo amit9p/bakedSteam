@@ -12,7 +12,12 @@ def mock_dependencies():
          patch("ecb_assembler.assemble.replace_tokenized_values") as mock_replace_values, \
          patch("ecb_assembler.assemble.format") as mock_format:
         mock_get_token_cache.return_value = MagicMock(name="DataFrame")
-        mock_read_parquet.return_value = {"TU+test": MagicMock(name="DataFrame"), "EQ+test": MagicMock(name="DataFrame"), "EX+test": MagicMock(name="DataFrame")}
+        mock_read_parquet.return_value = {
+            "TU+test": MagicMock(name="DataFrame"),
+            "EQ+test": MagicMock(name="DataFrame"),
+            "EX+test": MagicMock(name="DataFrame"),
+            "OTHER": MagicMock(name="DataFrame")
+        }
         mock_replace_values.return_value = MagicMock(name="DataFrame")
         mock_format.return_value = "formatted_data"
         yield {
@@ -48,10 +53,11 @@ def test_file_type_and_separator_logic(mock_dependencies):
     )
     
     # Verify the logic for record_separator based on file type
-    assert mock_dependencies["format"].call_count == 3
+    assert mock_dependencies["format"].call_count == 4
     mock_dependencies["format"].assert_any_call(mock_dependencies["read_parquet"].return_value["TU+test"], TU_REC_SEP)
     mock_dependencies["format"].assert_any_call(mock_dependencies["read_parquet"].return_value["EQ+test"], EQ_REC_SEP)
     mock_dependencies["format"].assert_any_call(mock_dependencies["read_parquet"].return_value["EX+test"], EX_REC_SEP)
+    mock_dependencies["format"].assert_any_call(mock_dependencies["read_parquet"].return_value["OTHER"], "")
 
 # Test ValueError
 def test_get_trade_lines_value_error(mock_dependencies):
@@ -78,4 +84,5 @@ def test_all_keys_processed(mock_dependencies):
     
     # Ensure all keys from read_parquet_based_on_date_and_runid are processed
     for key in mock_dependencies["read_parquet"].return_value.keys():
-        assert key.split("+")[1] in result or key in result
+        file_type_extract = key.split("+")[1] if "+" in key else key
+        assert file_type_extract in result
