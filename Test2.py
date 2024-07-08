@@ -1,8 +1,8 @@
 
-
 import pytest
 from unittest.mock import patch, MagicMock
 from ecb_assembler.assemble import get_trade_lines
+from ecb_assembler.constants import TU_REC_SEP, EQ_REC_SEP, EX_REC_SEP
 
 # Mock dependencies
 @pytest.fixture
@@ -12,7 +12,7 @@ def mock_dependencies():
          patch("ecb_assembler.assemble.replace_tokenized_values") as mock_replace_values, \
          patch("ecb_assembler.assemble.format") as mock_format:
         mock_get_token_cache.return_value = MagicMock(name="DataFrame")
-        mock_read_parquet.return_value = MagicMock(name="DataFrame")
+        mock_read_parquet.return_value = {"TU+test": MagicMock(name="DataFrame"), "EQ+test": MagicMock(name="DataFrame"), "EX+test": MagicMock(name="DataFrame")}
         mock_replace_values.return_value = MagicMock(name="DataFrame")
         mock_format.return_value = "formatted_data"
         yield {
@@ -22,55 +22,60 @@ def mock_dependencies():
             "format": mock_format
         }
 
-# Test case for the logic in lines 37 to 54
-def test_get_trade_lines_file_type_logic(mock_dependencies):
-    kwargs = {
-        "env": "test_env",
-        "business_dt": "2022-01-01",
-        "run_id": "123",
-        "input_df": "test_df",
-        "file_type": "ALL"
-    }
+# Test successful case
+def test_get_trade_lines_success(mock_dependencies):
+    result = get_trade_lines(
+        business_dt="2022-01-01",
+        run_id="123",
+        input_df="test_df",
+        env="test_env",
+        file_type="ALL"
+    )
     
-    result = get_trade_lines(**kwargs)
-    
-    # Ensure the function processes the file_type logic correctly
     assert result is not None
-    assert "ALL" in result  # Check if the result contains an entry for file_type "ALL"
-    
-    # Validate that the read_parquet_based_on_date_and_runid was called once
+    assert "test" in result  # Check if the result contains an entry for each file type
+    assert result["test"] == "formatted_data"
     mock_dependencies["read_parquet"].assert_called_once()
+
+# Test the file type extraction and record_separator logic
+def test_file_type_and_separator_logic(mock_dependencies):
+    result = get_trade_lines(
+        business_dt="2022-01-01",
+        run_id="123",
+        input_df="test_df",
+        env="test_env",
+        file_type="ALL"
+    )
     
-    # Ensure the format function was called for each key in the dataframes_dict
-    for key in mock_dependencies["read_parquet"].return_value.keys():
-        mock_dependencies["format"].assert_any_call(mock_dependencies["read_parquet"].return_value[key], "")
+    # Verify the logic for record_separator based on file type
+    assert mock_dependencies["format"].call_count == 3
+    mock_dependencies["format"].assert_any_call(mock_dependencies["read_parquet"].return_value["TU+test"], TU_REC_SEP)
+    mock_dependencies["format"].assert_any_call(mock_dependencies["read_parquet"].return_value["EQ+test"], EQ_REC_SEP)
+    mock_dependencies["format"].assert_any_call(mock_dependencies["read_parquet"].return_value["EX+test"], EX_REC_SEP)
 
 # Test ValueError
 def test_get_trade_lines_value_error(mock_dependencies):
-    kwargs = {
-        "env": "test_env",
-        "business_dt": "2022-01-01",
-        "run_id": "123",
-        "input_df": "test_df",
-        "file_type": "ALL"
-    }
-    
     mock_dependencies["read_parquet"].side_effect = ValueError("Test Error")
     
     with pytest.raises(ValueError):
-        get_trade_lines(**kwargs)
+        get_trade_lines(
+            business_dt="2022-01-01",
+            run_id="123",
+            input_df="test_df",
+            env="test_env",
+            file_type="ALL"
+        )
 
-# Test successful case
-def test_get_trade_lines_success(mock_dependencies):
-    kwargs = {
-        "env": "test_env",
-        "business_dt": "2022-01-01",
-        "run_id": "123",
-        "input_df": "test_df",
-        "file_type": "ALL"
-    }
+# Additional test to ensure all keys in the dataframes_dict are processed
+def test_all_keys_processed(mock_dependencies):
+    result = get_trade_lines(
+        business_dt="2022-01-01",
+        run_id="123",
+        input_df="test_df",
+        env="test_env",
+        file_type="ALL"
+    )
     
-    result = get_trade_lines(**kwargs)
-    
-    assert result is not None
-    mock_dependencies["read_parquet"].assert_called_once()
+    # Ensure all keys from read_parquet_based_on_date_and_runid are processed
+    for key in mock_dependencies["read_parquet"].return_value.keys():
+        assert key.split("+")[1] in result or key in result
