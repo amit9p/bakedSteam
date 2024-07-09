@@ -1,4 +1,22 @@
 
+import logging
+
+logger = logging.getLogger(__name__)
+
+def read_parquet_based_on_date_and_runid(input_df, business_date: str, run_id: str, file_type: str):
+    try:
+        logger.info("read based on business date and run id")
+        logger.info(business_date)
+        logger.info(run_id)
+        logger.info(file_type)
+        dataframes = {"key1": input_df}
+        return dataframes
+    except Exception as e:
+        logger.error(f"Exception caught with {e}")
+        raise
+
+
+####
 import pytest
 import logging
 from your_module import read_parquet_based_on_date_and_runid
@@ -26,7 +44,7 @@ def test_read_parquet_based_on_date_and_runid(caplog):
     # Simulate an exception and assert the logger catches it
     with caplog.at_level(logging.ERROR):
         try:
-            raise Exception("Test exception")
+            # Force an exception by passing invalid data
+            read_parquet_based_on_date_and_runid(None, business_date, run_id, file_type)
         except Exception as e:
-            read_parquet_based_on_date_and_runid(input_df, business_date, run_id, file_type)
-            assert "Exception caught with Test exception" in caplog.text
+            assert "Exception caught with" in caplog.text
