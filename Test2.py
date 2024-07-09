@@ -26,8 +26,7 @@ def test_read_parquet_based_on_date_and_runid(caplog):
     # Simulate an exception and assert the logger catches it
     with caplog.at_level(logging.ERROR):
         try:
-            with pytest.raises(Exception, match="Test exception"):
-                raise Exception("Test exception")
+            raise Exception("Test exception")
         except Exception as e:
             read_parquet_based_on_date_and_runid(input_df, business_date, run_id, file_type)
             assert "Exception caught with Test exception" in caplog.text
