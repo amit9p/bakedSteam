@@ -1,5 +1,6 @@
 
 from pyspark.sql import SparkSession
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 from pyspark.sql.functions import col, when, lit
 
 # Initialize Spark session
@@ -16,7 +17,19 @@ data_combined = [
 ]
 
 # Define schema excluding value_length
-schema = ["account_id", "run_id", "segment", "attribute", "value", "row_position", "column_position", "file_type", "business_date", "index_level_0", "tokenization_type"]
+schema = StructType([
+    StructField("account_id", StringType(), True),
+    StructField("run_id", StringType(), True),
+    StructField("segment", StringType(), True),
+    StructField("attribute", StringType(), True),
+    StructField("value", StringType(), True),
+    StructField("row_position", IntegerType(), True),
+    StructField("column_position", IntegerType(), True),
+    StructField("file_type", StringType(), True),
+    StructField("business_date", StringType(), True),
+    StructField("index_level_0", IntegerType(), True),
+    StructField("tokenization_type", StringType(), True)
+])
 
 # Create DataFrame
 df = spark.createDataFrame(data_combined, schema)
