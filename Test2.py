@@ -1,50 +1,48 @@
 
+def get_config_value(config, key):
+    value = config.get(key)
+    if value is None:
+        raise ValueError(f"Configuration key '{key}' not found.")
+    return value
+
+
+
 import logging
 
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
-def read_parquet_based_on_date_and_runid(input_df, business_date: str, run_id: str, file_type: str):
+def get_cli_creds(credential_type, env):
     try:
-        logger.info("read based on business date and run id")
-        logger.info(business_date)
-        logger.info(run_id)
-        logger.info(file_type)
-        dataframes = {"key1": input_df}
-        return dataframes
-    except Exception as e:
-        logger.error(f"Exception caught with {e}")
+        chamber_config = load_config(credential_type, env)
+        if chamber_config is None:
+            raise ValueError(f"Configuration could not be loaded for environment: {env}")
+
+        chamber_env_config = get_config_value(chamber_config, "env_config")
+        logger.info(f"Loaded environment config for {env}: {chamber_env_config}")
+
+        domain = get_config_value(chamber_env_config, "CHAMBER_URL")
+        role = get_config_value(chamber_env_config, "VAULT_ROLE")
+        lockbox_id = get_config_value(chamber_env_config, "LOCKBOX_ID")
+        client_id_path = get_config_value(chamber_env_config, "CLIENT_ID_PATH")
+        client_secret_path = get_config_value(chamber_env_config, "CLIENT_SECRET_PATH")
+
+        env1 = "qa" if env in ["dev", "qa", "local"] else "prod"
+
+        if env1 == "qa":
+            dev_creds = {
+                "client_id": CLIENTID,
+                "client_secret": CLIENTSECRET
+            }
+        else:
+            iam_client = IamClient(domain=domain, role=role, lockbox_id=lockbox_id)
+            dev_creds = {
+                "client_id": iam_client.get_secret_from_path(path=client_id_path, secret_key="client_id"),
+                "client_secret": iam_client.get_secret_from_path(path=client_secret_path, secret_key="client_secret")
+            }
+
+        return dev_creds
+
+    except ValueError as e:
+        logger.error(f"ValueError: {e}")
         raise
-
-
-####
-import pytest
-import logging
-from your_module import read_parquet_based_on_date_and_runid
-
-def test_read_parquet_based_on_date_and_runid(caplog):
-    # Define test inputs
-    input_df = {"data": [1, 2, 3]}
-    business_date = "2024-07-09"
-    run_id = "12345"
-    file_type = "parquet"
-
-    # Run the function and capture logs
-    with caplog.at_level(logging.INFO):
-        result = read_parquet_based_on_date_and_runid(input_df, business_date, run_id, file_type)
-
-    # Check info logs
-    assert "read based on business date and run id" in caplog.text
-    assert business_date in caplog.text
-    assert run_id in caplog.text
-    assert file_type in caplog.text
-    
-    # Assert the result
-    assert result == {"key1": input_df}
-
-    # Simulate an exception and assert the logger catches it
-    with caplog.at_level(logging.ERROR):
-        try:
-            # Force an exception by passing invalid data
-            read_parquet_based_on_date_and_runid(None, business_date, run_id, file_type)
-        except Exception as e:
-            assert "Exception caught with" in caplog.text
