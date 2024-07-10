@@ -6,14 +6,23 @@ from pyspark.sql.functions import col, when, lit
 # Initialize Spark session
 spark = SparkSession.builder.appName("CombineDataExample").getOrCreate()
 
-# Sample data from both images (excluding value_length column)
+# Expanded sample data to include all 15 rows
 data_combined = [
     (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Record Descriptor Word (RDW)", "0426", 1, 1, "metro2-all", "2024-03-24", 0, None),
     (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "TransUnion Program Identifier", "COF09RECOV", 1, 1, "metro2-all", "2024-03-24", 1, None),
     (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Innovis Program Identifier", "COF09RECOC", 1, 1, "metro2-transunion", "2024-03-24", 2, None),
     (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Equifax Program Identifier", "COF09RECOB", 1, 1, "metro2-transunion", "2024-03-24", 3, None),
     (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Experian Program Identifier", "COF09RECOA", 1, 1, "metro2-transunion", "2024-03-24", 4, None),
-    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "TRAILER", "Record Descriptor Word (RDW)", "0426", 1, 1, "metro2-all", "2024-03-24", 5, None)
+    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "TransUnion Program Identifier", "COF09RECOV", 1, 1, "metro2-transunion", "2024-03-24", 5, None),
+    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Innovis Program Identifier", "COF09RECOC", 1, 1, "metro2-transunion", "2024-03-24", 6, None),
+    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Equifax Program Identifier", "COF09RECOB", 1, 1, "metro2-equifax", "2024-03-24", 7, None),
+    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Experian Program Identifier", "COF09RECOA", 1, 1, "metro2-equifax", "2024-03-24", 8, None),
+    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Innovis Program Identifier", "COF09RECOC", 1, 1, "metro2-equifax", "2024-03-24", 9, None),
+    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Equifax Program Identifier", "COF09RECOB", 1, 1, "metro2-equifax", "2024-03-24", 10, None),
+    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Experian Program Identifier", "COF09RECOA", 1, 1, "metro2-experian", "2024-03-24", 11, None),
+    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "TransUnion Program Identifier", "COF09RECOV", 1, 1, "metro2-experian", "2024-03-24", 12, None),
+    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "HEADER", "Equifax Program Identifier", "COF09RECOB", 1, 1, "metro2-experian", "2024-03-24", 13, None),
+    (None, "dfd8c4e9-4db7-4b1c-a72b-4aac035a5dae", "TRAILER", "Record Descriptor Word (RDW)", "0426", 1, 1, "metro2-all", "2024-03-24", 106813026, None)
 ]
 
 # Define schema excluding value_length
