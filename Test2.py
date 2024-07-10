@@ -1,10 +1,23 @@
 
+from pyspark.sql import SparkSession
 
-import random
+# Initialize SparkSession
+spark = SparkSession.builder \
+    .appName("Single Parquet File Example") \
+    .getOrCreate()
 
-def generate_9_digit_number():
-    return random.randint(100000000, 999999999)
+# Sample DataFrame
+data = [("James", "Smith", "USA", "CA"), 
+        ("Michael", "Rose", "USA", "NY"), 
+        ("Robert", "Williams", "USA", "CA"), 
+        ("Maria", "Jones", "USA", "FL")]
 
-# Example usage
-random_number = generate_9_digit_number()
-print("Generated 9-digit number:", random_number)
+columns = ["firstname", "lastname", "country", "state"]
+
+df = spark.createDataFrame(data, columns)
+
+# Write to a single Parquet file
+df.coalesce(1).write.mode('overwrite').parquet('/path/to/output/single_parquet_file')
+
+# Stop the SparkSession
+spark.stop()
