@@ -1,33 +1,32 @@
 
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import when, col
 
 # Create a Spark session
-spark = SparkSession.builder.appName("JoinDataFrames").getOrCreate()
+spark = SparkSession.builder.appName("AddColumnExample").getOrCreate()
 
-# Sample data for df1
-data1 = [
-    ("23545616256127562", "123-45-6789", "PAN12345A"),
-    ("23545616256127563", "987-65-4321", "PAN67890B"),
+# Sample DataFrame creation (replace this with loading your DataFrame)
+data = [
+    ("1", "23545616256127562", "segment1", "Social security number", "value1", 1, 1, "file_type1", "2023-07-10"),
+    ("2", "23545616256127563", "segment2", "Consumer Account Number", "value2", 2, 2, "file_type2", "2023-07-11"),
+    ("3", "23545616256127564", "segment3", "Other", "value3", 3, 3, "file_type3", "2023-07-12"),
     # Add more records as needed
 ]
 
-# Sample data for df2
-data2 = [
-    ("23545616256127562", "111-22-3333", "PAN99999Z"),
-    ("23545616256127563", "444-55-6666", "PAN88888Y"),
-    # Add more records as needed
-]
+schema = ["run_id", "account_id", "segment", "attribute", "value", "row_position", "column_position", "file_type", "business_date"]
 
-# Create DataFrames
-df1 = spark.createDataFrame(data1, ["account_id", "ssn", "pan"])
-df2 = spark.createDataFrame(data2, ["account_id", "ssn", "pan"])
+df = spark.createDataFrame(data, schema)
 
-# Perform the join on account_id
-result_df = df1.join(df2, on="account_id", how="inner") \
-               .select(df1.account_id, df1.ssn, df2.pan)
+# Adding tokenization_type column
+df = df.withColumn(
+    "tokenization_type",
+    when(col("attribute") == "Social security number", "USTAXID")
+    .when(col("attribute") == "Consumer Account Number", "PAN")
+    .otherwise(None)
+)
 
-# Show the result
-result_df.show()
+# Show the updated DataFrame
+df.show()
 
 # Stop the Spark session
 spark.stop()
