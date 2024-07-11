@@ -1,42 +1,33 @@
 
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType
-import random
 
 # Create a Spark session
-spark = SparkSession.builder.appName("UniqueDataFrame").getOrCreate()
+spark = SparkSession.builder.appName("JoinDataFrames").getOrCreate()
 
-# Define schema
-schema = StructType([
-    StructField("account_id", StringType(), True),
-    StructField("value", StringType(), True)
-])
+# Sample data for df1
+data1 = [
+    ("23545616256127562", "123-45-6789", "PAN12345A"),
+    ("23545616256127563", "987-65-4321", "PAN67890B"),
+    # Add more records as needed
+]
 
-# Function to generate unique account_id and value
-def generate_unique_data(num_records):
-    account_ids = set()
-    values = set()
-    data = []
+# Sample data for df2
+data2 = [
+    ("23545616256127562", "111-22-3333", "PAN99999Z"),
+    ("23545616256127563", "444-55-6666", "PAN88888Y"),
+    # Add more records as needed
+]
 
-    while len(account_ids) < num_records or len(values) < num_records:
-        account_id = str(random.randint(10**16, 10**17 - 1))
-        value = str(random.randint(10**8, 10**9 - 1))
+# Create DataFrames
+df1 = spark.createDataFrame(data1, ["account_id", "ssn", "pan"])
+df2 = spark.createDataFrame(data2, ["account_id", "ssn", "pan"])
 
-        if account_id not in account_ids and value not in values:
-            account_ids.add(account_id)
-            values.add(value)
-            data.append((account_id, value))
-    
-    return data
+# Perform the join on account_id
+result_df = df1.join(df2, on="account_id", how="inner") \
+               .select(df1.account_id, df1.ssn, df2.pan)
 
-# Generate 10 unique records
-data = generate_unique_data(10)
+# Show the result
+result_df.show()
 
-# Create DataFrame
-df = spark.createDataFrame(data, schema)
-
-# Show DataFrame
-df.show()
-
-# Stop Spark session
+# Stop the Spark session
 spark.stop()
