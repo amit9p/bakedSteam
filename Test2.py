@@ -1,20 +1,13 @@
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import length, col
+from pyspark.sql.functions import concat, lit
 
 # Initialize Spark session
-spark = SparkSession.builder.appName("GetValueLength").getOrCreate()
+spark = SparkSession.builder.appName("AddSpacesToPAN").getOrCreate()
 
-# Load the DataFrame from the Parquet file
-df1 = spark.read.parquet("/mnt/data/file-2341N8Q5Ck9XWceafQThIIBc")
+# Assuming result_df is already created from the previous code
+# Add 13 spaces to the end of each pan number
+result_df = result_df.withColumn("pan", concat(col("pan"), lit(" " * 13)))
 
-# Filter the DataFrame for the specified attributes
-df1_filtered = df1.filter(
-    (col("attribute") == "Social Security Number") | (col("attribute") == "Consumer Account Number")
-)
-
-# Add a length column to the filtered DataFrame
-df1_with_length = df1_filtered.withColumn("value_length", length(col("value")))
-
-# Show the filtered DataFrame with the value length
-df1_with_length.show()
+# Show the updated DataFrame
+result_df.show(1000, False)
