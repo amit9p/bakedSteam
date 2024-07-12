@@ -1,45 +1,47 @@
 
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+import random
 
-# Initialize Spark session
-spark = SparkSession.builder.appName("SplitDataFrame").getOrCreate()
+def generate_unique_data(num_records, num_ustaxid, num_pan):
+    account_ids = set()
+    values = set()
+    data = []
 
-# Load the data into a DataFrame
-file_path = "/path/to/your/file"
-df = spark.read.csv(file_path, header=True, inferSchema=True)
+    # Generate USTAXID records
+    while len([record for record in data if record[3] == 'USTAXID']) < num_ustaxid:
+        account_id = str(random.randint(10**16, 10**17 - 1))
+        attribute = "Social Security Number"
+        value = str(random.randint(10**8, 10**9 - 1))
+        tokenization_type = "USTAXID"
+        
+        if account_id not in account_ids and value not in values:
+            account_ids.add(account_id)
+            values.add(value)
+            data.append((account_id, attribute, value, tokenization_type))
+    
+    # Generate PAN records
+    while len([record for record in data if record[3] == 'PAN']) < num_pan:
+        account_id = str(random.randint(10**16, 10**17 - 1))
+        attribute = "Consumer Account Number"
+        value = account_id
+        tokenization_type = "PAN"
+        
+        if account_id not in account_ids and value not in values:
+            account_ids.add(account_id)
+            values.add(value)
+            data.append((account_id, attribute, value, tokenization_type))
+    
+    return data
 
-# Filter DataFrame for 'USTAXID'
-ustaxid_df = df.filter(col("tokenization_type") == "USTAXID")
+# Example usage
+num_ustaxid = 10
+num_pan = 10
+data = generate_unique_data(20, num_ustaxid, num_pan)
 
-# Filter DataFrame for 'PAN'
-pan_df = df.filter(col("tokenization_type") == "PAN")
+# Print the generated data to check
+for record in data:
+    print(record)
 
-# Show the resulting DataFrames
-ustaxid_df.show()
-pan_df.show()
-
-
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, concat, lit, when
-
-# Initialize Spark session
-spark = SparkSession.builder.appName("AddWhiteSpaces").getOrCreate()
-
-# Load the data into a DataFrame
-file_path = "/path/to/your/file"
-df = spark.read.csv(file_path, header=True, inferSchema=True)
-
-# Add 13 white spaces to the 'value' column where 'tokenization_type' is 'PAN'
-df = df.withColumn(
-    "value",
-    when(col("tokenization_type") == "PAN", concat(col("value"), lit(" " * 13)))
-    .otherwise(col("value"))
-)
-
-# Show the resulting DataFrame
+# Create DataFrame
+schema = ["account_id", "attribute", "value", "tokenization_type"]
+df = spark.createDataFrame(data, schema)
 df.show()
-
-# Save the result to a new CSV file if needed
-output_path = "/path/to/output/file"
-df.write.csv(output_path, header=True)
