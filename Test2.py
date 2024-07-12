@@ -1,25 +1,25 @@
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import concat, lit, col, when
+from pyspark.sql.functions import col, when
 
 # Initialize Spark session
-spark = SparkSession.builder.appName("AddSpacesToPAN").getOrCreate()
+spark = SparkSession.builder.appName("DataFrameMerge").getOrCreate()
 
-# Assuming result_df is already created from the previous code
-# Add 13 spaces to the end of each pan number
-result_df = result_df.withColumn("pan", concat(col("pan"), lit(" " * 13)))
+# Load the dataframes
+df1 = spark.read.option("header", "true").csv("/mnt/data/file-C616nK97kHWBl68CqpD9VFt4")
+df2 = spark.read.option("header", "true").csv("/mnt/data/file-n4ljITUBPe0nYbp1eF0NmRkG")
 
-# Add the tokenization_type field
-result_df = result_df.withColumn(
-    "tokenization_type",
-    when(col("pan").isNotNull(), lit("PAN"))
-    .when(col("ssn").isNotNull(), lit("USTAXID"))
-    .otherwise(lit(None))
+# Show the schemas for verification
+df1.printSchema()
+df2.printSchema()
+
+# Replace 'value' column in df1 with 'Social Security Number' and 'Consumer Account Number' from df2 based on 'tokenization_type'
+df1 = df1.withColumn(
+    "value",
+    when(col("tokenization_type") == "ustaxid", df2.select("Social Security Number").first()[0])
+    .when(col("tokenization_type") == "pan", df2.select("Consumer Account Number").first()[0])
+    .otherwise(col("value"))
 )
 
-# Show the updated DataFrame
-result_df.show(1000, False)
-
-# Save the updated DataFrame to Parquet
-output_path = "output/pan_ustax_id_1"
-result_df.coalesce(1).write.mode("overwrite").parquet(output_path)
+# Show the resulting dataframe
+df1.show()
