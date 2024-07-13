@@ -38,3 +38,25 @@ df2_final = df2_with_ssn.join(df1_pan,
 
 # Show the updated dataframe
 df2_final.show()
+
+
+#####
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+# Initialize Spark session
+spark = SparkSession.builder.appName("FilterDataFrame").getOrCreate()
+
+# Load the data into a DataFrame
+file_path = "/path/to/your/file"
+df = spark.read.csv(file_path, header=True, inferSchema=True)
+
+# Filter the DataFrame based on the specified conditions
+filtered_df = df.filter(
+    (col("attribute").isin("Social Security Number", "Consumer Account Number")) &
+    (col("tokenization_type").isin("USTAXID", "PAN"))
+).select("value")
+
+# Show the resulting DataFrame
+filtered_df.show()
+
