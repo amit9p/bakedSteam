@@ -39,12 +39,13 @@ df2_final = df2_with_ssn.alias("df2").join(df1_pan.alias("df1_pan"),
                                            (col("df2.tokenization_type") == col("df1_pan.tokenization_type")), 
                                            "left")
 
-# Update the value column
-df2_final = df2_final.withColumn("value", 
-                                 when((col("df2.attribute") == "Consumer Account Number") & 
-                                      (col("df2.tokenization_type") == "PAN"), 
-                                      col("df1_pan.pan_value")).otherwise(col("df2.value"))) \
-                     .drop("df1_pan.pan_value")
+# Explicitly select all columns from df2 and update the value column
+df2_final = df2_final.select(
+    [col("df2." + col_name) for col_name in df2.columns] + 
+    [when((col("df2.attribute") == "Consumer Account Number") & 
+          (col("df2.tokenization_type") == "PAN"), 
+          col("df1_pan.pan_value")).otherwise(col("df2.value")).alias("value")]
+)
 
 # Show the updated dataframe
 df2_final.show()
