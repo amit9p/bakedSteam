@@ -60,3 +60,22 @@ filtered_df = df.filter(
 # Show the resulting DataFrame
 filtered_df.show()
 
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+# Initialize Spark session
+spark = SparkSession.builder.appName("CountValues").getOrCreate()
+
+# Load the data into a DataFrame
+file_path = "/mnt/data/file-RDn3KLpkoCTF7ll3i7JEvPsV"
+df = spark.read.csv(file_path, header=True, inferSchema=True)
+
+# Filter the DataFrame based on the specified conditions and count the occurrences of 'value'
+count_df = df.filter(
+    col("attribute").isin("Social Security Number", "Consumer Account Number")
+).groupBy("attribute").count()
+
+# Show the resulting DataFrame
+count_df.show()
+
+
