@@ -1,4 +1,5 @@
 
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when
 
@@ -26,7 +27,7 @@ df2_with_ssn = df2_with_ssn.withColumn("value",
                                        when((col("df2.attribute") == "Social Security Number") & 
                                             (col("df2.tokenization_type") == "USTAXID"), 
                                             col("df1_ssn.ssn_value")).otherwise(col("df2.value"))) \
-                           .drop("df1_ssn.ssn_value")
+                           .drop("df1_ssn.attribute").drop("df1_ssn.tokenization_type").drop("df1_ssn.ssn_value")
 
 # Join the intermediate result with df1_pan for Consumer Account Number replacement
 df2_final = df2_with_ssn.alias("df2").join(df1_pan.alias("df1_pan"), 
@@ -39,7 +40,7 @@ df2_final = df2_final.withColumn("value",
                                  when((col("df2.attribute") == "Consumer Account Number") & 
                                       (col("df2.tokenization_type") == "PAN"), 
                                       col("df1_pan.pan_value")).otherwise(col("df2.value"))) \
-                     .drop("df1_pan.pan_value")
+                     .drop("df1_pan.attribute").drop("df1_pan.tokenization_type").drop("df1_pan.pan_value")
 
 # Show the updated dataframe
 df2_final.show()
