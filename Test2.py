@@ -32,6 +32,9 @@ df2_updated_ssn = spark.sql("""
     AND df2.tokenization_type = 'USTAXID'
 """)
 
+# Create a temporary view for df2_updated_ssn
+df2_updated_ssn.createOrReplaceTempView("df2_updated_ssn")
+
 # Update df2 with values from df1 where attribute is Consumer Account Number and tokenization_type is PAN
 df2_final = spark.sql("""
     SELECT 
