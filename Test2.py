@@ -13,23 +13,25 @@ schema_df2 = """run_id STRING, account_id STRING, segment STRING, attribute STRI
 df1 = spark.read.schema(schema_df1).csv("/mnt/data/file-Wnfpw5geRk26VAZpmLXxYmrI")
 df2 = spark.read.schema(schema_df2).csv("/mnt/data/file-L6fn1TawVLOfIn1XCg8HWB6f")
 
-# Join df1 with df2 on account_id, attribute, and tokenization_type
-joined_df = df1.alias("df1").join(df2.alias("df2"), 
-                                  (col("df1.account_id") == col("df2.account_id")) & 
-                                  (col("df1.attribute") == col("df2.attribute")) &
-                                  (col("df1.tokenization_type") == col("df2.tokenization_type")), 
-                                  how="left")
+# Filter df2 based on the required conditions
+df2_ssn = df2.filter((col("attribute") == "Social security number") & (col("tokenization_type") == "USTAXID"))
+df2_can = df2.filter((col("attribute") == "Consumer Account Number") & (col("tokenization_type") == "PAN"))
+
+# Join df1 with filtered df2 dataframes
+df1_updated = df1 \
+    .join(df2_ssn.select("value").withColumnRenamed("value", "ssn_value"), on=[df1.attribute == "Social security number", df1.tokenization_type == "USTAXID"], how="left") \
+    .join(df2_can.select("value").withColumnRenamed("value", "can_value"), on=[df1.attribute == "Consumer Account Number", df1.tokenization_type == "PAN"], how="left")
 
 # Update df1 value column based on the conditions
-updated_df1 = joined_df.withColumn(
+df1_updated = df1_updated.withColumn(
     "value",
-    when((col("df1.attribute") == "Social security number") & (col("df1.tokenization_type") == "USTAXID"), col("df2.value"))
-    .when((col("df1.attribute") == "Consumer Account Number") & (col("df1.tokenization_type") == "PAN"), col("df2.value"))
-    .otherwise(col("df1.value"))
-).select(col("df1.account_id"), col("df1.attribute"), col("value"), col("df1.tokenization_type"))
+    when((col("attribute") == "Social security number") & (col("tokenization_type") == "USTAXID"), col("ssn_value"))
+    .when((col("attribute") == "Consumer Account Number") & (col("tokenization_type") == "PAN"), col("can_value"))
+    .otherwise(col("value"))
+).select(col("account_id"), col("attribute"), col("value"), col("tokenization_type"))
 
 # Show the updated dataframe
-updated_df1.show()
+df1_updated.show()
 
 # Save the updated dataframe if needed
-updated_df1.write.csv("/mnt/data/updated_df1.csv")
+df1_updated.write.csv("/mnt/data/updated_df1.csv")
