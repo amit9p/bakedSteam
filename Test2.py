@@ -13,6 +13,9 @@ df2 = spark.read.parquet("/mnt/data/file-C5CTELwnzCKFOajIoqYsj7rk")
 df1_ssn = df1.filter((df1["attribute"] == "Social Security Number") & (df1["tokenization_type"] == "USTAXID"))
 df1_pan = df1.filter((df1["attribute"] == "Consumer Account Number") & (df1["tokenization_type"] == "PAN"))
 
+# Rename columns in df1_ssn to avoid ambiguity
+df1_ssn = df1_ssn.withColumnRenamed("value", "ssn_value")
+
 # Join df2 with df1_ssn for Social Security Number replacement
 df2_with_ssn = df2.alias("df2").join(df1_ssn.alias("df1_ssn"), 
                                      (col("df2.attribute") == col("df1_ssn.attribute")) & 
@@ -21,8 +24,11 @@ df2_with_ssn = df2.alias("df2").join(df1_ssn.alias("df1_ssn"),
                                .withColumn("value", 
                                            when((col("df2.attribute") == "Social Security Number") & 
                                                 (col("df2.tokenization_type") == "USTAXID"), 
-                                                col("df1_ssn.value")).otherwise(col("df2.value"))) \
-                               .drop("df1_ssn.value")
+                                                col("df1_ssn.ssn_value")).otherwise(col("df2.value"))) \
+                               .drop("df1_ssn.ssn_value")
+
+# Rename columns in df1_pan to avoid ambiguity
+df1_pan = df1_pan.withColumnRenamed("value", "pan_value")
 
 # Join the intermediate result with df1_pan for Consumer Account Number replacement
 df2_final = df2_with_ssn.alias("df2").join(df1_pan.alias("df1_pan"), 
@@ -32,8 +38,8 @@ df2_final = df2_with_ssn.alias("df2").join(df1_pan.alias("df1_pan"),
                                      .withColumn("value", 
                                                  when((col("df2.attribute") == "Consumer Account Number") & 
                                                       (col("df2.tokenization_type") == "PAN"), 
-                                                      col("df1_pan.value")).otherwise(col("df2.value"))) \
-                                     .drop("df1_pan.value")
+                                                      col("df1_pan.pan_value")).otherwise(col("df2.value"))) \
+                                     .drop("df1_pan.pan_value")
 
 # Show the updated dataframe
 df2_final.show()
