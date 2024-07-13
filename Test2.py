@@ -10,18 +10,20 @@ spark = SparkSession.builder.appName("DataFrameReplacement").getOrCreate()
 df1 = spark.read.parquet("/mnt/data/file-U4qkPznEyieGeGhGQns07nx7")
 df2 = spark.read.parquet("/mnt/data/file-C5CTELwnzCKFOajIoqYsj7rk")
 
-# Create a mapping for Social Security Number and Consumer Account Number
-ssn_mapping = df1.filter((df1["attribute"] == "Social Security Number") & (df1["tokenization_type"] == "USTAXID")) \
-                 .select("attribute", "tokenization_type", "value") \
-                 .rdd.collectAsMap()
+# Filter and create mappings from df1
+df1_ssn = df1.filter((df1["attribute"] == "Social Security Number") & (df1["tokenization_type"] == "USTAXID")) \
+             .select("attribute", "tokenization_type", "value").rdd \
+             .map(lambda row: ((row["attribute"], row["tokenization_type"]), row["value"])) \
+             .collectAsMap()
 
-pan_mapping = df1.filter((df1["attribute"] == "Consumer Account Number") & (df1["tokenization_type"] == "PAN")) \
-                 .select("attribute", "tokenization_type", "value") \
-                 .rdd.collectAsMap()
+df1_pan = df1.filter((df1["attribute"] == "Consumer Account Number") & (df1["tokenization_type"] == "PAN")) \
+             .select("attribute", "tokenization_type", "value").rdd \
+             .map(lambda row: ((row["attribute"], row["tokenization_type"]), row["value"])) \
+             .collectAsMap()
 
 # Broadcast the mappings
-ssn_mapping_broadcast = spark.sparkContext.broadcast(ssn_mapping)
-pan_mapping_broadcast = spark.sparkContext.broadcast(pan_mapping)
+ssn_mapping_broadcast = spark.sparkContext.broadcast(df1_ssn)
+pan_mapping_broadcast = spark.sparkContext.broadcast(df1_pan)
 
 # Define a function to replace the values
 def replace_values(attribute, tokenization_type, value):
