@@ -1,6 +1,7 @@
 
+
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, when
+from pyspark.sql.functions import col
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("DataFrameReplacement").getOrCreate()
@@ -9,42 +10,36 @@ spark = SparkSession.builder.appName("DataFrameReplacement").getOrCreate()
 df1 = spark.read.parquet("/mnt/data/file-U4qkPznEyieGeGhGQns07nx7")
 df2 = spark.read.parquet("/mnt/data/file-C5CTELwnzCKFOajIoqYsj7rk")
 
-# Select the relevant rows from df1 for replacement
-df1_ssn = df1.filter((df1["attribute"] == "Social Security Number") & (df1["tokenization_type"] == "USTAXID"))
-df1_pan = df1.filter((df1["attribute"] == "Consumer Account Number") & (df1["tokenization_type"] == "PAN"))
+# Create a mapping for Social Security Number and Consumer Account Number
+ssn_mapping = df1.filter((df1["attribute"] == "Social Security Number") & (df1["tokenization_type"] == "USTAXID")) \
+                 .select("attribute", "tokenization_type", "value") \
+                 .rdd.collectAsMap()
 
-# Rename columns in df1_ssn to avoid ambiguity
-df1_ssn = df1_ssn.withColumnRenamed("value", "ssn_value")
+pan_mapping = df1.filter((df1["attribute"] == "Consumer Account Number") & (df1["tokenization_type"] == "PAN")) \
+                 .select("attribute", "tokenization_type", "value") \
+                 .rdd.collectAsMap()
 
-# Join df2 with df1_ssn for Social Security Number replacement
-df2_with_ssn = df2.alias("df2").join(df1_ssn.alias("df1_ssn"), 
-                                     (col("df2.attribute") == col("df1_ssn.attribute")) & 
-                                     (col("df2.tokenization_type") == col("df1_ssn.tokenization_type")), 
-                                     "left")
+# Broadcast the mappings
+ssn_mapping_broadcast = spark.sparkContext.broadcast(ssn_mapping)
+pan_mapping_broadcast = spark.sparkContext.broadcast(pan_mapping)
 
-# Update the value column
-df2_with_ssn = df2_with_ssn.withColumn("value", 
-                                       when((col("df2.attribute") == "Social Security Number") & 
-                                            (col("df2.tokenization_type") == "USTAXID"), 
-                                            col("df1_ssn.ssn_value")).otherwise(col("df2.value"))) \
-                           .drop("df1_ssn.ssn_value")
+# Define a function to replace the values
+def replace_values(attribute, tokenization_type, value):
+    if attribute == "Social Security Number" and tokenization_type == "USTAXID":
+        return ssn_mapping_broadcast.value.get((attribute, tokenization_type), value)
+    elif attribute == "Consumer Account Number" and tokenization_type == "PAN":
+        return pan_mapping_broadcast.value.get((attribute, tokenization_type), value)
+    else:
+        return value
 
-# Rename columns in df1_pan to avoid ambiguity
-df1_pan = df1_pan.withColumnRenamed("value", "pan_value")
+# Register the function as a UDF
+from pyspark.sql.functions import udf
+from pyspark.sql.types import StringType
 
-# Join the intermediate result with df1_pan for Consumer Account Number replacement
-df2_final = df2_with_ssn.alias("df2").join(df1_pan.alias("df1_pan"), 
-                                           (col("df2.attribute") == col("df1_pan.attribute")) & 
-                                           (col("df2.tokenization_type") == col("df1_pan.tokenization_type")), 
-                                           "left")
+replace_values_udf = udf(replace_values, StringType())
 
-# Explicitly select all columns from df2 and update the value column
-df2_final = df2_final.select(
-    [col("df2." + col_name) for col_name in df2.columns] + 
-    [when((col("df2.attribute") == "Consumer Account Number") & 
-          (col("df2.tokenization_type") == "PAN"), 
-          col("df1_pan.pan_value")).otherwise(col("df2.value")).alias("value")]
-)
+# Apply the UDF to replace the values
+df2_final = df2.withColumn("value", replace_values_udf(col("attribute"), col("tokenization_type"), col("value")))
 
 # Show the updated dataframe
 df2_final.show()
