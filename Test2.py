@@ -1,56 +1,32 @@
 
-import random
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, when
 
-def generate_unique_data(num_ustaxid, num_pan):
-    account_ids = set()
-    values = set()
-    ustaxid_data = []
-    pan_data = []
+# Initialize Spark session
+spark = SparkSession.builder.appName("DataFrameUpdate").getOrCreate()
 
-    # Generate USTAXID records
-    while len(ustaxid_data) < num_ustaxid:
-        account_id = str(random.randint(10**16, 10**17 - 1))
-        attribute = "Social Security Number"
-        value = str(random.randint(10**8, 10**9 - 1))
-        tokenization_type = "USTAXID"
-        
-        if account_id not in account_ids and value not in values:
-            account_ids.add(account_id)
-            values.add(value)
-            ustaxid_data.append((account_id, attribute, value, tokenization_type))
-    
-    # Generate PAN records
-    while len(pan_data) < num_pan:
-        account_id = str(random.randint(10**16, 10**17 - 1))
-        attribute = "Consumer Account Number"
-        value = account_id
-        tokenization_type = "PAN"
-        
-        if account_id not in account_ids and value not in values:
-            account_ids.add(account_id)
-            values.add(value)
-            pan_data.append((account_id, attribute, value, tokenization_type))
-    
-    return ustaxid_data, pan_data
+# Define schema for the dataframes
+schema_df1 = """account_id STRING, attribute STRING, value STRING, tokenization_type STRING"""
+schema_df2 = """run_id STRING, account_id STRING, segment STRING, attribute STRING, value STRING, row_position LONG, column_position LONG, file_type STRING, business_date STRING, tokenization_type STRING"""
 
-# Example usage
-num_ustaxid = 10
-num_pan = 10
-ustaxid_data, pan_data = generate_unique_data(num_ustaxid, num_pan)
+# Load dataframes (assuming they are CSV files; adjust the code if the format is different)
+df1 = spark.read.schema(schema_df1).csv("/path/to/df1.csv")
+df2 = spark.read.schema(schema_df2).csv("/path/to/df2.csv")
 
-# Print the generated data to check
-print("USTAXID Data:")
-for record in ustaxid_data:
-    print(record)
+# Define conditions for replacement
+condition1 = (df1.attribute == "Social security number") & (df1.tokenization_type == "USTAXID")
+condition2 = (df1.attribute == "Consumer Account Number") & (df1.tokenization_type == "PAN")
 
-print("\nPAN Data:")
-for record in pan_data:
-    print(record)
+# Perform the replacements
+df1_updated = df1.withColumn(
+    "value",
+    when(condition1, df2.filter((df2.attribute == "Social security number") & (df2.tokenization_type == "USTAXID")).select("value").first()[0])
+    .when(condition2, df2.filter((df2.attribute == "Consumer Account Number") & (df2.tokenization_type == "PAN")).select("value").first()[0])
+    .otherwise(col("value"))
+)
 
-# Create DataFrames
-schema = ["account_id", "attribute", "value", "tokenization_type"]
-ustaxid_df = spark.createDataFrame(ustaxid_data, schema)
-pan_df = spark.createDataFrame(pan_data, schema)
+# Show the updated dataframe
+df1_updated.show()
 
-ustaxid_df.show()
-pan_df.show()
+# Save the updated dataframe if needed
+df1_updated.write.csv("/path/to/updated_df1.csv")
