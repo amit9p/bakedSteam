@@ -1,81 +1,14 @@
 
+# Sample data: List of 100 tuples (for demonstration, let's assume it's already defined)
+data = [('id1', 'attribute1', 'value1', 'type1')] * 100  # Example data; replace with actual tuples
 
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, when
+# Function to process each batch of tuples
+def process_batch(batch):
+    for record in batch:
+        print(record)  # Replace this with actual processing logic
 
-# Initialize Spark session
-spark = SparkSession.builder.appName("DataFrameReplacement").getOrCreate()
-
-# Load the dataframes
-df1 = spark.read.parquet("/mnt/data/file-U4qkPznEyieGeGhGQns07nx7")
-df2 = spark.read.parquet("/mnt/data/file-C5CTELwnzCKFOajIoqYsj7rk")
-
-# Filter and rename columns for SSN
-df1_ssn = df1.filter((df1["attribute"] == "Social Security Number") & (df1["tokenization_type"] == "USTAXID")) \
-             .select(col("value").alias("ssn_value"), col("attribute").alias("ssn_attribute"), col("tokenization_type").alias("ssn_tokenization_type"))
-
-# Join and replace SSN values
-df2_with_ssn = df2.join(df1_ssn, 
-                        (df2["attribute"] == df1_ssn["ssn_attribute"]) & (df2["tokenization_type"] == df1_ssn["ssn_tokenization_type"]), 
-                        "left") \
-                  .withColumn("value", 
-                              when((col("attribute") == "Social Security Number") & (col("tokenization_type") == "USTAXID"), 
-                                   col("ssn_value")).otherwise(col("value"))) \
-                  .drop("ssn_attribute").drop("ssn_tokenization_type").drop("ssn_value")
-
-# Filter and rename columns for PAN
-df1_pan = df1.filter((df1["attribute"] == "Consumer Account Number") & (df1["tokenization_type"] == "PAN")) \
-             .select(col("value").alias("pan_value"), col("attribute").alias("pan_attribute"), col("tokenization_type").alias("pan_tokenization_type"))
-
-# Join and replace PAN values
-df2_final = df2_with_ssn.join(df1_pan, 
-                              (df2_with_ssn["attribute"] == df1_pan["pan_attribute"]) & (df2_with_ssn["tokenization_type"] == df1_pan["pan_tokenization_type"]), 
-                              "left") \
-                        .withColumn("value", 
-                                    when((col("attribute") == "Consumer Account Number") & (col("tokenization_type") == "PAN"), 
-                                         col("pan_value")).otherwise(col("value"))) \
-                        .drop("pan_attribute").drop("pan_tokenization_type").drop("pan_value")
-
-# Show the updated dataframe
-df2_final.show()
-
-
-#####
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-
-# Initialize Spark session
-spark = SparkSession.builder.appName("FilterDataFrame").getOrCreate()
-
-# Load the data into a DataFrame
-file_path = "/path/to/your/file"
-df = spark.read.csv(file_path, header=True, inferSchema=True)
-
-# Filter the DataFrame based on the specified conditions
-filtered_df = df.filter(
-    (col("attribute").isin("Social Security Number", "Consumer Account Number")) &
-    (col("tokenization_type").isin("USTAXID", "PAN"))
-).select("value")
-
-# Show the resulting DataFrame
-filtered_df.show()
-
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-
-# Initialize Spark session
-spark = SparkSession.builder.appName("CountValues").getOrCreate()
-
-# Load the data into a DataFrame
-file_path = "/mnt/data/file-RDn3KLpkoCTF7ll3i7JEvPsV"
-df = spark.read.csv(file_path, header=True, inferSchema=True)
-
-# Filter the DataFrame based on the specified conditions and count the occurrences of 'value'
-count_df = df.filter(
-    col("attribute").isin("Social Security Number", "Consumer Account Number")
-).groupBy("attribute").count()
-
-# Show the resulting DataFrame
-count_df.show()
-
-
+# Process data in batches of 10
+batch_size = 10
+for i in range(0, len(data), batch_size):
+    batch = data[i:i + batch_size]
+    process_batch(batch)
