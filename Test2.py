@@ -1,14 +1,24 @@
 
-# Sample data: List of 100 tuples (for demonstration, let's assume it's already defined)
-data = [('id1', 'attribute1', 'value1', 'type1')] * 100  # Example data; replace with actual tuples
+from pyspark.sql import SparkSession
+import os
 
-# Function to process each batch of tuples
-def process_batch(batch):
-    for record in batch:
-        print(record)  # Replace this with actual processing logic
+# Initialize Spark session
+spark = SparkSession.builder.appName("WriteParquetWithoutSuccessAndCrc").getOrCreate()
 
-# Process data in batches of 10
-batch_size = 10
-for i in range(0, len(data), batch_size):
-    batch = data[i:i + batch_size]
-    process_batch(batch)
+# Set Hadoop configuration to avoid generating the _SUCCESS file
+spark.conf.set("mapreduce.fileoutputcommitter.marksuccessfuljobs", "false")
+
+# Create a sample DataFrame
+data = [("1", "Social Security Number", "123456789", "USTAXID"),
+        ("2", "Consumer Account Number", "987654321", "PAN")]
+schema = ["account_id", "attribute", "value", "tokenization_type"]
+df = spark.createDataFrame(data, schema)
+
+# Path to save the Parquet file
+output_path = "/path/to/your/output/directory"
+
+# Write the DataFrame to Parquet file
+df.write.mode("overwrite").parquet(output_path)
+
+# Remove .crc files
+os.system(f"hadoop fs -rm {output_path}/*.crc")
