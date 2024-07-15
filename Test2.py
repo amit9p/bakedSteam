@@ -1,5 +1,22 @@
 
 
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("YourAppName") \
+    .config("spark.driver.memory", "16g") \
+    .config("spark.executor.memory", "16g") \
+    .config("spark.executor.cores", "4") \
+    .config("spark.driver.extraJavaOptions", "-Xms16g -Xmx16g") \
+    .config("spark.executor.extraJavaOptions", "-Xms16g -Xmx16g") \
+    .config("spark.sql.autoBroadcastJoinThreshold", -1) \
+    .config("spark.sql.shuffle.partitions", 200) \
+    .getOrCreate()
+
+# Your Spark code here
+
+spark.stop()
+
 
 spark.conf.set("spark.sql.autoBroadcastJoinThreshold", -1)
 spark.conf.set("spark.sql.shuffle.partitions", 200)
