@@ -1,4 +1,12 @@
 
+
+
+spark.conf.set("spark.sql.autoBroadcastJoinThreshold", -1)
+spark.conf.set("spark.sql.shuffle.partitions", 200)
+
+
+
+
 from pyspark.sql import SparkSession
 import os
 
