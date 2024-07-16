@@ -1,4 +1,8 @@
 
+df2 = df2.repartition(200).withColumn("index", row_number().over(Window.partitionBy("account_id").orderBy(lit(1))))
+df1 = df1.repartition(200).withColumn("index", row_number().over(Window.partitionBy("account_id").orderBy(lit(1))))
+
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when, lit, row_number
 from pyspark.sql.window import Window
