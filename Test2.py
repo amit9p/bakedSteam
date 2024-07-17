@@ -1,22 +1,24 @@
 
-
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import when
 
 # Initialize Spark session
 spark = SparkSession.builder \
-    .appName("UpdateColumnNames") \
+    .appName("UpdateTokenization") \
     .getOrCreate()
 
 # Read the Parquet file
-df = spark.read.parquet("path/to/your/parquet/file")
+file_path = "path/to/your/parquet/file"  # Replace with your file path
+df = spark.read.parquet(file_path)
 
-# Rename columns
-df = df.withColumnRenamed("account_id", "account_number") \
-       .withColumnRenamed("value", "formatted") \
-       .withColumnRenamed("tokenization_type", "tokenization")
+# Update the tokenization column where attribute is 'Consumer Account Number'
+df = df.withColumn("tokenization", 
+                   when(df["attribute"] == "Consumer Account Number", "PAN").otherwise(df["tokenization"]))
 
 # Save the updated DataFrame as a new Parquet file
-df.write.parquet("path/to/save/new_parquet/file")
+output_path = "path/to/save/updated_file.parquet"  # Replace with the desired output path
+df.write.parquet(output_path)
 
-# Stop the Spark session
-spark.stop()
+# Display the schema and first few rows of the updated DataFrame
+df.printSchema()
+df.show()
