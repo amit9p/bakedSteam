@@ -25,12 +25,12 @@ condition = (
 
 # Perform the update
 df1_updated = df1.join(df2_selected, condition, "left") \
-    .withColumn("formatted", when(col("df2.formatted").isNotNull(), col("df2.formatted")).otherwise(col("df1.formatted"))) \
+    .withColumn("formatted", when(col("df2_selected.formatted").isNotNull(), col("df2_selected.formatted")).otherwise(col("df1.formatted"))) \
     .drop(df2_selected["formatted"])
 
 # Save the updated DataFrame as a new Parquet file
 output_path = "path/to/save/updated_file.parquet"  # Replace with the desired output path
-df1_updated.write.parquet(output_path)
+df1_updated.write.mode("overwrite").parquet(output_path)
 
 # Stop the Spark session
 spark.stop()
