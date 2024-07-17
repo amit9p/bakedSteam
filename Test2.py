@@ -1,4 +1,5 @@
 
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import when, col
 
@@ -18,16 +19,14 @@ df2_selected = df2.select(
     col("formatted").alias("df2_formatted")
 )
 
-# Define the condition for the join and the update
-condition = (
+# Perform a left join on attribute and tokenization
+df_joined = df1.join(df2_selected, 
     (df1["attribute"] == df2_selected["df2_attribute"]) & 
-    (df1["tokenization"] == df2_selected["df2_tokenization"])
+    (df1["tokenization"] == df2_selected["df2_tokenization"]), 
+    "left"
 )
 
-# Perform the join
-df_joined = df1.join(df2_selected, condition, "left")
-
-# Update only the `formatted` column
+# Update the formatted column based on the condition and keep other columns unchanged
 df1_updated = df_joined.withColumn(
     "formatted", 
     when(
@@ -36,7 +35,7 @@ df1_updated = df_joined.withColumn(
         col("df2_formatted").isNotNull(), 
         col("df2_formatted")
     ).otherwise(col("formatted"))
-).select(df1.columns)  # Select only the original columns to exclude the extra ones
+).select(df1.columns)  # Ensure only the original columns are selected
 
 # Save the updated DataFrame as a new Parquet file
 output_path = "/mnt/data/updated_file.parquet"  # Replace with the desired output path
