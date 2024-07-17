@@ -1,6 +1,7 @@
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import when, col, broadcast
+from pyspark.sql.functions import when, col, broadcast, row_number
+from pyspark.sql.window import Window
 
 # Initialize Spark session
 spark = SparkSession.builder \
@@ -18,7 +19,9 @@ df2_filtered = df2.filter(
 ).select(
     col("attribute").alias("df2_attribute"), 
     col("tokenization").alias("df2_tokenization"), 
-    col("formatted").alias("df2_formatted")
+    col("formatted").alias("df2_formatted"),
+    col("account_number").alias("df2_account_number"),
+    col("segment").alias("df2_segment")
 )
 
 # Broadcast the filtered df2 to avoid shuffle and join explosion
@@ -41,12 +44,32 @@ df1_updated = df_joined.withColumn(
     ).otherwise(col("df1.formatted"))
 )
 
+# Define window specifications to ensure uniqueness
+window_spec_pan = Window.partitionBy("account_number").orderBy("segment")
+window_spec_ustaxid_base = Window.partitionBy("account_number").orderBy("segment")
+window_spec_ustaxid_j2 = Window.partitionBy("account_number", "segment").orderBy("segment")
+
+# Filter for unique segments based on the conditions
+df1_filtered = df1_updated.withColumn(
+    "row_num",
+    when(
+        (col("tokenization") == "PAN") & (col("segment") == "BASE"), 
+        row_number().over(window_spec_pan)
+    ).when(
+        (col("tokenization") == "USTAXID") & (col("segment") == "BASE"), 
+        row_number().over(window_spec_ustaxid_base)
+    ).when(
+        (col("tokenization") == "USTAXID") & (col("segment") == "J2"), 
+        row_number().over(window_spec_ustaxid_j2)
+    ).otherwise(None)
+).filter("row_num == 1").drop("row_num")
+
 # Select only the original columns from df1 to ensure no extra columns are included
-df1_updated = df1_updated.select(df1.columns)
+df1_final = df1_filtered.select(df1.columns)
 
 # Save the updated DataFrame as a new Parquet file
 output_path = "/mnt/data/updated_file.parquet"  # Replace with the desired output path
-df1_updated.write.mode("overwrite").parquet(output_path)
+df1_final.write.mode("overwrite").parquet(output_path)
 
 # Stop the Spark session
 spark.stop()
