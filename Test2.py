@@ -18,23 +18,25 @@ df2_selected = df2.select(
     col("formatted").alias("df2_formatted")
 )
 
-# Join df1 with df2_selected on attribute and tokenization
+# Define the condition for the join and the update
 condition = (
     (df1["attribute"] == df2_selected["df2_attribute"]) & 
     (df1["tokenization"] == df2_selected["df2_tokenization"])
 )
 
-# Perform the update only on the formatted column
-df1_updated = df1.join(df2_selected, condition, "left") \
-    .withColumn(
-        "formatted", 
-        when(
-            (col("attribute").isin("Social Security Number", "Consumer Account Number")) & 
-            (col("tokenization").isin("USTAXID", "PAN")) & 
-            col("df2_formatted").isNotNull(), 
-            col("df2_formatted")
-        ).otherwise(col("formatted"))
-    ).select(df1.columns)  # Select only the original columns
+# Perform the join
+df_joined = df1.join(df2_selected, condition, "left")
+
+# Update only the `formatted` column
+df1_updated = df_joined.withColumn(
+    "formatted", 
+    when(
+        (col("attribute").isin("Social Security Number", "Consumer Account Number")) & 
+        (col("tokenization").isin("USTAXID", "PAN")) & 
+        col("df2_formatted").isNotNull(), 
+        col("df2_formatted")
+    ).otherwise(col("formatted"))
+).select(df1.columns)  # Select only the original columns to exclude the extra ones
 
 # Save the updated DataFrame as a new Parquet file
 output_path = "/mnt/data/updated_file.parquet"  # Replace with the desired output path
