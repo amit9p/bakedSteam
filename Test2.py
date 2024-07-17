@@ -24,19 +24,25 @@ df2_filtered = df2.filter(
 # Broadcast the filtered df2 to avoid shuffle and join explosion
 df2_broadcast = broadcast(df2_filtered)
 
-# Perform the update without exploding the records
-df1_updated = df1.alias("df1").join(
+# Perform the join with df1
+df_joined = df1.alias("df1").join(
     df2_broadcast,
     (df1["attribute"] == df2_broadcast["df2_attribute"]) & 
     (df1["tokenization"] == df2_broadcast["df2_tokenization"]),
     "left"
-).withColumn(
+)
+
+# Perform the update on the formatted column based on the conditions
+df1_updated = df_joined.withColumn(
     "formatted", 
     when(
         col("df2_formatted").isNotNull(), 
         col("df2_formatted")
     ).otherwise(col("df1.formatted"))
-).select("df1.*")  # Ensure only the original columns from df1 are selected
+)
+
+# Select only the original columns from df1 to ensure no extra columns are included
+df1_updated = df1_updated.select(df1.columns)
 
 # Save the updated DataFrame as a new Parquet file
 output_path = "/mnt/data/updated_file.parquet"  # Replace with the desired output path
