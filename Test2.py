@@ -8,8 +8,8 @@ spark = SparkSession.builder \
     .getOrCreate()
 
 # Read the Parquet files
-df1 = spark.read.parquet("path/to/your/df1/parquet/file")  # Replace with actual path
-df2 = spark.read.parquet("path/to/your/df2/parquet/file")  # Replace with actual path
+df1 = spark.read.parquet("/mnt/data/file-B9fH04dCsxaonewrNoPlpCt4")  # Replace with actual path for df1
+df2 = spark.read.parquet("/mnt/data/file-cX64QyV4WYLd38efAHVrzFd4")  # Replace with actual path for df2
 
 # Select only the columns needed from df2
 df2_selected = df2.select(
@@ -22,17 +22,22 @@ df2_selected = df2.select(
 condition = (
     (df1["attribute"] == df2_selected["df2_attribute"]) & 
     (df1["tokenization"] == df2_selected["df2_tokenization"])
-) & (
-    ((df1["attribute"] == "Social Security Number") & (df1["tokenization"].isin("USTAXID", "PAN"))) |
-    ((df1["attribute"] == "Consumer Account Number") & (df1["tokenization"].isin("USTAXID", "PAN")))
 )
 
-# Perform the update
+# Perform the update only on the formatted column
 df1_updated = df1.join(df2_selected, condition, "left") \
-    .withColumn("formatted", when(col("df2_formatted").isNotNull(), col("df2_formatted")).otherwise(col("formatted")))
+    .withColumn(
+        "formatted", 
+        when(
+            (col("attribute").isin("Social Security Number", "Consumer Account Number")) & 
+            (col("tokenization").isin("USTAXID", "PAN")) & 
+            col("df2_formatted").isNotNull(), 
+            col("df2_formatted")
+        ).otherwise(col("formatted"))
+    ).select(df1.columns)  # Select only the original columns
 
 # Save the updated DataFrame as a new Parquet file
-output_path = "path/to/save/updated_file.parquet"  # Replace with the desired output path
+output_path = "/mnt/data/updated_file.parquet"  # Replace with the desired output path
 df1_updated.write.mode("overwrite").parquet(output_path)
 
 # Stop the Spark session
