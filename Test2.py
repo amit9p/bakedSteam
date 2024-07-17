@@ -1,5 +1,4 @@
 
-
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import when, col
 
@@ -12,7 +11,7 @@ spark = SparkSession.builder \
 df1 = spark.read.parquet("/mnt/data/file-B9fH04dCsxaonewrNoPlpCt4")  # Replace with actual path for df1
 df2 = spark.read.parquet("/mnt/data/file-cX64QyV4WYLd38efAHVrzFd4")  # Replace with actual path for df2
 
-# Select only the columns needed from df2
+# Select only the necessary columns from df2
 df2_selected = df2.select(
     col("attribute").alias("df2_attribute"), 
     col("tokenization").alias("df2_tokenization"), 
@@ -35,7 +34,10 @@ df1_updated = df_joined.withColumn(
         col("df2_formatted").isNotNull(), 
         col("df2_formatted")
     ).otherwise(col("formatted"))
-).select(df1.columns)  # Ensure only the original columns are selected
+)
+
+# Select the original columns to exclude any unwanted columns from the join
+df1_updated = df1_updated.select(df1.columns)
 
 # Save the updated DataFrame as a new Parquet file
 output_path = "/mnt/data/updated_file.parquet"  # Replace with the desired output path
