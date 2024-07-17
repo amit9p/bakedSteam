@@ -19,9 +19,7 @@ df2_filtered = df2.filter(
 ).select(
     col("attribute").alias("df2_attribute"), 
     col("tokenization").alias("df2_tokenization"), 
-    col("formatted").alias("df2_formatted"),
-    col("account_number").alias("df2_account_number"),
-    col("segment").alias("df2_segment")
+    col("formatted").alias("df2_formatted")
 )
 
 # Broadcast the filtered df2 to avoid shuffle and join explosion
@@ -45,24 +43,31 @@ df1_updated = df_joined.withColumn(
 )
 
 # Define window specifications to ensure uniqueness
-window_spec_pan = Window.partitionBy("account_number").orderBy("segment")
-window_spec_ustaxid_base = Window.partitionBy("account_number").orderBy("segment")
-window_spec_ustaxid_j2 = Window.partitionBy("account_number", "segment").orderBy("segment")
+window_spec_base = Window.partitionBy("account_number", "tokenization").orderBy("segment")
+window_spec_j2 = Window.partitionBy("account_number", "tokenization").orderBy("segment")
 
-# Filter for unique segments based on the conditions
+# Add row numbers to filter unique records
 df1_filtered = df1_updated.withColumn(
     "row_num",
     when(
         (col("tokenization") == "PAN") & (col("segment") == "BASE"), 
-        row_number().over(window_spec_pan)
+        row_number().over(window_spec_base)
     ).when(
         (col("tokenization") == "USTAXID") & (col("segment") == "BASE"), 
-        row_number().over(window_spec_ustaxid_base)
+        row_number().over(window_spec_base)
     ).when(
         (col("tokenization") == "USTAXID") & (col("segment") == "J2"), 
-        row_number().over(window_spec_ustaxid_j2)
+        row_number().over(window_spec_j2)
     ).otherwise(None)
-).filter("row_num == 1").drop("row_num")
+)
+
+# Filter to keep only one record per segment condition
+df1_filtered = df1_filtered.filter(
+    ((col("tokenization") == "PAN") & (col("segment") == "BASE") & (col("row_num") == 1)) |
+    ((col("tokenization") == "USTAXID") & (col("segment") == "BASE") & (col("row_num") == 1)) |
+    ((col("tokenization") == "USTAXID") & (col("segment") == "J2") & (col("row_num") == 1)) |
+    ((col("tokenization") != "PAN") & (col("tokenization") != "USTAXID"))
+).drop("row_num")
 
 # Select only the original columns from df1 to ensure no extra columns are included
 df1_final = df1_filtered.select(df1.columns)
