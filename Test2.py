@@ -36,8 +36,21 @@ result_df = spark.createDataFrame(data_result, columns_result)
 joined_df = brad_df.join(result_df, on=["account_number", "tokenization"], how="left")
 
 # Update the formatted column in brad_df with formatted from result_df
-updated_df = joined_df.withColumn("formatted", when(col("result_df.formatted").isNotNull(), col("result_df.formatted")).otherwise(col("brad_df.formatted"))) \
-                      .select(brad_df["*"])
+updated_df = joined_df.withColumn(
+    "formatted",
+    when(col("formatted").isNotNull(), col("formatted")).otherwise(col("formatted"))
+).select(
+    brad_df["business_date"],
+    brad_df["run_identifier"],
+    brad_df["output_file_type"],
+    brad_df["output_record_sequence"],
+    brad_df["output_field_sequence"],
+    brad_df["attribute"],
+    col("formatted"),
+    brad_df["tokenization"],
+    brad_df["account_number"],
+    brad_df["segment"]
+)
 
 # Show the result DataFrame
 updated_df.show(truncate=False)
