@@ -1,4 +1,5 @@
 
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when
 
@@ -22,11 +23,13 @@ joined_df = df1.alias('df1').join(df2_select.alias('df2'),
 # Update the formatted column in df1 based on the joined results
 updated_df = joined_df.withColumn(
     'formatted',
-    when(col('df1.tokenization') == 'USTAXID', col('df2.formatted')).otherwise(col('formatted'))
-).withColumn(
-    'formatted',
-    when(col('df1.tokenization') == 'PAN', col('df2.formatted')).otherwise(col('formatted'))
-).select('df1.*')
+    when(col('df1.tokenization') == 'USTAXID', col('df2.formatted'))
+    .when(col('df1.tokenization') == 'PAN', col('df2.formatted'))
+    .otherwise(col('df1.formatted'))
+).select('df1.business_date', 'df1.run_identifier', 'df1.output_file_type', 
+         'df1.output_record_sequence', 'df1.output_field_sequence', 
+         'df1.attribute', 'formatted', 'df1.tokenization', 
+         'df1.account_number', 'df1.segment')
 
 # Show the final DataFrame with updated formatted column
 updated_df.show(truncate=False)
