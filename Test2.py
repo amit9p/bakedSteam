@@ -32,28 +32,28 @@ columns_result = ["account_number", "attribute", "formatted", "tokenization"]
 brad_df = spark.createDataFrame(data_brad, columns_brad)
 result_df = spark.createDataFrame(data_result, columns_result)
 
-# Rename columns to avoid ambiguity
-brad_df = brad_df.withColumnRenamed("formatted", "brad_formatted")
-result_df = result_df.withColumnRenamed("formatted", "result_formatted")
+# Alias the DataFrames for clarity
+brad_df_alias = brad_df.alias("brad_df")
+result_df_alias = result_df.alias("result_df")
 
 # Join brad_df with result_df on account_number and tokenization
-joined_df = brad_df.join(result_df, on=["account_number", "tokenization"], how="left")
+joined_df = brad_df_alias.join(result_df_alias, on=["account_number", "tokenization"], how="left")
 
 # Update the formatted column in brad_df with formatted from result_df
 updated_df = joined_df.withColumn(
     "formatted",
-    when(col("result_formatted").isNotNull(), col("result_formatted")).otherwise(col("brad_formatted"))
+    when(col("result_df.formatted").isNotNull(), col("result_df.formatted")).otherwise(col("brad_df.formatted"))
 ).select(
-    brad_df["business_date"],
-    brad_df["run_identifier"],
-    brad_df["output_file_type"],
-    brad_df["output_record_sequence"],
-    brad_df["output_field_sequence"],
-    brad_df["attribute"],
+    col("brad_df.business_date"),
+    col("brad_df.run_identifier"),
+    col("brad_df.output_file_type"),
+    col("brad_df.output_record_sequence"),
+    col("brad_df.output_field_sequence"),
+    col("brad_df.attribute"),
     col("formatted"),
-    brad_df["tokenization"],
-    brad_df["account_number"],
-    brad_df["segment"]
+    col("brad_df.tokenization"),
+    col("brad_df.account_number"),
+    col("brad_df.segment")
 )
 
 # Show the result DataFrame
