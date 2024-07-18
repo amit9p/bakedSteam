@@ -1,6 +1,6 @@
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, lit
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("Combine DataFrame Columns").getOrCreate()
@@ -26,12 +26,27 @@ columns2 = ["account_number", "attribute", "formatted", "tokenization"]
 df1 = spark.createDataFrame(data1, columns1)
 df2 = spark.createDataFrame(data2, columns2)
 
-# Join df1 and df2 on the tokenization column
-result_df = df1.join(df2, on="tokenization", how="inner") \
-    .select(df1.account_number, df2.attribute, df2.formatted, df2.tokenization)
+# Combine the columns into a new DataFrame
+# Assume df1 and df2 have the same order of rows for simplicity
+# If they do not, you should ensure they are aligned correctly
+
+# Create a new DataFrame with the required columns
+combined_df = df2.withColumn("new_account_number", col("attribute"))
+
+# Replace the new_account_number column with the account_number from df1
+for i, row in enumerate(df1.collect()):
+    combined_df = combined_df.withColumn("new_account_number", lit(row['account_number']))
+
+# Select and rename columns as required
+final_df = combined_df.select(
+    col("new_account_number").alias("account_number"),
+    col("attribute"),
+    col("formatted"),
+    col("tokenization")
+)
 
 # Show the result DataFrame
-result_df.show(truncate=False)
+final_df.show(truncate=False)
 
 # Stop the Spark session
 spark.stop()
