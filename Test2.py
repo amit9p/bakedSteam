@@ -1,5 +1,4 @@
 
-
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when
 
@@ -33,13 +32,16 @@ columns_result = ["account_number", "attribute", "formatted", "tokenization"]
 brad_df = spark.createDataFrame(data_brad, columns_brad)
 result_df = spark.createDataFrame(data_result, columns_result)
 
+# Rename columns to avoid ambiguity
+result_df = result_df.withColumnRenamed("formatted", "result_formatted")
+
 # Join brad_df with result_df on account_number and tokenization
 joined_df = brad_df.join(result_df, on=["account_number", "tokenization"], how="left")
 
 # Update the formatted column in brad_df with formatted from result_df
 updated_df = joined_df.withColumn(
     "formatted",
-    when(col("result_df.formatted").isNotNull(), col("result_df.formatted")).otherwise(col("brad_df.formatted"))
+    when(col("result_formatted").isNotNull(), col("result_formatted")).otherwise(col("formatted"))
 ).select(
     brad_df["business_date"],
     brad_df["run_identifier"],
