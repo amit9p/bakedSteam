@@ -9,8 +9,11 @@ spark = SparkSession.builder.appName("DataFrameUpdate").getOrCreate()
 df1 = spark.read.parquet("/mnt/data/file-eqqVMGkuPK06mQbkfQDB8YDG")
 df2 = spark.read.parquet("/mnt/data/file-kLerMcSpwnSvKHOLbBxSNTbd")
 
-# Filter df1 to include only the relevant output_record_sequence values
-filtered_df1 = df1.filter(df1.output_record_sequence.isin([320176, 320719]))
+# Filter df1 to include only the relevant output_record_sequence values and tokenization
+filtered_df1 = df1.filter(
+    (df1.output_record_sequence.isin([320176, 320719])) &
+    (df1.tokenization.isin(['USTAXID', 'PAN']))
+)
 
 # Update df1 formatted field based on df2 formatted values
 updated_df1 = filtered_df1.join(df2, on="tokenization", how="left") \
@@ -21,7 +24,9 @@ updated_df1 = filtered_df1.join(df2, on="tokenization", how="left") \
         filtered_df1.output_record_sequence,
         filtered_df1.output_field_sequence,
         filtered_df1.attribute,
-        when(filtered_df1.tokenization == 'USTAXID', df2.formatted).when(filtered_df1.tokenization == 'PAN', df2.formatted).otherwise(filtered_df1.formatted).alias("formatted"),
+        when(filtered_df1.tokenization == 'USTAXID', df2.formatted)
+            .when(filtered_df1.tokenization == 'PAN', df2.formatted)
+            .otherwise(filtered_df1.formatted).alias("formatted"),
         filtered_df1.tokenization,
         filtered_df1.account_number,
         filtered_df1.segment
