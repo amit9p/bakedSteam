@@ -1,10 +1,9 @@
 
-
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
 # Initialize Spark session
-spark = SparkSession.builder.appName("Update DataFrame").getOrCreate()
+spark = SparkSession.builder.appName("Combine DataFrame Columns").getOrCreate()
 
 # Sample data for df1 and df2
 data1 = [
@@ -27,16 +26,12 @@ columns2 = ["account_number", "attribute", "formatted", "tokenization"]
 df1 = spark.createDataFrame(data1, columns1)
 df2 = spark.createDataFrame(data2, columns2)
 
-# Perform the join and filter out duplicates
-df2_updated = df2.join(df1, on="tokenization", how="left") \
-    .drop(df2.account_number) \
-    .withColumnRenamed("account_number", "updated_account_number")
+# Join df1 and df2 on the tokenization column
+result_df = df1.join(df2, on="tokenization", how="inner") \
+    .select(df1.account_number, df2.attribute, df2.formatted, df2.tokenization)
 
-# Remove duplicates if needed
-df2_updated = df2_updated.drop_duplicates()
-
-# Show the updated DataFrame
-df2_updated.show(truncate=False)
+# Show the result DataFrame
+result_df.show(truncate=False)
 
 # Stop the Spark session
 spark.stop()
