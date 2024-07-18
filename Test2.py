@@ -23,42 +23,39 @@ df2_pan = df2.filter(df2.tokenization == 'PAN').select('formatted').distinct().w
 # Add an id column to filtered_df1 for joining
 filtered_df1 = filtered_df1.withColumn("id", monotonically_increasing_id())
 
-# Join filtered_df1 with df2_ustaxid and df2_pan separately, then union the results
-updated_df1_ustaxid = filtered_df1.filter(filtered_df1.tokenization == 'USTAXID') \
-    .join(df2_ustaxid, "id", "left") \
-    .withColumn("formatted", col("formatted").alias("formatted_ustaxid"))
+# Join filtered_df1 with df2_ustaxid and df2_pan separately
+updated_df1_ustaxid = filtered_df1.filter(filtered_df1.tokenization == 'USTAXID').alias("df1") \
+    .join(df2_ustaxid.alias("df2"), "id", "left") \
+    .select(
+        col("df1.business_date"),
+        col("df1.run_identifier"),
+        col("df1.output_file_type"),
+        col("df1.output_record_sequence"),
+        col("df1.output_field_sequence"),
+        col("df1.attribute"),
+        col("df2.formatted").alias("formatted"),
+        col("df1.tokenization"),
+        col("df1.account_number"),
+        col("df1.segment")
+    )
 
-updated_df1_pan = filtered_df1.filter(filtered_df1.tokenization == 'PAN') \
-    .join(df2_pan, "id", "left") \
-    .withColumn("formatted", col("formatted").alias("formatted_pan"))
+updated_df1_pan = filtered_df1.filter(filtered_df1.tokenization == 'PAN').alias("df1") \
+    .join(df2_pan.alias("df2"), "id", "left") \
+    .select(
+        col("df1.business_date"),
+        col("df1.run_identifier"),
+        col("df1.output_file_type"),
+        col("df1.output_record_sequence"),
+        col("df1.output_field_sequence"),
+        col("df1.attribute"),
+        col("df2.formatted").alias("formatted"),
+        col("df1.tokenization"),
+        col("df1.account_number"),
+        col("df1.segment")
+    )
 
 # Union the results
-updated_df1 = updated_df1_ustaxid.union(updated_df1_pan)
-
-# Select the required columns
-final_df1 = updated_df1.select(
-    col("business_date"),
-    col("run_identifier"),
-    col("output_file_type"),
-    col("output_record_sequence"),
-    col("output_field_sequence"),
-    col("attribute"),
-    col("formatted_ustaxid").alias("formatted"),
-    col("tokenization"),
-    col("account_number"),
-    col("segment")
-).union(updated_df1.select(
-    col("business_date"),
-    col("run_identifier"),
-    col("output_file_type"),
-    col("output_record_sequence"),
-    col("output_field_sequence"),
-    col("attribute"),
-    col("formatted_pan").alias("formatted"),
-    col("tokenization"),
-    col("account_number"),
-    col("segment")
-))
+final_df1 = updated_df1_ustaxid.union(updated_df1_pan)
 
 # Show the updated dataframe
 final_df1.show(truncate=False)
