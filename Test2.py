@@ -43,11 +43,22 @@ final_df1 = updated_df1.select(
     col("output_record_sequence"),
     col("output_field_sequence"),
     col("attribute"),
-    col("formatted"),
+    col("formatted_ustaxid").alias("formatted"),
     col("tokenization"),
     col("account_number"),
     col("segment")
-)
+).union(updated_df1.select(
+    col("business_date"),
+    col("run_identifier"),
+    col("output_file_type"),
+    col("output_record_sequence"),
+    col("output_field_sequence"),
+    col("attribute"),
+    col("formatted_pan").alias("formatted"),
+    col("tokenization"),
+    col("account_number"),
+    col("segment")
+))
 
 # Show the updated dataframe
 final_df1.show(truncate=False)
