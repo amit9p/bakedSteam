@@ -1,4 +1,21 @@
 
+
+from pyspark.sql import SparkSession
+
+# Initialize Spark session
+spark = SparkSession.builder.appName("DataFrameFilter").getOrCreate()
+
+# Load the DataFrame (assuming the file is in CSV format)
+df = spark.read.option("header", "true").csv("/mnt/data/file-B7r0zOyD4gKniGf2f7AsFoeK")
+
+# Filter the DataFrame where output_record_sequence equals 320176
+filtered_df = df.filter(df.output_record_sequence == 320176)
+
+# Show the filtered DataFrame
+filtered_df.show(truncate=False)
+
+
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
