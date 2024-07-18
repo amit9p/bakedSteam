@@ -1,6 +1,6 @@
 
+
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, when
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("Update DataFrame Columns").getOrCreate()
@@ -32,29 +32,30 @@ columns_result = ["account_number", "attribute", "formatted", "tokenization"]
 brad_df = spark.createDataFrame(data_brad, columns_brad)
 result_df = spark.createDataFrame(data_result, columns_result)
 
-# Alias the DataFrames for clarity
-brad_df_alias = brad_df.alias("brad_df")
-result_df_alias = result_df.alias("result_df")
+# Register DataFrames as temp views
+brad_df.createOrReplaceTempView("brad_df")
+result_df.createOrReplaceTempView("result_df")
 
-# Join brad_df with result_df on account_number and tokenization
-joined_df = brad_df_alias.join(result_df_alias, on=["account_number", "tokenization"], how="left")
-
-# Update the formatted column in brad_df with formatted from result_df
-updated_df = joined_df.withColumn(
-    "formatted",
-    when(col("result_df.formatted").isNotNull(), col("result_df.formatted")).otherwise(col("brad_df.formatted"))
-).select(
-    col("brad_df.business_date"),
-    col("brad_df.run_identifier"),
-    col("brad_df.output_file_type"),
-    col("brad_df.output_record_sequence"),
-    col("brad_df.output_field_sequence"),
-    col("brad_df.attribute"),
-    col("formatted"),
-    col("brad_df.tokenization"),
-    col("brad_df.account_number"),
-    col("brad_df.segment")
-)
+# Perform SQL join and update using Spark SQL
+updated_df = spark.sql("""
+    SELECT
+        b.business_date,
+        b.run_identifier,
+        b.output_file_type,
+        b.output_record_sequence,
+        b.output_field_sequence,
+        b.attribute,
+        COALESCE(r.formatted, b.formatted) AS formatted,
+        b.tokenization,
+        b.account_number,
+        b.segment
+    FROM
+        brad_df b
+    LEFT JOIN
+        result_df r
+    ON
+        b.account_number = r.account_number AND b.tokenization = r.tokenization
+""")
 
 # Show the result DataFrame
 updated_df.show(truncate=False)
