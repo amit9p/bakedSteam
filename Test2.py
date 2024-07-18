@@ -1,56 +1,34 @@
 
-
 from pyspark.sql import SparkSession
-
-# Initialize Spark session
-spark = SparkSession.builder.appName("DataFrameFilter").getOrCreate()
-
-# Load the DataFrame (assuming the file is in CSV format)
-df = spark.read.option("header", "true").csv("/mnt/data/file-B7r0zOyD4gKniGf2f7AsFoeK")
-
-# Filter the DataFrame where output_record_sequence equals 320176
-filtered_df = df.filter(df.output_record_sequence == 320176)
-
-# Show the filtered DataFrame
-filtered_df.show(truncate=False)
-
-
-
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, when
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("DataFrameUpdate").getOrCreate()
 
-# Load the dataframes (assuming the files are in CSV format)
-df1 = spark.read.option("header", "true").csv("/mnt/data/file-B7r0zOyD4gKniGf2f7AsFoeK")
-df2 = spark.read.option("header", "true").csv("/mnt/data/file-JeAIgdbVlXAYt5jACguhXr9q")
+# Load the dataframes from Parquet files
+df1 = spark.read.parquet("/mnt/data/file-eqqVMGkuPK06mQbkfQDB8YDG")
+df2 = spark.read.parquet("/mnt/data/file-kLerMcSpwnSvKHOLbBxSNTbd")
 
-# Create a temporary view for SQL queries
-df1.createOrReplaceTempView("df1")
-df2.createOrReplaceTempView("df2")
+# Filter df1 to include only the relevant output_record_sequence values
+filtered_df1 = df1.filter(df1.output_record_sequence.isin([320176, 320719]))
 
 # Update df1 formatted field based on df2 formatted values
-updated_df1 = spark.sql("""
-    SELECT 
-        df1.business_date,
-        df1.run_identifier,
-        df1.output_file_type,
-        df1.output_record_sequence,
-        df1.output_field_sequence,
-        df1.attribute,
-        CASE 
-            WHEN df1.tokenization = 'USTAXID' THEN df2.formatted
-            WHEN df1.tokenization = 'PAN' THEN df2.formatted
-            ELSE df1.formatted
-        END AS formatted,
-        df1.tokenization,
-        df1.account_number,
-        df1.segment
-    FROM df1
-    LEFT JOIN df2
-    ON df1.tokenization = df2.tokenization
-""")
+updated_df1 = filtered_df1.join(df2, on="tokenization", how="left") \
+    .select(
+        filtered_df1.business_date,
+        filtered_df1.run_identifier,
+        filtered_df1.output_file_type,
+        filtered_df1.output_record_sequence,
+        filtered_df1.output_field_sequence,
+        filtered_df1.attribute,
+        when(filtered_df1.tokenization == 'USTAXID', df2.formatted).when(filtered_df1.tokenization == 'PAN', df2.formatted).otherwise(filtered_df1.formatted).alias("formatted"),
+        filtered_df1.tokenization,
+        filtered_df1.account_number,
+        filtered_df1.segment
+    )
+
+# Remove duplicates if any (optional)
+updated_df1 = updated_df1.dropDuplicates()
 
 # Show the updated dataframe
 updated_df1.show(truncate=False)
