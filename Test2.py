@@ -29,10 +29,10 @@ df2 = spark.createDataFrame(data_df2, columns_df2)
 df1.createOrReplaceTempView("df1")
 df2.createOrReplaceTempView("df2")
 
-# Perform the join, select specified columns, drop duplicates, and order by account_number
+# Perform the join, select specified columns, drop duplicates based on formatted, and order by account_number
 result_df = df1.join(df2, on="tokenization", how="inner") \
     .select(df1.account_number, df2.attribute, df2.formatted, df2.tokenization) \
-    .dropDuplicates() \
+    .dropDuplicates(["formatted"]) \
     .orderBy(df1.account_number)
 
 # Show the result DataFrame
