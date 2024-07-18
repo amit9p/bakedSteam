@@ -1,4 +1,5 @@
 
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when
 
@@ -15,25 +16,21 @@ filtered_df1 = df1.filter(
     (df1.tokenization.isin(['USTAXID', 'PAN']))
 )
 
-# Update df1 formatted field based on df2 formatted values
-updated_df1 = filtered_df1.join(df2, on="tokenization", how="left") \
-    .select(
-        filtered_df1.business_date,
-        filtered_df1.run_identifier,
-        filtered_df1.output_file_type,
-        filtered_df1.output_record_sequence,
-        filtered_df1.output_field_sequence,
-        filtered_df1.attribute,
-        when(filtered_df1.tokenization == 'USTAXID', df2.formatted)
-            .when(filtered_df1.tokenization == 'PAN', df2.formatted)
-            .otherwise(filtered_df1.formatted).alias("formatted"),
-        filtered_df1.tokenization,
-        filtered_df1.account_number,
-        filtered_df1.segment
-    )
+# Filter df2 separately for USTAXID and PAN
+df2_ustaxid = df2.filter(df2.tokenization == 'USTAXID').select('formatted').distinct().limit(1)
+df2_pan = df2.filter(df2.tokenization == 'PAN').select('formatted').distinct().limit(1)
 
-# Remove duplicates if any (optional)
-updated_df1 = updated_df1.dropDuplicates()
+# Collect the formatted values
+ustaxid_formatted = df2_ustaxid.collect()[0]['formatted']
+pan_formatted = df2_pan.collect()[0]['formatted']
+
+# Update df1 formatted field based on collected formatted values
+updated_df1 = filtered_df1.withColumn(
+    'formatted', 
+    when(filtered_df1.tokenization == 'USTAXID', ustaxid_formatted)
+    .when(filtered_df1.tokenization == 'PAN', pan_formatted)
+    .otherwise(filtered_df1.formatted)
+)
 
 # Show the updated dataframe
 updated_df1.show(truncate=False)
