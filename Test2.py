@@ -27,12 +27,13 @@ columns2 = ["account_number", "attribute", "formatted", "tokenization"]
 df1 = spark.createDataFrame(data1, columns1)
 df2 = spark.createDataFrame(data2, columns2)
 
-# Join df2 with df1 on tokenization
-df2_updated = df2.alias("df2").join(df1.alias("df1"), col("df2.tokenization") == col("df1.tokenization"), "left") \
-    .select(col("df1.account_number").alias("updated_account_number"),
-            col("df2.attribute"),
-            col("df2.formatted"),
-            col("df2.tokenization"))
+# Perform the join and filter out duplicates
+df2_updated = df2.join(df1, on="tokenization", how="left") \
+    .drop(df2.account_number) \
+    .withColumnRenamed("account_number", "updated_account_number")
+
+# Remove duplicates if needed
+df2_updated = df2_updated.drop_duplicates()
 
 # Show the updated DataFrame
 df2_updated.show(truncate=False)
