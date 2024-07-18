@@ -1,39 +1,42 @@
 
-
 from pyspark.sql import SparkSession
-from pyspark.sql.window import Window
-from pyspark.sql.functions import col, row_number
 
 # Initialize Spark session
-spark = SparkSession.builder.appName("Filter Rows").getOrCreate()
+spark = SparkSession.builder.appName("Drop Duplicates").getOrCreate()
 
-# Sample data for result_df
-data_result = [
-    ("1000000000321616", "Consumer Account Number", "880133zeQc1o23421", "PAN"),
-    ("1000000000321616", "Consumer Account Number", "5913593ecT8JA3895", "PAN"),
-    ("1000000000321616", "Social Security Number", "kxWQmIG6m", "USTAXID"),
-    ("1000000000321616", "Social Security Number", "KXK7DW0V", "USTAXID"),
-    ("1000000000323351", "Consumer Account Number", "880133zeQc1o23421", "PAN"),
-    ("1000000000323351", "Consumer Account Number", "5913593ecT8JA3895", "PAN"),
-    ("1000000000323351", "Social Security Number", "kxWQmIG6m", "USTAXID"),
-    ("1000000000323351", "Social Security Number", "KXK7DW0V", "USTAXID")
+# Sample data for df1 and df2
+data_df1 = [
+    ("1000000000321616", "USTAXID"),
+    ("1000000000321636", "PAN"),
+    ("1000000000321636", "USTAXID"),
+    ("1000000000323351", "PAN")
 ]
-columns_result = ["account_number", "attribute", "formatted", "tokenization"]
+columns_df1 = ["account_number", "tokenization"]
 
-# Create DataFrame
-result_df = spark.createDataFrame(data_result, columns_result)
+data_df2 = [
+    ("1608097536635870836", "Social Security Number", "kxWQmI6m", "USTAXID"),
+    ("6494745652255875313", "Social Security Number", "KXK7DW0V", "USTAXID"),
+    ("880133357772732421", "Consumer Account Number", "880133zeQc1o23421", "PAN"),
+    ("591359754282043895", "Consumer Account Number", "5913593ecT8JA3895", "PAN")
+]
+columns_df2 = ["account_number", "attribute", "formatted", "tokenization"]
 
-# Define window specification
-window_spec = Window.partitionBy("account_number", "tokenization").orderBy("account_number")
+# Create DataFrames
+df1 = spark.createDataFrame(data_df1, columns_df1)
+df2 = spark.createDataFrame(data_df2, columns_df2)
 
-# Add row number based on the window specification
-result_df_with_row_num = result_df.withColumn("row_num", row_number().over(window_spec))
+# Register DataFrames as temp views
+df1.createOrReplaceTempView("df1")
+df2.createOrReplaceTempView("df2")
 
-# Filter to keep only the first 2 rows for each account_number and tokenization
-filtered_df = result_df_with_row_num.filter(col("row_num") <= 2).drop("row_num")
+# Perform the join, select specified columns, drop duplicates, and order by account_number
+result_df = df1.join(df2, on="tokenization", how="inner") \
+    .select(df1.account_number, df2.attribute, df2.formatted, df2.tokenization) \
+    .dropDuplicates() \
+    .orderBy(df1.account_number)
 
 # Show the result DataFrame
-filtered_df.show(truncate=False)
+result_df.show(truncate=False)
 
 # Stop the Spark session
 spark.stop()
