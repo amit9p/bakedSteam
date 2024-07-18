@@ -1,7 +1,8 @@
 
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, when
+from pyspark.sql.functions import col, row_number
+from pyspark.sql.window import Window
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("DataFrameUpdate").getOrCreate()
@@ -16,21 +17,32 @@ filtered_df1 = df1.filter(
     (df1.tokenization.isin(['USTAXID', 'PAN']))
 )
 
-# Filter df2 separately for USTAXID and PAN
-df2_ustaxid = df2.filter(df2.tokenization == 'USTAXID').select('formatted').distinct().limit(1)
-df2_pan = df2.filter(df2.tokenization == 'PAN').select('formatted').distinct().limit(1)
+# Add a row number to both dataframes to maintain uniqueness
+window_spec = Window.partitionBy("output_record_sequence", "tokenization").orderBy("formatted")
 
-# Collect the formatted values
-ustaxid_formatted = df2_ustaxid.collect()[0]['formatted']
-pan_formatted = df2_pan.collect()[0]['formatted']
+df1_with_row_num = filtered_df1.withColumn("row_num", row_number().over(window_spec))
+df2_with_row_num = df2.withColumn("row_num", row_number().over(window_spec))
 
-# Update df1 formatted field based on collected formatted values
-updated_df1 = filtered_df1.withColumn(
-    'formatted', 
-    when(filtered_df1.tokenization == 'USTAXID', ustaxid_formatted)
-    .when(filtered_df1.tokenization == 'PAN', pan_formatted)
-    .otherwise(filtered_df1.formatted)
+# Join df1 with df2 on tokenization and row_num to get the correct mapping
+updated_df1 = df1_with_row_num.join(
+    df2_with_row_num,
+    (df1_with_row_num.tokenization == df2_with_row_num.tokenization) & (df1_with_row_num.row_num == df2_with_row_num.row_num),
+    "left"
+).select(
+    df1_with_row_num.business_date,
+    df1_with_row_num.run_identifier,
+    df1_with_row_num.output_file_type,
+    df1_with_row_num.output_record_sequence,
+    df1_with_row_num.output_field_sequence,
+    df1_with_row_num.attribute,
+    col("df2_with_row_num.formatted").alias("formatted"),
+    df1_with_row_num.tokenization,
+    df1_with_row_num.account_number,
+    df1_with_row_num.segment
 )
 
+# Drop the row_num column
+final_df1 = updated_df1.drop("row_num")
+
 # Show the updated dataframe
-updated_df1.show(truncate=False)
+final_df1.show(truncate=False)
