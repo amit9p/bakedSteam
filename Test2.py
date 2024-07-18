@@ -33,6 +33,7 @@ brad_df = spark.createDataFrame(data_brad, columns_brad)
 result_df = spark.createDataFrame(data_result, columns_result)
 
 # Rename columns to avoid ambiguity
+brad_df = brad_df.withColumnRenamed("formatted", "brad_formatted")
 result_df = result_df.withColumnRenamed("formatted", "result_formatted")
 
 # Join brad_df with result_df on account_number and tokenization
@@ -41,7 +42,7 @@ joined_df = brad_df.join(result_df, on=["account_number", "tokenization"], how="
 # Update the formatted column in brad_df with formatted from result_df
 updated_df = joined_df.withColumn(
     "formatted",
-    when(col("result_formatted").isNotNull(), col("result_formatted")).otherwise(col("formatted"))
+    when(col("result_formatted").isNotNull(), col("result_formatted")).otherwise(col("brad_formatted"))
 ).select(
     brad_df["business_date"],
     brad_df["run_identifier"],
