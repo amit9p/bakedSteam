@@ -35,7 +35,7 @@ df2.createOrReplaceTempView("df2")
 
 # Use SQL to join and select the desired columns
 query = """
-SELECT DISTINCT df1.account_number, df2.attribute, df2.formatted, df2.tokenization
+SELECT df1.account_number, df2.attribute, df2.formatted, df2.tokenization
 FROM df2
 JOIN df1 ON df2.tokenization = df1.tokenization
 WHERE df1.account_number IN (
@@ -48,7 +48,10 @@ WHERE df1.account_number IN (
 )
 """
 
-result_df = spark.sql(query)
+joined_df = spark.sql(query)
+
+# Drop duplicates based on account_number, attribute, and tokenization
+result_df = joined_df.dropDuplicates(["account_number", "attribute", "tokenization"])
 
 # Show the result
 result_df.show(truncate=False)
