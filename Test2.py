@@ -29,8 +29,9 @@ columns2 = ["account_number", "attribute", "formatted", "tokenization"]
 
 df2 = spark.createDataFrame(data2, columns2)
 
-# Perform the join
-result_df = df1.join(df2, on="tokenization", how="inner").select(df1.account_number.alias("account_number"), df2.attribute, df2.formatted, df1.tokenization)
+# Perform the join on both account_number and tokenization
+result_df = df1.join(df2, (df1.tokenization == df2.tokenization) & (df1.account_number == df2.account_number), how="inner")\
+               .select(df1.account_number.alias("account_number"), df2.attribute, df2.formatted, df1.tokenization)
 
 # Show the result
 result_df.show(truncate=False)
