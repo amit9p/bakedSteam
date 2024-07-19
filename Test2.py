@@ -1,8 +1,6 @@
 
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import row_number
-from pyspark.sql.window import Window
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("DataFrame Ranking Example").getOrCreate()
@@ -52,22 +50,21 @@ WHERE df1.account_number IN (
 
 joined_df = spark.sql(query)
 
-# Define a window spec to partition by tokenization and order by output_record_sequence
-window_spec = Window.partitionBy("tokenization").orderBy("output_record_sequence")
+# Register the joined DataFrame as a temporary view
+joined_df.createOrReplaceTempView("joined_df")
 
-# Add a row number to each partition
-ranked_df = joined_df.withColumn("row_number", row_number().over(window_spec))
+# Use SQL to apply rank on tokenization and select rows where the rank is 1
+ranked_query = """
+SELECT account_number, attribute, formatted, tokenization
+FROM (
+    SELECT *,
+           ROW_NUMBER() OVER (PARTITION BY tokenization ORDER BY account_number) as rank
+    FROM joined_df
+) ranked
+WHERE rank = 1
+"""
 
-# Filter to get only rows where row_number is 1
-final_df = ranked_df.filter(col("row_number") == 1)
-
-# Select the necessary columns
-result_df = final_df.select(
-    col("account_number"),
-    col("attribute"),
-    col("formatted"),
-    col("tokenization")
-)
+result_df = spark.sql(ranked_query)
 
 # Show the result
 result_df.show(truncate=False)
