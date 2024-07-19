@@ -58,7 +58,7 @@ ranked_query = """
 SELECT account_number, attribute, formatted, tokenization
 FROM (
     SELECT *,
-           ROW_NUMBER() OVER (PARTITION BY tokenization ORDER BY account_number) as rank
+           DENSE_RANK() OVER (PARTITION BY tokenization ORDER BY account_number) as rank
     FROM joined_df
 ) ranked
 WHERE rank = 1
