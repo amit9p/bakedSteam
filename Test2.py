@@ -41,11 +41,11 @@ window_spec = Window.partitionBy("tokenization").orderBy("output_record_sequence
 ranked_df = joined_df.withColumn("row_number", row_number().over(window_spec))
 
 # Filter to ensure each tokenization type has different account numbers
-filtered_df = ranked_df.filter((col("row_number") == 1) | (col("row_number") == 2))
+filtered_df = ranked_df.filter(col("row_number") <= 2)
 
 # Select and rename columns to match the desired output
 result_df = filtered_df.select(
-    col("account_number"),
+    col("df1.account_number").alias("account_number"),
     col("attribute"),
     col("formatted"),
     col("tokenization")
