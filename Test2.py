@@ -1,5 +1,4 @@
 
-
 from pyspark.sql import SparkSession
 
 # Initialize Spark session
@@ -38,14 +37,6 @@ query = """
 SELECT df1.account_number, df2.attribute, df2.formatted, df2.tokenization
 FROM df2
 JOIN df1 ON df2.tokenization = df1.tokenization
-WHERE df1.account_number IN (
-    SELECT account_number
-    FROM (
-        SELECT account_number, tokenization, ROW_NUMBER() OVER (PARTITION BY tokenization ORDER BY output_record_sequence) as rn
-        FROM df1
-    ) subquery
-    WHERE rn <= 2
-)
 """
 
 joined_df = spark.sql(query)
@@ -58,7 +49,7 @@ ranked_query = """
 SELECT account_number, attribute, formatted, tokenization
 FROM (
     SELECT *,
-           DENSE_RANK() OVER (PARTITION BY tokenization ORDER BY account_number) as rank
+           ROW_NUMBER() OVER (PARTITION BY tokenization ORDER BY output_record_sequence) as rank
     FROM joined_df
 ) ranked
 WHERE rank = 1
