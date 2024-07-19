@@ -1,5 +1,4 @@
 
-
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, row_number
 from pyspark.sql.window import Window
@@ -40,15 +39,15 @@ window_spec = Window.partitionBy("tokenization").orderBy("output_record_sequence
 # Add a row number to each partition
 ranked_df = joined_df.withColumn("row_number", row_number().over(window_spec))
 
-# Filter to get the distinct account numbers for each tokenization
-filtered_df = ranked_df.filter((col("row_number") == 1) | (col("row_number") == 2))
+# Filter to get distinct account numbers for each tokenization
+distinct_df = ranked_df.filter((col("row_number") == 1) | (col("row_number") == 2))
 
 # Ensure unique account numbers for each tokenization type
-distinct_df = filtered_df.dropDuplicates(["account_number", "tokenization"])
+final_df = distinct_df.dropDuplicates(["tokenization", "account_number"])
 
 # Select and rename columns to match the desired output
-result_df = distinct_df.select(
-    col("df1.account_number").alias("account_number"),
+result_df = final_df.select(
+    col("account_number"),
     col("attribute"),
     col("formatted"),
     col("tokenization")
