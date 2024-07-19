@@ -1,4 +1,5 @@
 
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col
 
@@ -30,11 +31,10 @@ columns2 = ["account_number", "attribute", "formatted", "tokenization"]
 df2 = spark.createDataFrame(data2, columns2)
 
 # Perform the join and filter to ensure unique account numbers for each tokenization
-result_df = df2.join(df1, on="tokenization") \
+result_df = df2.join(df1, ["tokenization"]) \
     .drop(df2.account_number) \
-    .withColumnRenamed("df1.account_number", "account_number") \
-    .select("account_number", "attribute", "formatted", "tokenization") \
-    .dropDuplicates(["tokenization", "output_record_sequence"])
+    .withColumnRenamed("account_number", "source_account_number") \
+    .select(col("df1.account_number").alias("account_number"), "attribute", "formatted", "tokenization")
 
 # Show the result
 result_df.show(truncate=False)
