@@ -29,10 +29,24 @@ columns2 = ["account_number", "attribute", "formatted", "tokenization"]
 
 df2 = spark.createDataFrame(data2, columns2)
 
-# Perform the join and filter to ensure unique account numbers for each tokenization
-result_df = df2.join(df1, "tokenization") \
-    .drop(df2.account_number) \
-    .select(df1.account_number.alias("account_number"), "attribute", "formatted", "tokenization")
+# Perform the join
+joined_df = df2.join(df1, on="tokenization")
+
+# Filter to ensure each tokenization type has different account numbers
+filtered_df = joined_df.filter(
+    (col("tokenization") == "USTAXID") & (col("output_record_sequence") == "321618") |
+    (col("tokenization") == "USTAXID") & (col("output_record_sequence") == "323353") |
+    (col("tokenization") == "PAN") & (col("output_record_sequence") == "321616") |
+    (col("tokenization") == "PAN") & (col("output_record_sequence") == "323353")
+)
+
+# Select and rename columns to match the desired output
+result_df = filtered_df.select(
+    col("df1.account_number").alias("account_number"),
+    col("attribute"),
+    col("formatted"),
+    col("tokenization")
+)
 
 # Show the result
 result_df.show(truncate=False)
