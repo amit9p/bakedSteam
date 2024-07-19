@@ -1,6 +1,7 @@
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, row_number
+from pyspark.sql.window import Window
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("DataFrame Join Example").getOrCreate()
@@ -32,17 +33,18 @@ df2 = spark.createDataFrame(data2, columns2)
 # Perform the join
 joined_df = df2.join(df1, on="tokenization")
 
-# Filter to ensure each tokenization type has different account numbers
-filtered_df = joined_df.filter(
-    (col("tokenization") == "USTAXID") & (col("output_record_sequence") == "321618") |
-    (col("tokenization") == "USTAXID") & (col("output_record_sequence") == "323353") |
-    (col("tokenization") == "PAN") & (col("output_record_sequence") == "321616") |
-    (col("tokenization") == "PAN") & (col("output_record_sequence") == "323353")
-)
+# Define a window spec to partition by tokenization and order by output_record_sequence
+window_spec = Window.partitionBy("tokenization").orderBy("output_record_sequence")
+
+# Add a row number to each partition
+ranked_df = joined_df.withColumn("row_number", row_number().over(window_spec))
+
+# Filter to get the top 2 unique account numbers for each tokenization
+filtered_df = ranked_df.filter(col("row_number") <= 2)
 
 # Select and rename columns to match the desired output
 result_df = filtered_df.select(
-    col("df1.account_number").alias("account_number"),
+    col("account_number"),
     col("attribute"),
     col("formatted"),
     col("tokenization")
