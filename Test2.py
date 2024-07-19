@@ -34,7 +34,7 @@ df2.createOrReplaceTempView("df2")
 
 # Use SQL to join and select the desired columns
 query = """
-SELECT df1.account_number, df2.attribute, df2.formatted, df2.tokenization
+SELECT df1.account_number, df2.attribute, df2.formatted, df2.tokenization, df1.output_record_sequence
 FROM df2
 JOIN df1 ON df2.tokenization = df1.tokenization
 """
