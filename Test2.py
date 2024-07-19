@@ -1,26 +1,36 @@
 
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
 
-# Create a Spark session with initial configurations
-spark = (
-    SparkSession.builder.appName("PySpark AWS S3 Example")
-    .config("spark.hadoop.fs.s3a.access.key", aws_access_key_id)
-    .config("spark.hadoop.fs.s3a.secret.key", aws_secret_access_key)
-    .config("spark.hadoop.fs.s3a.session.token", aws_session_token)
-    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-    .config("spark.hadoop.fs.s3a.path.style.access", True)
-    .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com")
-    .config("spark.jars.ivySettings", SPARK_JARS_IVYSETTINGS)
-    .config("spark.jars.packages", SPARK_JARS_PACKAGES)
-    .getOrCreate()
-)
+# Initialize Spark session
+spark = SparkSession.builder.appName("DataFrame Join Example").getOrCreate()
 
-# Add more configurations after the Spark session is created
-spark.conf.set("spark.executor.memory", "4g")
-spark.conf.set("spark.driver.memory", "2g")
-spark.conf.set("spark.sql.shuffle.partitions", "200")
+# Sample data for df1
+data1 = [
+    ("1000000000323351", "USTAXID"),
+    ("1000000000321616", "USTAXID"),
+    ("1000000000321616", "PAN"),
+    ("1000000000323351", "PAN")
+]
 
-# Verify the new configurations
-print(spark.conf.get("spark.executor.memory"))  # should print '4g'
-print(spark.conf.get("spark.driver.memory"))    # should print '2g'
-print(spark.conf.get("spark.sql.shuffle.partitions"))  # should print '200'
+columns1 = ["account_number", "tokenization"]
+
+df1 = spark.createDataFrame(data1, columns1)
+
+# Sample data for df2
+data2 = [
+    ("66089756365870836", "Social Security Number", "KxWQmIGGm", "USTAXID"),
+    ("4947456522358753", "Social Security Number", "KxK7DWG0V", "USTAXID"),
+    ("8801333eQCia23421", "Consumer Account Number", "8801333zeQCia23421", "PAN"),
+    ("5913597ecT8JA3895", "Consumer Account Number", "5913593ecT8JA3895", "PAN")
+]
+
+columns2 = ["account_number", "attribute", "formatted", "tokenization"]
+
+df2 = spark.createDataFrame(data2, columns2)
+
+# Perform the join
+result_df = df1.join(df2, on="tokenization", how="inner").select(df1.account_number.alias("account_number"), df2.attribute, df2.formatted, df1.tokenization)
+
+# Show the result
+result_df.show(truncate=False)
