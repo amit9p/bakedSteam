@@ -1,42 +1,26 @@
 
 from pyspark.sql import SparkSession
 
-# Initialize Spark session
-spark = SparkSession.builder.appName("Drop Duplicates").getOrCreate()
+# Create a Spark session with initial configurations
+spark = (
+    SparkSession.builder.appName("PySpark AWS S3 Example")
+    .config("spark.hadoop.fs.s3a.access.key", aws_access_key_id)
+    .config("spark.hadoop.fs.s3a.secret.key", aws_secret_access_key)
+    .config("spark.hadoop.fs.s3a.session.token", aws_session_token)
+    .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+    .config("spark.hadoop.fs.s3a.path.style.access", True)
+    .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com")
+    .config("spark.jars.ivySettings", SPARK_JARS_IVYSETTINGS)
+    .config("spark.jars.packages", SPARK_JARS_PACKAGES)
+    .getOrCreate()
+)
 
-# Sample data for df1 and df2
-data_df1 = [
-    ("1000000000321616", "USTAXID"),
-    ("1000000000321636", "PAN"),
-    ("1000000000321636", "USTAXID"),
-    ("1000000000323351", "PAN")
-]
-columns_df1 = ["account_number", "tokenization"]
+# Add more configurations after the Spark session is created
+spark.conf.set("spark.executor.memory", "4g")
+spark.conf.set("spark.driver.memory", "2g")
+spark.conf.set("spark.sql.shuffle.partitions", "200")
 
-data_df2 = [
-    ("1608097536635870836", "Social Security Number", "kxWQmI6m", "USTAXID"),
-    ("6494745652255875313", "Social Security Number", "KXK7DW0V", "USTAXID"),
-    ("880133357772732421", "Consumer Account Number", "880133zeQc1o23421", "PAN"),
-    ("591359754282043895", "Consumer Account Number", "5913593ecT8JA3895", "PAN")
-]
-columns_df2 = ["account_number", "attribute", "formatted", "tokenization"]
-
-# Create DataFrames
-df1 = spark.createDataFrame(data_df1, columns_df1)
-df2 = spark.createDataFrame(data_df2, columns_df2)
-
-# Register DataFrames as temp views
-df1.createOrReplaceTempView("df1")
-df2.createOrReplaceTempView("df2")
-
-# Perform the join, select specified columns, drop duplicates based on formatted, and order by account_number
-result_df = df1.join(df2, on="tokenization", how="inner") \
-    .select(df1.account_number, df2.attribute, df2.formatted, df2.tokenization) \
-    .dropDuplicates(["formatted"]) \
-    .orderBy(df1.account_number)
-
-# Show the result DataFrame
-result_df.show(truncate=False)
-
-# Stop the Spark session
-spark.stop()
+# Verify the new configurations
+print(spark.conf.get("spark.executor.memory"))  # should print '4g'
+print(spark.conf.get("spark.driver.memory"))    # should print '2g'
+print(spark.conf.get("spark.sql.shuffle.partitions"))  # should print '200'
