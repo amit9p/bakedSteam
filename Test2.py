@@ -44,7 +44,7 @@ joined_df = spark.sql(query)
 # Register the joined DataFrame as a temporary view
 joined_df.createOrReplaceTempView("joined_df")
 
-# Use SQL to apply rank on the formatted field
+# Use SQL to apply rank on the account_number and tokenization field and select unique rows
 ranked_query = """
 WITH ranked_table AS (
     SELECT *,
@@ -56,10 +56,12 @@ account_ranked AS (
            ROW_NUMBER() OVER (ORDER BY account_number) as acc_rank
     FROM (SELECT DISTINCT account_number FROM ranked_table)
 )
-SELECT rt.account_number, rt.attribute, rt.formatted, rt.tokenization, rt.output_record_sequence
+SELECT rt.account_number, rt.attribute, rt.formatted, rt.tokenization, rt.output_record_sequence, 
+       ROW_NUMBER() OVER (PARTITION BY rt.account_number ORDER BY rt.output_record_sequence) as new_rank
 FROM ranked_table rt
 JOIN account_ranked ar ON rt.account_number = ar.account_number
 WHERE rt.rank = ar.acc_rank
+ORDER BY new_rank
 """
 
 result_df = spark.sql(ranked_query)
