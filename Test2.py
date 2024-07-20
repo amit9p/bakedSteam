@@ -1,70 +1,45 @@
 
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import lit
 
 # Initialize Spark session
-spark = SparkSession.builder.appName("DataFrame Ranking Example").getOrCreate()
+spark = SparkSession.builder.appName("DataFrame Column Merge Example").getOrCreate()
 
 # Sample data for df1
 data1 = [
-    ("1000000000323351", "USTAXID", "323353"),
-    ("1000000000323351", "PAN", "323353"),
-    ("1000000000321616", "PAN", "321616"),
-    ("1000000000321616", "USTAXID", "321618")
+    (1, "a1", "b1", "c1"),
+    (2, "a2", "b2", "c2"),
+    (3, "a3", "b3", "c3")
 ]
 
-columns1 = ["account_number", "tokenization", "output_record_sequence"]
+columns1 = ["id", "a", "b", "c"]
 
 df1 = spark.createDataFrame(data1, columns1)
 
 # Sample data for df2
 data2 = [
-    ("66089756365870836", "Social Security Number", "KxWQmIGGm", "USTAXID"),
-    ("4947456522358753", "Social Security Number", "KxK7DWG0V", "USTAXID"),
-    ("8801333eQCia23421", "Consumer Account Number", "8801333zeQCia23421", "PAN"),
-    ("5913597ecT8JA3895", "Consumer Account Number", "5913593ecT8JA3895", "PAN")
+    ("d1", "e1", "f1"),
+    ("d2", "e2", "f2"),
+    ("d3", "e3", "f3")
 ]
 
-columns2 = ["account_number", "attribute", "formatted", "tokenization"]
+columns2 = ["d", "e", "f"]
 
 df2 = spark.createDataFrame(data2, columns2)
 
-# Register DataFrames as temporary views
-df1.createOrReplaceTempView("df1")
-df2.createOrReplaceTempView("df2")
+# Show the original DataFrames
+print("DataFrame 1:")
+df1.show()
 
-# Use SQL to join and select the desired columns
-query = """
-SELECT df1.account_number, df2.attribute, df2.formatted, df2.tokenization, df1.output_record_sequence
-FROM df2
-JOIN df1 ON df2.tokenization = df1.tokenization
-"""
+print("DataFrame 2:")
+df2.show()
 
-joined_df = spark.sql(query)
+# Select the column 'a' from df1
+df1_a = df1.select("a")
 
-# Register the joined DataFrame as a temporary view
-joined_df.createOrReplaceTempView("joined_df")
+# Add the column 'a' from df1 to df2
+df3 = df2.withColumn("a", lit(df1_a.collect()[0][0]))
 
-# Use SQL to apply rank on the account_number and tokenization field and select unique rows
-ranked_query = """
-WITH ranked_table AS (
-    SELECT *,
-           ROW_NUMBER() OVER (PARTITION BY formatted ORDER BY output_record_sequence) as rank
-    FROM joined_df
-),
-account_ranked AS (
-    SELECT account_number, 
-           ROW_NUMBER() OVER (ORDER BY account_number) as acc_rank
-    FROM (SELECT DISTINCT account_number FROM ranked_table)
-)
-SELECT rt.account_number, rt.attribute, rt.formatted, rt.tokenization, rt.output_record_sequence, 
-       ROW_NUMBER() OVER (PARTITION BY rt.account_number ORDER BY rt.output_record_sequence) as new_rank
-FROM ranked_table rt
-JOIN account_ranked ar ON rt.account_number = ar.account_number
-WHERE rt.rank = ar.acc_rank
-ORDER BY new_rank
-"""
-
-result_df = spark.sql(ranked_query)
-
-# Show the result
-result_df.show(truncate=False)
+# Show the result DataFrame
+print("Result DataFrame 3:")
+df3.show()
