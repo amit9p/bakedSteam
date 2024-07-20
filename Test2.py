@@ -1,18 +1,20 @@
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import lit
+from pyspark.sql.functions import monotonically_increasing_id
+from pyspark.sql.window import Window
+from pyspark.sql.functions import row_number
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("DataFrame Column Merge Example").getOrCreate()
 
 # Sample data for df1
 data1 = [
-    (1, "a1", "b1", "c1"),
-    (2, "a2", "b2", "c2"),
-    (3, "a3", "b3", "c3")
+    ("a1", "b1", "c1"),
+    ("a2", "b2", "c2"),
+    ("a3", "b3", "c3")
 ]
 
-columns1 = ["id", "a", "b", "c"]
+columns1 = ["a", "b", "c"]
 
 df1 = spark.createDataFrame(data1, columns1)
 
@@ -27,19 +29,12 @@ columns2 = ["d", "e", "f"]
 
 df2 = spark.createDataFrame(data2, columns2)
 
-# Show the original DataFrames
-print("DataFrame 1:")
-df1.show()
+# Add an index to both DataFrames
+df1 = df1.withColumn("index", row_number().over(Window.orderBy(monotonically_increasing_id())))
+df2 = df2.withColumn("index", row_number().over(Window.orderBy(monotonically_increasing_id())))
 
-print("DataFrame 2:")
-df2.show()
-
-# Select the column 'a' from df1
-df1_a = df1.select("a")
-
-# Add the column 'a' from df1 to df2
-df3 = df2.withColumn("a", lit(df1_a.collect()[0][0]))
+# Join DataFrames on the index column
+df3 = df2.join(df1.select("a", "index"), on="index", how="inner").drop("index")
 
 # Show the result DataFrame
-print("Result DataFrame 3:")
-df3.show()
+df3.show(truncate=False)
