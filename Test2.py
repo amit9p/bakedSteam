@@ -1,6 +1,7 @@
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import monotonically_increasing_id
+from pyspark.sql.functions import row_number, monotonically_increasing_id
+from pyspark.sql.window import Window
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("DataFrame Column Merge Example").getOrCreate()
@@ -27,12 +28,19 @@ columns2 = ["d", "e", "f"]
 
 df2 = spark.createDataFrame(data2, columns2)
 
-# Add an index to both DataFrames using monotonically_increasing_id
-df1 = df1.withColumn("id", monotonically_increasing_id())
-df2 = df2.withColumn("id", monotonically_increasing_id())
+# Define the window specification with partitioning
+windowSpec = Window.orderBy(monotonically_increasing_id()).partitionBy("dummy")
 
-# Join DataFrames on the id column
-df3 = df2.join(df1.select("a", "id"), on="id", how="inner").drop("id")
+# Add a dummy column to use for partitioning
+df1 = df1.withColumn("dummy", lit(1))
+df2 = df2.withColumn("dummy", lit(1))
+
+# Add an index to both DataFrames using row_number() and partitioning
+df1 = df1.withColumn("index", row_number().over(windowSpec)).drop("dummy")
+df2 = df2.withColumn("index", row_number().over(windowSpec)).drop("dummy")
+
+# Join DataFrames on the index column
+df3 = df2.join(df1.select("a", "index"), on="index", how="inner").drop("index")
 
 # Show the result DataFrame
 df3.show(truncate=False)
