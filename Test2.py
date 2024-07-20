@@ -1,8 +1,6 @@
 
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import monotonically_increasing_id
-from pyspark.sql.window import Window
-from pyspark.sql.functions import row_number
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("DataFrame Column Merge Example").getOrCreate()
@@ -29,12 +27,12 @@ columns2 = ["d", "e", "f"]
 
 df2 = spark.createDataFrame(data2, columns2)
 
-# Add an index to both DataFrames
-df1 = df1.withColumn("index", row_number().over(Window.orderBy(monotonically_increasing_id())))
-df2 = df2.withColumn("index", row_number().over(Window.orderBy(monotonically_increasing_id())))
+# Add an index to both DataFrames using monotonically_increasing_id
+df1 = df1.withColumn("id", monotonically_increasing_id())
+df2 = df2.withColumn("id", monotonically_increasing_id())
 
-# Join DataFrames on the index column
-df3 = df2.join(df1.select("a", "index"), on="index", how="inner").drop("index")
+# Join DataFrames on the id column
+df3 = df2.join(df1.select("a", "id"), on="id", how="inner").drop("id")
 
 # Show the result DataFrame
 df3.show(truncate=False)
