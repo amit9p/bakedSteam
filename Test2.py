@@ -1,5 +1,4 @@
 
-
 from pyspark.sql import SparkSession
 
 # Initialize Spark session
@@ -45,15 +44,16 @@ joined_df = spark.sql(query)
 # Register the joined DataFrame as a temporary view
 joined_df.createOrReplaceTempView("joined_df")
 
-# Use SQL to apply rank on the account_number, tokenization, and formatted field
+# Use SQL to apply rank on the formatted field and select rows where the rank is 1
 ranked_query = """
-SELECT account_number, attribute, formatted, tokenization, output_record_sequence
-FROM (
+WITH ranked_table AS (
     SELECT *,
-           ROW_NUMBER() OVER (PARTITION BY account_number, tokenization, formatted ORDER BY output_record_sequence) as rank
+           ROW_NUMBER() OVER (PARTITION BY formatted ORDER BY output_record_sequence) as rank
     FROM joined_df
-) ranked
-WHERE rank = 1
+)
+SELECT account_number, attribute, formatted, tokenization, output_record_sequence
+FROM ranked_table
+WHERE rank = (ROW_NUMBER() OVER (ORDER BY account_number)) % (SELECT COUNT(DISTINCT formatted) FROM ranked_table) + 1
 """
 
 result_df = spark.sql(ranked_query)
