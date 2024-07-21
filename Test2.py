@@ -1,17 +1,17 @@
 
-# Define the SQL query
+
+df1.createOrReplaceTempView("t1")
 query = """
-SELECT *
-FROM data_table
-WHERE run_identifier IN (
-    SELECT run_identifier
-    FROM data_table
-    WHERE output_record_sequence = '2'
-)
+SELECT *,
+       LENGTH(formatted) AS formatted_length
+FROM t1
+WHERE output_record_sequence IN (2, 3, 4)
+ORDER BY output_record_sequence, output_field_sequence ASC
 """
 
 # Execute the query
-result_df = spark.sql(query)
+df1 = spark.sql(query)
 
 # Show the results
-result_df.show()
+df1.show(n=500, truncate=False)
+df1.printSchema()
