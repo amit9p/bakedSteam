@@ -1,5 +1,6 @@
 
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import lit
 
 # Initialize Spark session
 spark = SparkSession.builder.appName("RenameColumns").getOrCreate()
@@ -13,10 +14,11 @@ columns = ["run_id", "account_id", "segment", "attribute", "value", "row_positio
 
 df = spark.createDataFrame(data, columns)
 
-# Rename columns
+# Rename columns and add new column with null values
 new_df = df.withColumnRenamed("account_id", "acc_id") \
            .withColumnRenamed("row_position", "row_pos") \
-           .withColumnRenamed("column_position", "col_pos")
+           .withColumnRenamed("column_position", "col_pos") \
+           .withColumn("tokenization", lit(None))
 
 # Show the new DataFrame
 new_df.show()
