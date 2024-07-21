@@ -1,46 +1,22 @@
+
 from pyspark.sql import SparkSession
 
-spark = SparkSession.builder \
-    .appName("Data Transformation") \
-    .getOrCreate()
+# Initialize Spark session
+spark = SparkSession.builder.appName("RenameColumns").getOrCreate()
 
-# Load df1 and df2 from their respective files
-df1 = spark.read.format("parquet").load("/mnt/data/file-BkJukAK335fxnuqKD3xqmclt")
-df2 = spark.read.format("parquet").load("/mnt/data/file-BzVXdsyCTQqNeaWvJOD3W2AK")
+# Assuming you already have your DataFrame loaded, e.g. df
+# Sample data to create a DataFrame (replace this with your actual DataFrame loading code)
+data = [(1, "acc1", "seg1", "attr1", "val1", 1, 1, "type1", "2023-07-21"),
+        (2, "acc2", "seg2", "attr2", "val2", 2, 2, "type2", "2023-07-22")]
 
-# Create temporary views for SQL queries
-df1.createOrReplaceTempView("df1")
-df2.createOrReplaceTempView("df2")
+columns = ["run_id", "account_id", "segment", "attribute", "value", "row_position", "column_position", "file_type", "business_date"]
 
+df = spark.createDataFrame(data, columns)
 
+# Rename columns
+new_df = df.withColumnRenamed("account_id", "acc_id") \
+           .withColumnRenamed("row_position", "row_pos") \
+           .withColumnRenamed("column_position", "col_pos")
 
-query = """
-SELECT
-    df2.business_date,
-    df2.run_identifier,
-    df2.output_file_type,
-    df2.output_record_sequence,
-    df2.output_field_sequence,
-    df2.attribute,
-    df2.formatted,
-    df1.value AS tokenization,  -- df2.tokenization will be replaced with df1.value where the join conditions are met
-    df2.account_number,
-    df2.segment
-FROM
-    df2
-LEFT JOIN
-    df1
-ON
-    df1.segment = 'TRAILER'
-    AND df1.row_position = df2.output_record_sequence
-    AND df1.column_position = df2.output_field_sequence
-    AND df1.run_id = df2.run_identifier
-    AND df1.account_id = df2.account_number
-"""
-
-# Execute the query
-new_df = spark.sql(query)
-
-# Show the results
-new_df.show(n=500, truncate=False)
-new_df.printSchema()
+# Show the new DataFrame
+new_df.show()
