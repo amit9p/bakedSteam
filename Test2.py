@@ -1,21 +1,30 @@
 
-
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import lit, when, col
 
 # Initialize Spark session
-spark = SparkSession.builder.appName("RenameColumns").getOrCreate()
+spark = SparkSession.builder.appName("CheckAccountNumbers").getOrCreate()
 
-# Sample data for new_df (replace this with your actual DataFrame loading code)
-data_new = [("1", "acc1", "seg1", "attr1", "val1", 1, 1, "type1", "2023-07-21"),
-            ("2", "acc2", "TRAILER", "attr2", "val2", 2, 2, "type2", "2023-07-22")]
+# Load the data from Parquet file
+df = spark.read.parquet("/mnt/data/file-aHP3wJIRFIZ1CbFDmkr5lUgv")
 
-columns_new = ["run_identifier", "account_number", "segment", "attribute", "formatted", "output_record_sequence", "output_field_sequence", "output_file_type", "business_date"]
+# Create a temporary view
+df.createOrReplaceTempView("data")
 
-new_df = spark.createDataFrame(data_new, columns_new)
+# SQL query to find output_record_sequence with different account_number values
+query = """
+SELECT output_record_sequence
+FROM (
+    SELECT output_record_sequence, account_number,
+           COUNT(DISTINCT account_number) AS account_count
+    FROM data
+    GROUP BY output_record_sequence, account_number
+) subquery
+GROUP BY output_record_sequence
+HAVING COUNT(*) > 1
+"""
 
-# Update run_identifier where segment is TRAILER
-new_df = new_df.withColumn("run_identifier", when(col("segment") == "TRAILER", lit("1717436474")).otherwise(col("run_identifier")))
+# Execute the query
+result = spark.sql(query)
 
-# Show the updated DataFrame
-new_df.show()
+# Show the result
+result.show()
