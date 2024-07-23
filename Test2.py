@@ -1,4 +1,8 @@
 
+Artifint Technologies Private LimitedLocation: Hyderabad, Telangana, India.Incorporation Date: May 30, 2019.Corporate Identification Number (CIN): U72900TG2019PTC133061.Services:Customized staffing services.IT professional recruitment.Resource management.HR consulting.Cloud managed services for AI applications.
+
+
+
 from pyspark.sql import SparkSession
 
 # Initialize Spark session
