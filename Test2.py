@@ -1,6 +1,8 @@
 
 import pytest
 from pyspark.sql import SparkSession
+from pyspark.sql.types import StructType, StructField, StringType, LongType
+from pyspark.sql.functions import col
 from unittest.mock import patch
 from your_module import replace_tokenized_values  # Replace with your actual module name
 
@@ -30,6 +32,11 @@ def token_cache(spark):
     schema = ["account_number", "tokenization", "plain_text"]
     return spark.createDataFrame(data, schema)
 
+def assert_dataframe_equality(df1, df2):
+    df1_sorted = df1.sort(col("account_number"), col("tokenization"))
+    df2_sorted = df2.sort(col("account_number"), col("tokenization"))
+    assert df1_sorted.collect() == df2_sorted.collect()
+
 def test_replace_tokenized_values_exception_handling(spark, df_input, token_cache):
     with patch('your_module.replace_tokenized_values') as mock_replace_tokenized_values:
         mock_replace_tokenized_values.side_effect = Exception("Test exception")
@@ -37,12 +44,6 @@ def test_replace_tokenized_values_exception_handling(spark, df_input, token_cach
             replace_tokenized_values(df_input, token_cache)
         except Exception as e:
             assert str(e) == "Test exception"
-
-# Additional test cases for better coverage
-def assert_dataframe_equality(df1, df2):
-    df1_sorted = df1.sort(col("account_number"), col("tokenization"))
-    df2_sorted = df2.sort(col("account_number"), col("tokenization"))
-    assert df1_sorted.collect() == df2_sorted.collect()
 
 def test_replace_tokenized_values_with_empty_input(spark, token_cache):
     schema = StructType([
