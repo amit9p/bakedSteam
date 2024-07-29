@@ -1,7 +1,9 @@
 
+
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, LongType
+from pyspark.sql.functions import col
 from your_module import replace_tokenized_values  # Replace with your actual module name
 
 # Create a Spark session
@@ -30,6 +32,11 @@ def token_cache(spark):
     schema = ["account_number", "tokenization", "plain_text"]
     return spark.createDataFrame(data, schema)
 
+def assert_dataframe_equality(df1, df2):
+    df1_sorted = df1.sort(col("account_number"), col("tokenization"))
+    df2_sorted = df2.sort(col("account_number"), col("tokenization"))
+    assert df1_sorted.collect() == df2_sorted.collect()
+
 def test_replace_tokenized_values_with_empty_input(spark, token_cache):
     schema = StructType([
         StructField("account_number", LongType(), True),
@@ -38,7 +45,7 @@ def test_replace_tokenized_values_with_empty_input(spark, token_cache):
     ])
     empty_df_input = spark.createDataFrame([], schema)
     result_df = replace_tokenized_values(empty_df_input, token_cache)
-    assert result_df.collect() == empty_df_input.collect()
+    assert_dataframe_equality(result_df, empty_df_input)
 
 # Additional test cases for better coverage
 def test_replace_tokenized_values(spark, df_input, token_cache):
@@ -50,8 +57,7 @@ def test_replace_tokenized_values(spark, df_input, token_cache):
     ]
     expected_schema = ["account_number", "tokenization", "formatted"]
     expected_df = spark.createDataFrame(expected_data, expected_schema)
-
-    assert result_df.collect() == expected_df.collect()
+    assert_dataframe_equality(result_df, expected_df)
 
 def test_replace_tokenized_values_with_missing_keys(spark, df_input, token_cache):
     modified_token_cache = token_cache.filter("account_number != 1")
@@ -63,10 +69,9 @@ def test_replace_tokenized_values_with_missing_keys(spark, df_input, token_cache
     ]
     expected_schema = ["account_number", "tokenization", "formatted"]
     expected_df = spark.createDataFrame(expected_data, expected_schema)
-
-    assert result_df.collect() == expected_df.collect()
+    assert_dataframe_equality(result_df, expected_df)
 
 def test_replace_tokenized_values_with_empty_cache(spark, df_input):
     empty_token_cache = spark.createDataFrame([], ["account_number", "tokenization", "plain_text"])
     result_df = replace_tokenized_values(df_input, empty_token_cache)
-    assert result_df.collect() == df_input.collect()
+    assert_dataframe_equality(result_df, df_input)
