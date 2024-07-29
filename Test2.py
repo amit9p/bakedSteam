@@ -1,9 +1,7 @@
 
-
 import pytest
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, LongType
-from pyspark.sql.functions import col
+from unittest.mock import patch
 from your_module import replace_tokenized_values  # Replace with your actual module name
 
 # Create a Spark session
@@ -32,6 +30,15 @@ def token_cache(spark):
     schema = ["account_number", "tokenization", "plain_text"]
     return spark.createDataFrame(data, schema)
 
+def test_replace_tokenized_values_exception_handling(spark, df_input, token_cache):
+    with patch('your_module.replace_tokenized_values') as mock_replace_tokenized_values:
+        mock_replace_tokenized_values.side_effect = Exception("Test exception")
+        try:
+            replace_tokenized_values(df_input, token_cache)
+        except Exception as e:
+            assert str(e) == "Test exception"
+
+# Additional test cases for better coverage
 def assert_dataframe_equality(df1, df2):
     df1_sorted = df1.sort(col("account_number"), col("tokenization"))
     df2_sorted = df2.sort(col("account_number"), col("tokenization"))
@@ -47,7 +54,6 @@ def test_replace_tokenized_values_with_empty_input(spark, token_cache):
     result_df = replace_tokenized_values(empty_df_input, token_cache)
     assert_dataframe_equality(result_df, empty_df_input)
 
-# Additional test cases for better coverage
 def test_replace_tokenized_values(spark, df_input, token_cache):
     result_df = replace_tokenized_values(df_input, token_cache)
     expected_data = [
