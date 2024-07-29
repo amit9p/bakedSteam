@@ -1,8 +1,7 @@
 
-
 import pytest
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import lit
+from pyspark.sql.types import StructType, StructField, StringType, LongType
 from your_module import replace_tokenized_values  # Replace with your actual module name
 
 # Create a Spark session
@@ -31,6 +30,17 @@ def token_cache(spark):
     schema = ["account_number", "tokenization", "plain_text"]
     return spark.createDataFrame(data, schema)
 
+def test_replace_tokenized_values_with_empty_input(spark, token_cache):
+    schema = StructType([
+        StructField("account_number", LongType(), True),
+        StructField("tokenization", StringType(), True),
+        StructField("formatted", StringType(), True)
+    ])
+    empty_df_input = spark.createDataFrame([], schema)
+    result_df = replace_tokenized_values(empty_df_input, token_cache)
+    assert result_df.collect() == empty_df_input.collect()
+
+# Additional test cases for better coverage
 def test_replace_tokenized_values(spark, df_input, token_cache):
     result_df = replace_tokenized_values(df_input, token_cache)
     expected_data = [
@@ -60,8 +70,3 @@ def test_replace_tokenized_values_with_empty_cache(spark, df_input):
     empty_token_cache = spark.createDataFrame([], ["account_number", "tokenization", "plain_text"])
     result_df = replace_tokenized_values(df_input, empty_token_cache)
     assert result_df.collect() == df_input.collect()
-
-def test_replace_tokenized_values_with_empty_input(spark, token_cache):
-    empty_df_input = spark.createDataFrame([], ["account_number", "tokenization", "formatted"])
-    result_df = replace_tokenized_values(empty_df_input, token_cache)
-    assert result_df.collect() == empty_df_input.collect()
