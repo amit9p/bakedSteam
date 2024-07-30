@@ -2,7 +2,7 @@
 import pytest
 from pyspark.sql import SparkSession
 from unittest.mock import patch
-from ecbr_assembler.metro2_enrichment import replace_tokenized_values  # Ensure this matches your actual module import path
+from your_module import replace_tokenized_values  # Replace with your actual module name
 
 # Create a Spark session
 @pytest.fixture(scope="module")
@@ -31,20 +31,19 @@ def token_cache(spark):
     return spark.createDataFrame(data, schema)
 
 def assert_dataframe_equality(df1, df2):
-    df1_sorted = df1.sort("account_number", "tokenization")
-    df2_sorted = df2.sort("account_number", "tokenization")
+    df1_sorted = df1.sort(col("account_number"), col("tokenization"))
+    df2_sorted = df2.sort(col("account_number"), col("tokenization"))
     assert df1_sorted.collect() == df2_sorted.collect()
 
 def test_replace_tokenized_values_exception_handling(spark, df_input, token_cache, caplog):
-    # Patch a method that is called within replace_tokenized_values to raise an exception
-    with patch('ecbr_assembler.metro2_enrichment.replace_tokenized_values') as mock_replace_tokenized_values:
+    with patch('your_module.replace_tokenized_values') as mock_replace_tokenized_values:
         mock_replace_tokenized_values.side_effect = Exception("Test exception")
-
+        
         with pytest.raises(Exception) as exc_info:
             replace_tokenized_values(df_input, token_cache)
         
         assert str(exc_info.value) == "Test exception"
-        assert any("Test exception" in message for message in caplog.text)
+        assert "Test exception" in caplog.text
 
 def test_replace_tokenized_values_with_empty_cache(spark, df_input):
     # Define the schema explicitly
