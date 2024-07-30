@@ -3,7 +3,7 @@
 import pytest
 from pyspark.sql import SparkSession
 from unittest.mock import patch
-from ecbr_assembler.metro2_enrichment import replace_tokenized_values  # Adjust according to your actual module path
+from ecbr_assembler.metro2_enrichment import replace_tokenized_values  # Ensure this matches your actual module import path
 
 # Create a Spark session
 @pytest.fixture(scope="module")
@@ -37,8 +37,10 @@ def assert_dataframe_equality(df1, df2):
     assert df1_sorted.collect() == df2_sorted.collect()
 
 def test_replace_tokenized_values_exception_handling(spark, df_input, token_cache, caplog):
-    # Ensure the correct module path for patch
-    with patch('ecbr_assembler.metro2_enrichment.replace_tokenized_values', side_effect=Exception("Test exception")):
+    # Patch a method that is called within replace_tokenized_values to raise an exception
+    with patch('ecbr_assembler.metro2_enrichment.replace_tokenized_values') as mock_replace_tokenized_values:
+        mock_replace_tokenized_values.side_effect = Exception("Test exception")
+
         with pytest.raises(Exception) as exc_info:
             replace_tokenized_values(df_input, token_cache)
         
