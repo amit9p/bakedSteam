@@ -1,8 +1,19 @@
 
+
+def test_replace_tokenized_values_exception_handling(spark, df_input, token_cache, caplog):
+    with patch('your_module.replace_tokenized_values', side_effect=Exception("Test exception")):
+        with pytest.raises(Exception) as exc_info:
+            replace_tokenized_values(df_input, token_cache)
+        
+        assert str(exc_info.value) == "Test exception"
+        assert any("Test exception" in message for message in caplog.text)
+
+
+
 import pytest
 from pyspark.sql import SparkSession
 from unittest.mock import patch
-from your_module import replace_tokenized_values  # Ensure this matches your actual module import path
+from your_module import replace_tokenized_values  # Replace with your actual module import path
 
 # Create a Spark session
 @pytest.fixture(scope="module")
@@ -42,7 +53,7 @@ def test_replace_tokenized_values_exception_handling(spark, df_input, token_cach
             replace_tokenized_values(df_input, token_cache)
         
         assert str(exc_info.value) == "Test exception"
-        assert "Test exception" in caplog.text
+        assert any("Test exception" in message for message in caplog.text)
 
 def test_replace_tokenized_values_with_empty_cache(spark, df_input):
     # Define the schema explicitly
