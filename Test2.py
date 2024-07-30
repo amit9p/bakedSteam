@@ -1,5 +1,4 @@
 
-
 import pytest
 from pyspark.sql import SparkSession
 from unittest.mock import patch
@@ -37,9 +36,7 @@ def assert_dataframe_equality(df1, df2):
     assert df1_sorted.collect() == df2_sorted.collect()
 
 def test_replace_tokenized_values_exception_handling(spark, df_input, token_cache, caplog):
-    with patch('your_module.replace_tokenized_values') as mock_replace_tokenized_values:
-        mock_replace_tokenized_values.side_effect = Exception("Test exception")
-        
+    with patch('your_module.replace_tokenized_values', side_effect=Exception("Test exception")):
         with pytest.raises(Exception) as exc_info:
             replace_tokenized_values(df_input, token_cache)
         
