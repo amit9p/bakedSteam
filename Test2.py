@@ -1,5 +1,7 @@
 
 
+cat ~/.aws/credentials
+
 import pytest
 from pyspark.sql import SparkSession
 from unittest.mock import patch
