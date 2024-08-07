@@ -1,26 +1,5 @@
 
-import boto3
 
-def test_after_writing_file_into_s3_metro2_str_incorrect():
-    # Setup
-    region_name = 'us-west-2'  # Example: use the appropriate region
-    s3 = boto3.client('s3', region_name=region_name)
-    
-    destination_bucket = 'your-bucket-name'  # Ensure this is unique or already exists
-    
-    try:
-        s3.create_bucket(Bucket=destination_bucket,
-                         CreateBucketConfiguration={'LocationConstraint': region_name})
-    except s3.exceptions.BucketAlreadyExists:
-        pass  # If the bucket already exists, we can pass
-
-    incorrect_value = "This is incorrect final output"
-    
-    # Function to write to S3
-    write_metro2_string_to_s3(destination_bucket, 'destination_folder', 'metro2_file_name', incorrect_value)
-    
-    # Function to read from S3
-    actual_result = read_file_from_s3(destination_bucket, f"destination_folder/metro2_file_name")
-    
-    # Assert
-    assert actual_result != metro2_str, "These should not be equal, something has gone wrong!"
+Using logger.debug with df.count() for debugging purposes still involves the same performance considerations, as the underlying call to df.count() will trigger a full data scan and break Spark's lazy evaluation. Here are some tailored recommendations to handle logging while minimizing performance degradation:Performance Implications of logger.debug(df.count())Full Data Scan: Every call to df.count() results in Spark processing the entire DataFrame, which is time-consuming and resource-intensive.Repeated Computation: If the DataFrame is not cached, each df.count() call will recompute the transformations leading up to that point.RecommendationsReduce Frequency:Limit the number of times df.count() is called. Use it only at critical points where knowing the exact count is essential for debugging.Caching:Use caching strategically if you need to count multiple times on the same DataFrame:df.cache()
+logger.debug(f"Count after step X: {df.count()}")Caching stores the DataFrame in memory, reducing repeated computations and improving performance.Sample Logging:Instead of counting the entire DataFrame, log a sample of the data to understand the structure and contents:sample_data = df.limit(5).collect()
+logger.debug(f"Sample data: {sample_data}")
