@@ -1,2 +1,17 @@
 
-When the log level is not set to debug (e.g., set to info, warning, error, etc.), the logger.debug() statements will not output any logs, but any code inside these statements, including df.count(), will still execute. This means that even if the log level is not set to debug, the performance impact of df.count() will still occur. Here’s why:Execution Regardless of Log LevelCode Execution:The Python interpreter executes all code inside logger.debug() statements regardless of the current log level. This includes any computations or function calls like df.count().Action Trigger:The call to df.count() is an action in Spark, which will trigger the evaluation of the DataFrame's transformations up to that point. This behavior occurs even if the log message itself is not output due to the current log level settings.ImplicationsPerformance Overhead:The performance cost associated with df.count() (full data scan, resource usage) occurs irrespective of whether the debug log is printed, as the action is executed to produce the count.Mitigation StrategiesIf your intention is to avoid the performance impact when the log level is higher than debug, you can wrap the logger.debug() call within a conditional check for the log level:
+import boto3
+
+# Initialize a session using the default or a specific profile
+session = boto3.Session(profile_name='your-profile-name')  # Use profile_name=None for the default profile
+
+# Retrieve the credentials
+credentials = session.get_credentials()
+
+# Access the credentials
+aws_access_key_id = credentials.access_key
+aws_secret_access_key = credentials.secret_key
+aws_session_token = credentials.token
+
+print(f"AWS Access Key: {aws_access_key_id}")
+print(f"AWS Secret Key: {aws_secret_access_key}")
+print(f"Session Token: {aws_session_token}")
