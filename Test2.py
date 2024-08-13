@@ -1,6 +1,7 @@
 
+
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, length, udf, expr
+from pyspark.sql.functions import col, length, udf, when
 from pyspark.sql.types import StringType
 
 # Start Spark session
@@ -8,10 +9,7 @@ spark = SparkSession.builder.appName("Format Adjustment").getOrCreate()
 
 # Define the Python function to append spaces
 def append_spaces(formatted, spaces_to_append):
-    if spaces_to_append > 0:
-        return formatted + (" " * spaces_to_append)
-    else:
-        return formatted
+    return formatted + (" " * max(0, spaces_to_append))
 
 # Register the function as a UDF
 append_spaces_udf = udf(append_spaces, StringType())
@@ -21,12 +19,13 @@ append_spaces_udf = udf(append_spaces, StringType())
 
 # Calculate current length and spaces to append
 df = df.withColumn('current_length', length(col('formatted')))
-df = df.withColumn('spaces_to_append', expr("30 - current_length"))
+df = df.withColumn('spaces_to_append', 30 - col('current_length'))
 
-# Use the UDF in an expression with a CASE statement
+# Use the UDF in a DataFrame API
 df = df.withColumn(
-    'formatted', 
-    expr("CASE WHEN tokenization = 'PAN' THEN append_spaces_udf(formatted, spaces_to_append) ELSE formatted END")
+    'formatted',
+    when(col('tokenization') == 'PAN', append_spaces_udf(col('formatted'), col('spaces_to_append')))
+    .otherwise(col('formatted'))
 )
 
 # Show the result and check the DataFrame schema to ensure everything is correct
