@@ -35,9 +35,9 @@ df_final = df_replaced.drop('df_a.formatted').drop('df_b.formatted')
 # Rename the final formatted column to `formatted`
 df_final = df_final.withColumnRenamed('formatted_final', 'formatted')
 
-# Select only the necessary columns from the final DataFrame
+# Select only the necessary columns from the final DataFrame, explicitly selecting df_a's business_date
 df_final = df_final.select(
-    'business_date', 
+    col('df_a.business_date').alias('business_date'), 
     'run_identifier', 
     'output_file_type', 
     'output_record_sequence',
