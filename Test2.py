@@ -20,17 +20,14 @@ df_b_filtered = df_b.filter(
 # Join Table A with the filtered Table B on account_number, tokenization, and output_field_sequence
 df_joined = df_a.alias("df_a").join(df_b_filtered.alias("df_b"), on=['account_number', 'tokenization', 'output_field_sequence'], how='left')
 
-# Drop the original formatted columns to remove ambiguity before further processing
-df_joined = df_joined.drop('df_a.formatted').drop('df_b.formatted')
-
-# Replace the formatted values in Table A with the corresponding values from Table B
+# Replace the formatted values in Table A with the corresponding values from Table B, where applicable
 df_replaced = df_joined.withColumn(
     'formatted',
     when(
         ((col('df_a.tokenization') == 'USTAXID') & col('df_a.output_field_sequence').isin(35, 54)) |
         ((col('df_a.tokenization') == 'PAN') & (col('df_a.output_field_sequence') == 7)),
-        col('df_b.formatted_intermediate')
-    ).otherwise(col('df_a.formatted_intermediate'))
+        col('df_b.formatted')
+    ).otherwise(col('df_a.formatted'))
 )
 
 # Select only the necessary columns from the final DataFrame
