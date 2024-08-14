@@ -18,11 +18,15 @@ df_b_filtered = df_b.filter(
 )
 
 # Join Table A with the filtered Table B on account_number, tokenization, and output_field_sequence
-df_joined = df_a.alias("df_a").join(df_b_filtered.alias("df_b"), on=['account_number', 'tokenization', 'output_field_sequence'], how='left')
+df_joined = df_a.alias("df_a").join(
+    df_b_filtered.alias("df_b"),
+    on=['account_number', 'tokenization', 'output_field_sequence'],
+    how='left'
+)
 
-# Replace the formatted values in Table A with the corresponding values from Table B, where applicable
-df_replaced = df_joined.withColumn(
-    'formatted',
+# Replace the formatted values in Table A with the corresponding values from Table B, using explicit naming to avoid ambiguity
+df_final = df_joined.withColumn(
+    'final_formatted',
     when(
         ((col('df_a.tokenization') == 'USTAXID') & col('df_a.output_field_sequence').isin(35, 54)) |
         ((col('df_a.tokenization') == 'PAN') & (col('df_a.output_field_sequence') == 7)),
@@ -31,14 +35,14 @@ df_replaced = df_joined.withColumn(
 )
 
 # Select only the necessary columns from the final DataFrame
-df_final = df_replaced.select(
+df_final = df_final.select(
     col('df_a.business_date').alias('business_date'), 
     col('df_a.run_identifier').alias('run_identifier'),
     col('df_a.output_file_type').alias('output_file_type'),
     col('df_a.output_record_sequence').alias('output_record_sequence'),
     col('df_a.output_field_sequence').alias('output_field_sequence'),
     col('df_a.attribute').alias('attribute'),
-    col('formatted'), 
+    col('final_formatted').alias('formatted'),  # Rename to the final 'formatted' column
     col('df_a.tokenization').alias('tokenization'), 
     col('df_a.account_number').alias('account_number'), 
     col('df_a.segment').alias('segment')
@@ -47,7 +51,7 @@ df_final = df_replaced.select(
 # Show the final DataFrame (optional)
 df_final.show()
 
-# You can also write the final DataFrame to a file or save it back to your storage
+# Optionally write the final DataFrame to a file or save it back to your storage
 # df_final.write.format("csv").option("header", "true").save("/path/to/save/final_df.csv")
 
 # Stop the Spark session
