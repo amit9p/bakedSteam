@@ -30,9 +30,18 @@ df_final = df_joined.withColumn(
 )
 
 # Select only the necessary columns from the final DataFrame
-df_final = df_final.select('df_a.business_date', 'df_a.run_identifier', 'df_a.output_file_type', 'df_a.output_record_sequence',
-                           'df_a.output_field_sequence', 'df_a.attribute', 'formatted', 'df_a.tokenization', 
-                           'df_a.account_number', 'df_a.segment')
+df_final = df_final.select(
+    col('df_a.business_date'), 
+    col('df_a.run_identifier'), 
+    col('df_a.output_file_type'), 
+    col('df_a.output_record_sequence'),
+    col('df_a.output_field_sequence'), 
+    col('df_a.attribute'), 
+    col('formatted'), 
+    col('df_a.tokenization'), 
+    col('df_a.account_number'), 
+    col('df_a.segment')
+)
 
 # Show the final DataFrame (optional)
 df_final.show()
