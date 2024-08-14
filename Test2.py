@@ -1,21 +1,33 @@
 
-from pyspark.sql.functions import col, length, when, udf
-from pyspark.sql.types import StringType
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, when
 
-# Define and register the UDF
-def append_spaces(formatted, spaces):
-    return formatted + (" " * spaces)
+# Initialize Spark session
+spark = SparkSession.builder.appName("ReplaceFormattedValues").getOrCreate()
 
-append_spaces_udf = udf(append_spaces, StringType())
+# Assuming df_a and df_b are your DataFrames representing Table A and Table B
+# Load your DataFrames here, replace this with the actual loading logic
+df_a = # Load Table A DataFrame
+df_b = # Load Table B DataFrame
 
-# Assuming df is your DataFrame
-df = df.withColumn('current_length', length(col('formatted')))
-df = df.withColumn('spaces_to_append', 30 - col('current_length'))
+# Filter Table B to only include rows with tokenization 'USTAXID' or 'PAN'
+df_b_filtered = df_b.filter((col('tokenization') == 'USTAXID') | (col('tokenization') == 'PAN'))
 
-# Apply the UDF
-df = df.withColumn('formatted', when(col('tokenization') == 'PAN', append_spaces_udf(col('formatted'), col('spaces_to_append'))).otherwise(col('formatted')))
+# Join Table A with the filtered Table B on account_number and tokenization
+df_final = df_a.join(df_b_filtered, on=['account_number', 'tokenization'], how='left')
 
-# Drop the extra columns if they are no longer needed
-df = df.drop('current_length', 'spaces_to_append')
+# Replace the formatted values in Table A with the corresponding values from Table B
+df_final = df_final.withColumn(
+    'formatted',
+    when(col('tokenization').isin(['USTAXID', 'PAN']), col('df_b.formatted')).otherwise(col('df_a.formatted'))
+)
 
-# Continue with your processing, now df can be unioned with other DataFrames that have the same original schema
+# Select only the necessary columns from the final DataFrame
+df_final = df_final.select('business_date', 'run_identifier', 'output_file_type', 'output_record_sequence',
+                           'output_field_sequence', 'attribute', 'formatted', 'tokenization', 'account_number', 'segment')
+
+# Show the final DataFrame (optional)
+df_final.show()
+
+# You can also write the final DataFrame to a file or save it back to your storage
+# df_final.write.format("csv").option("header", "true").save("/path/to/save/final_df.csv")
