@@ -10,16 +10,23 @@ spark = SparkSession.builder.appName("ReplaceFormattedValues").getOrCreate()
 df_a = # Load Table A DataFrame
 df_b = # Load Table B DataFrame
 
-# Filter Table B to only include rows with tokenization 'USTAXID' or 'PAN'
-df_b_filtered = df_b.filter((col('tokenization') == 'USTAXID') | (col('tokenization') == 'PAN'))
+# Filter Table B for specific conditions
+df_b_filtered = df_b.filter(
+    ((col('tokenization') == 'USTAXID') & col('output_field_sequence').isin(35, 54)) |
+    ((col('tokenization') == 'PAN') & (col('output_field_sequence') == 7))
+)
 
-# Join Table A with the filtered Table B on account_number and tokenization
-df_final = df_a.join(df_b_filtered, on=['account_number', 'tokenization'], how='left')
+# Join Table A with the filtered Table B on account_number, tokenization, and output_field_sequence
+df_final = df_a.join(df_b_filtered, on=['account_number', 'tokenization', 'output_field_sequence'], how='left')
 
 # Replace the formatted values in Table A with the corresponding values from Table B
 df_final = df_final.withColumn(
     'formatted',
-    when(col('tokenization').isin(['USTAXID', 'PAN']), col('df_b.formatted')).otherwise(col('df_a.formatted'))
+    when(
+        ((col('tokenization') == 'USTAXID') & col('output_field_sequence').isin(35, 54)) |
+        ((col('tokenization') == 'PAN') & (col('output_field_sequence') == 7)),
+        col('df_b.formatted')
+    ).otherwise(col('df_a.formatted'))
 )
 
 # Select only the necessary columns from the final DataFrame
