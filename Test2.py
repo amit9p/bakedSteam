@@ -20,8 +20,8 @@ df_b_filtered = df_b.filter(
 df_joined = df_a.alias("df_a").join(df_b_filtered.alias("df_b"), on=['account_number', 'tokenization', 'output_field_sequence'], how='left')
 
 # Replace the formatted values in Table A with the corresponding values from Table B
-df_final = df_joined.withColumn(
-    'formatted',
+df_replaced = df_joined.withColumn(
+    'formatted_final',
     when(
         ((col('df_a.tokenization') == 'USTAXID') & col('df_a.output_field_sequence').isin(35, 54)) |
         ((col('df_a.tokenization') == 'PAN') & (col('df_a.output_field_sequence') == 7)),
@@ -29,18 +29,24 @@ df_final = df_joined.withColumn(
     ).otherwise(col('df_a.formatted'))
 )
 
+# Drop the original `formatted` columns to remove ambiguity
+df_final = df_replaced.drop('df_a.formatted').drop('df_b.formatted')
+
+# Rename the final formatted column to `formatted`
+df_final = df_final.withColumnRenamed('formatted_final', 'formatted')
+
 # Select only the necessary columns from the final DataFrame
 df_final = df_final.select(
-    col('df_a.business_date'), 
-    col('df_a.run_identifier'), 
-    col('df_a.output_file_type'), 
-    col('df_a.output_record_sequence'),
-    col('df_a.output_field_sequence'), 
-    col('df_a.attribute'), 
-    col('formatted'), 
-    col('df_a.tokenization'), 
-    col('df_a.account_number'), 
-    col('df_a.segment')
+    'business_date', 
+    'run_identifier', 
+    'output_file_type', 
+    'output_record_sequence',
+    'output_field_sequence', 
+    'attribute', 
+    'formatted', 
+    'tokenization', 
+    'account_number', 
+    'segment'
 )
 
 # Show the final DataFrame (optional)
