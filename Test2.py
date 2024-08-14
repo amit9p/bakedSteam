@@ -1,4 +1,5 @@
 
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when
 
@@ -35,18 +36,18 @@ df_final = df_replaced.drop('df_a.formatted').drop('df_b.formatted')
 # Rename the final formatted column to `formatted`
 df_final = df_final.withColumnRenamed('formatted_final', 'formatted')
 
-# Select only the necessary columns from the final DataFrame, explicitly selecting df_a's business_date
+# Select only the necessary columns from the final DataFrame, explicitly selecting all from df_a
 df_final = df_final.select(
     col('df_a.business_date').alias('business_date'), 
-    'run_identifier', 
-    'output_file_type', 
-    'output_record_sequence',
-    'output_field_sequence', 
-    'attribute', 
-    'formatted', 
-    'tokenization', 
-    'account_number', 
-    'segment'
+    col('df_a.run_identifier').alias('run_identifier'),
+    col('df_a.output_file_type').alias('output_file_type'),
+    col('df_a.output_record_sequence').alias('output_record_sequence'),
+    col('df_a.output_field_sequence').alias('output_field_sequence'),
+    col('df_a.attribute').alias('attribute'),
+    col('formatted'), 
+    col('df_a.tokenization').alias('tokenization'), 
+    col('df_a.account_number').alias('account_number'), 
+    col('df_a.segment').alias('segment')
 )
 
 # Show the final DataFrame (optional)
