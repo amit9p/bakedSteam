@@ -1,58 +1,43 @@
 
 
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col, when
+import sys
+from awsglue.transforms import *
+from awsglue.utils import getResolvedOptions
+from pyspark.context import SparkContext
+from awsglue.context import GlueContext
+from awsglue.job import Job
+from awsglue.dynamicframe import DynamicFrame
 
-# Initialize Spark session
-spark = SparkSession.builder.appName("ReplaceFormattedValues").getOrCreate()
+# Initialize the Glue context and Spark session
+args = getResolvedOptions(sys.argv, ['JOB_NAME'])
+sc = SparkContext()
+glueContext = GlueContext(sc)
+spark = glueContext.spark_session
+job = Job(glueContext)
+job.init(args['JOB_NAME'], args)
 
-# Assuming df_a and df_b are your DataFrames representing Table A and Table B
-# Load your DataFrames here, replace this with the actual loading logic
-df_a = # Load Table A DataFrame
-df_b = # Load Table B DataFrame
+# S3 path where the Parquet file is located
+s3_path = "s3://your-bucket-name/your-folder/your-file.parquet"
 
-# Filter Table B for specific conditions
-df_b_filtered = df_b.filter(
-    ((col('tokenization') == 'USTAXID') & col('output_field_sequence').isin(35, 54)) |
-    ((col('tokenization') == 'PAN') & (col('output_field_sequence') == 7))
-)
+# Read the Parquet file into a DataFrame
+df = spark.read.parquet(s3_path)
 
-# Join Table A with the filtered Table B on account_number, tokenization, and output_field_sequence
-df_joined = df_a.alias("df_a").join(
-    df_b_filtered.alias("df_b"),
-    on=['account_number', 'tokenization', 'output_field_sequence'],
-    how='left'
-)
+# If you need to convert the DataFrame to a Glue DynamicFrame
+dynamic_frame = DynamicFrame.fromDF(df, glueContext, "dynamic_frame")
 
-# Replace the formatted values in Table A with the corresponding values from Table B, using explicit naming to avoid ambiguity
-df_final = df_joined.withColumn(
-    'final_formatted',
-    when(
-        ((col('df_a.tokenization') == 'USTAXID') & col('df_a.output_field_sequence').isin(35, 54)) |
-        ((col('df_a.tokenization') == 'PAN') & (col('df_a.output_field_sequence') == 7)),
-        col('df_b.formatted')
-    ).otherwise(col('df_a.formatted'))
-)
+# Perform transformations (optional)
+# For example, filtering rows where a specific column has a certain value
+filtered_dynamic_frame = Filter.apply(frame=dynamic_frame, f=lambda x: x["column_name"] == "some_value")
 
-# Select only the necessary columns from the final DataFrame
-df_final = df_final.select(
-    col('df_a.business_date').alias('business_date'), 
-    col('df_a.run_identifier').alias('run_identifier'),
-    col('df_a.output_file_type').alias('output_file_type'),
-    col('df_a.output_record_sequence').alias('output_record_sequence'),
-    col('df_a.output_field_sequence').alias('output_field_sequence'),
-    col('df_a.attribute').alias('attribute'),
-    col('final_formatted').alias('formatted'),  # Rename to the final 'formatted' column
-    col('df_a.tokenization').alias('tokenization'), 
-    col('df_a.account_number').alias('account_number'), 
-    col('df_a.segment').alias('segment')
-)
+# Convert the filtered DynamicFrame back to a DataFrame (optional)
+filtered_df = filtered_dynamic_frame.toDF()
 
-# Show the final DataFrame (optional)
-df_final.show()
+# Show the data (optional)
+filtered_df.show()
 
-# Optionally write the final DataFrame to a file or save it back to your storage
-# df_final.write.format("csv").option("header", "true").save("/path/to/save/final_df.csv")
+# Write the result back to another Parquet file or any other supported format (optional)
+output_path = "s3://your-bucket-name/your-output-folder/"
+filtered_df.write.mode("overwrite").parquet(output_path)
 
-# Stop the Spark session
-spark.stop()
+# Commit the job
+job.commit()
