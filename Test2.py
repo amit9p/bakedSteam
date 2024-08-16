@@ -1,4 +1,37 @@
 
+import os
+import pytest
+from unittest.mock import patch, mock_open
+
+# Assuming the script you shared is named `setup.py` and the functions are in the same file
+from setup import get_install_requirements
+
+# Test for get_install_requirements function
+@patch("builtins.open", new_callable=mock_open, read_data="[packages]\npackage1==1.0.0\n")
+@patch("os.path.abspath")
+@patch("os.path.dirname")
+def test_get_install_requirements(mock_dirname, mock_abspath, mock_file):
+    mock_dirname.return_value = "/path/to/dir"
+    mock_abspath.return_value = "/path/to/dir"
+    
+    expected_requirements = ["package1==1.0.0"]
+    
+    result = get_install_requirements()
+    
+    assert result == expected_requirements
+
+# Test for the version reading part
+@patch("builtins.open", new_callable=mock_open, read_data="__version__ = '0.1.0'")
+def test_version_reading(mock_file):
+    from setup import version
+    assert version == "0.1.0"
+
+# Add more tests as necessary for other parts of the script
+
+if __name__ == "__main__":
+    pytest.main()
+
+####$$$$$$$$$$$
 
 import os
 from pyspark.sql import SparkSession
