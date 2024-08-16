@@ -1,4 +1,7 @@
 
+path/to/aws-java-sdk-s3-1.12.315.jar/path/to/aws-java-sdk-core-1.12.315.jar
+
+
 spark-submit \
   --class com.example.MySparkApp \
   --master local[*] \
