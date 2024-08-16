@@ -1,4 +1,12 @@
 
+spark-submit \
+  --class com.example.MySparkApp \
+  --master local[*] \
+  --jars /path/to/dependency1.jar,/path/to/dependency2.jar \
+  /path/to/my-spark-application.jar \
+  [application arguments]
+
+
 import pytest
 import subprocess
 import sys
