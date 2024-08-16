@@ -1,4 +1,56 @@
 
+
+import os
+import pytest
+from unittest.mock import patch, mock_open
+
+# Import the functions and variables from setup.py
+from setup import get_install_requirements, NAME, VERSION, AUTHOR, DESC, GITHUB_URL, setup
+
+# Test for `get_install_requirements` function
+@patch("builtins.open", new_callable=mock_open, read_data="[packages]\npackage1==1.0.0\n")
+@patch("os.path.abspath")
+@patch("os.path.dirname")
+def test_get_install_requirements(mock_dirname, mock_abspath, mock_file):
+    mock_dirname.return_value = "/path/to/dir"
+    mock_abspath.return_value = "/path/to/dir"
+    
+    expected_requirements = ["package1==1.0.0"]
+    
+    result = get_install_requirements()
+    
+    assert result == expected_requirements
+
+# Test for the version reading part
+@patch("builtins.open", new_callable=mock_open, read_data="VERSION = '2.0.2'")
+def test_version_reading(mock_file):
+    from setup import VERSION
+    assert VERSION == "2.0.2"
+
+# Test for setup function configuration
+def test_setup_configuration():
+    assert NAME == "test_data_generator"
+    assert VERSION == "2.0.2"
+    assert AUTHOR == "UpClimbers"
+    assert DESC == "Library containing logic used by Assembler and Generator"
+    assert GITHUB_URL == "https://github.cloud.capitalone.com/ecbr/test_data_generator.git"
+
+    # We would patch setup to avoid running it and instead check its configuration.
+    with patch("setup.setup") as mock_setup:
+        setup()
+        args, kwargs = mock_setup.call_args
+        assert kwargs["name"] == NAME
+        assert kwargs["version"] == VERSION
+        assert kwargs["author"] == AUTHOR
+        assert kwargs["description"] == DESC
+        assert kwargs["url"] == GITHUB_URL
+
+if __name__ == "__main__":
+    pytest.main()
+
+#######'
+
+
 import os
 import pytest
 from unittest.mock import patch, mock_open
