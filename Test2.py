@@ -1,43 +1,49 @@
 
 
-import sys
-from awsglue.transforms import *
-from awsglue.utils import getResolvedOptions
-from pyspark.context import SparkContext
-from awsglue.context import GlueContext
-from awsglue.job import Job
-from awsglue.dynamicframe import DynamicFrame
+import os
+from pyspark.sql import SparkSession
 
-# Initialize the Glue context and Spark session
-args = getResolvedOptions(sys.argv, ['JOB_NAME'])
-sc = SparkContext()
-glueContext = GlueContext(sc)
-spark = glueContext.spark_session
-job = Job(glueContext)
-job.init(args['JOB_NAME'], args)
+# Define paths
+input_folder = "s3://your-bucket/path/to/folder"  # Replace with your folder path
+processed_files_log = "processed_files.log"  # Path to log file
 
-# S3 path where the Parquet file is located
-s3_path = "s3://your-bucket-name/your-folder/your-file.parquet"
+# Function to get the list of files in the folder
+def list_parquet_files(folder):
+    files = [os.path.join(folder, f) for f in os.listdir(folder) if f.endswith('.parquet')]
+    return sorted(files)
 
-# Read the Parquet file into a DataFrame
-df = spark.read.parquet(s3_path)
+# Function to read processed files from the log file
+def read_processed_files(log_file):
+    if os.path.exists(log_file):
+        with open(log_file, "r") as file:
+            return set(line.strip() for line in file.readlines())
+    return set()
 
-# If you need to convert the DataFrame to a Glue DynamicFrame
-dynamic_frame = DynamicFrame.fromDF(df, glueContext, "dynamic_frame")
+# Function to append a processed file to the log file
+def log_processed_file(log_file, file_name):
+    with open(log_file, "a") as file:
+        file.write(f"{file_name}\n")
 
-# Perform transformations (optional)
-# For example, filtering rows where a specific column has a certain value
-filtered_dynamic_frame = Filter.apply(frame=dynamic_frame, f=lambda x: x["column_name"] == "some_value")
+# Main processing function
+def process_parquet_files(folder, log_file):
+    processed_files = read_processed_files(log_file)
+    parquet_files = list_parquet_files(folder)
 
-# Convert the filtered DynamicFrame back to a DataFrame (optional)
-filtered_df = filtered_dynamic_frame.toDF()
+    for file_path in parquet_files:
+        file_name = os.path.basename(file_path)
+        if file_name not in processed_files:
+            # Create a new Spark session
+            spark = SparkSession.builder.appName(f"Process {file_name}").getOrCreate()
 
-# Show the data (optional)
-filtered_df.show()
+            # Read and process the Parquet file
+            df = spark.read.parquet(file_path)
+            df.show()  # Replace with actual processing logic
 
-# Write the result back to another Parquet file or any other supported format (optional)
-output_path = "s3://your-bucket-name/your-output-folder/"
-filtered_df.write.mode("overwrite").parquet(output_path)
+            # Log the processed file
+            log_processed_file(log_file, file_name)
 
-# Commit the job
-job.commit()
+            # Stop the Spark session
+            spark.stop()
+
+if __name__ == "__main__":
+    process_parquet_files(input_folder, processed_files_log)
