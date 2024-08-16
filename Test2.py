@@ -1,4 +1,22 @@
 
+import pytest
+import subprocess
+import sys
+
+def test_package_installation():
+    """Test that the package installs without errors."""
+    result = subprocess.run([sys.executable, "setup.py", "install"], capture_output=True, text=True)
+    assert result.returncode == 0, f"Installation failed: {result.stderr}"
+
+def test_dependencies():
+    """Test that all required dependencies are installed."""
+    required_packages = ["package1", "package2", "package3"]  # Replace with actual package names
+
+    for package in required_packages:
+        result = subprocess.run([sys.executable, "-m", "pip", "show", package], capture_output=True, text=True)
+        assert result.returncode == 0, f"Package {package} is not installed."
+
+#####
 
 import os
 import pytest
