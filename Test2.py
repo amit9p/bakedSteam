@@ -1,41 +1,49 @@
 
-import configparser
 
-def get_aws_credentials(account_name):
-    # Define the path to the AWS credentials file
-    credentials_file = '~/.aws/credentials'
-    
-    # Expand the user path
-    credentials_file = os.path.expanduser(credentials_file)
-    
-    # Create a ConfigParser object
-    config = configparser.ConfigParser()
-    
-    # Read the AWS credentials file
-    config.read(credentials_file)
-    
-    # Check if the account exists in the credentials file
-    if account_name in config:
-        aws_access_key_id = config[account_name]['aws_access_key_id']
-        aws_secret_access_key = config[account_name]['aws_secret_access_key']
-        aws_session_token = config[account_name]['aws_session_token']
-        
-        return {
-            'aws_access_key_id': aws_access_key_id,
-            'aws_secret_access_key': aws_secret_access_key,
-            'aws_session_token': aws_session_token
-        }
-    else:
-        raise Exception(f"Account {account_name} not found in the AWS credentials file.")
+from pyspark.sql import SparkSession
+import boto3
 
-# Account name to fetch the credentials for
-account_name = "GR_GG_COF_AWS_592502317603_Developer"
+def process_parquet_file(s3_bucket, parquet_key):
+    # Create a SparkSession for this file
+    spark = SparkSession.builder \
+        .appName(f"Process_{parquet_key}") \
+        .getOrCreate()
+    
+    # Construct the full S3 path
+    s3_path = f"s3a://{s3_bucket}/{parquet_key}"
+    
+    # Read the Parquet file
+    df = spark.read.parquet(s3_path)
+    
+    # Example processing (you can modify this part as needed)
+    df.show()  # Display the first few rows of the DataFrame
+    
+    # Stop the SparkSession
+    spark.stop()
 
-# Fetch the credentials
-try:
-    credentials = get_aws_credentials(account_name)
-    print(f"AWS Access Key ID: {credentials['aws_access_key_id']}")
-    print(f"AWS Secret Access Key: {credentials['aws_secret_access_key']}")
-    print(f"AWS Session Token: {credentials['aws_session_token']}")
-except Exception as e:
-    print(e)
+def list_parquet_files_in_s3(s3_bucket, s3_prefix):
+    # Initialize the S3 client
+    s3_client = boto3.client('s3')
+    
+    # List objects within the specified S3 bucket and prefix
+    response = s3_client.list_objects_v2(Bucket=s3_bucket, Prefix=s3_prefix)
+    
+    # Filter the keys to only include .parquet files
+    parquet_files = [content['Key'] for content in response.get('Contents', []) if content['Key'].endswith('.parquet')]
+    
+    return parquet_files
+
+def main():
+    s3_bucket = 'your-s3-bucket-name'
+    s3_prefix = 'your/folder/prefix/'  # The folder within the S3 bucket
+    
+    # Get the list of Parquet files in the S3 bucket
+    parquet_files = list_parquet_files_in_s3(s3_bucket, s3_prefix)
+    
+    # Process each Parquet file sequentially
+    for parquet_file in parquet_files:
+        print(f"Processing file: {parquet_file}")
+        process_parquet_file(s3_bucket, parquet_file)
+
+if __name__ == "__main__":
+    main()
