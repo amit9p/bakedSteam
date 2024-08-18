@@ -1,4 +1,29 @@
 
+import boto3
+import os
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
+
+def get_aws_session(aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None, region_name=None):
+    """
+    Create an AWS session using provided credentials or environment variables.
+    """
+    try:
+        if aws_access_key_id and aws_secret_access_key:
+            # Create a session using provided credentials
+            session = boto3.Session(
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                aws_session_token=aws_session_token,
+                region_name=region_name
+            )
+        else:
+            # Use default credentials from environment variables or ~/.aws/credentials
+            session = boto3.Session(region_name=region_name)
+        
+        return session
+    except (NoCredentialsError, PartialCredentialsError) as e:
+        print("Credentials not available: ", e)
+        return None
 
 def list_s3_files(session, bucket_name, prefix):
     """
@@ -9,8 +34,8 @@ def list_s3_files(session, bucket_name, prefix):
         response = s3.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
         
         if 'Contents' in response:
-            # Filter out the prefix itself and return only the files
-            files = [item['Key'] for item in response['Contents'] if item['Key'] != prefix and not item['Key'].endswith('/')]
+            # Extract just the file names (not the full paths)
+            files = [os.path.basename(item['Key']) for item in response['Contents'] if item['Key'] != prefix and not item['Key'].endswith('/')]
             return files
         else:
             print("No files found in the specified S3 bucket and prefix.")
@@ -37,7 +62,7 @@ def main():
         # List files in the S3 bucket and prefix
         files = list_s3_files(session, bucket_name, prefix)
         
-        # Print the file names
+        # Print only the file names
         for file_name in files:
             print(file_name)
 
