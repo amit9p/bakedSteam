@@ -1,41 +1,68 @@
 
+import boto3
+from botocore.exceptions import NoCredentialsError, PartialCredentialsError
 
-from pyspark.sql import SparkSession
+def get_aws_session(aws_access_key_id=None, aws_secret_access_key=None, aws_session_token=None, region_name=None):
+    """
+    Create an AWS session using provided credentials or environment variables.
+    """
+    try:
+        if aws_access_key_id and aws_secret_access_key:
+            # Create a session using provided credentials
+            session = boto3.Session(
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key,
+                aws_session_token=aws_session_token,
+                region_name=region_name
+            )
+        else:
+            # Use default credentials from environment variables or ~/.aws/credentials
+            session = boto3.Session(region_name=region_name)
+        
+        return session
+    except (NoCredentialsError, PartialCredentialsError) as e:
+        print("Credentials not available: ", e)
+        return None
 
-def list_files_in_s3_folder(spark, s3_path):
-    # Get the Hadoop FileSystem object
-    hadoop_conf = spark._jsc.hadoopConfiguration()
-    fs = spark._jvm.org.apache.hadoop.fs.FileSystem.get(hadoop_conf)
-    
-    # Create a Path object for the S3 folder
-    path = spark._jvm.org.apache.hadoop.fs.Path(s3_path)
-    
-    # List files in the specified S3 folder
-    file_statuses = fs.listStatus(path)
-    
-    # Extract the paths of the files
-    files = [file_status.getPath().toString() for file_status in file_statuses]
-    
-    return files
+def list_s3_files(session, bucket_name, prefix):
+    """
+    List all file names in a specific S3 bucket and prefix.
+    """
+    try:
+        s3 = session.client('s3')
+        response = s3.list_objects_v2(Bucket=bucket_name, Prefix=prefix)
+        
+        if 'Contents' in response:
+            files = [item['Key'] for item in response['Contents']]
+            return files
+        else:
+            print("No files found in the specified S3 bucket and prefix.")
+            return []
+    except Exception as e:
+        print("Error occurred while listing files: ", e)
+        return []
 
 def main():
-    # Assuming your SparkSession is already created
-    spark = SparkSession.builder.appName("ListS3Files").getOrCreate()
+    # AWS credentials (optional, use None to rely on environment variables or ~/.aws/credentials)
+    aws_access_key_id = None  # Replace with your access key or keep None
+    aws_secret_access_key = None  # Replace with your secret key or keep None
+    aws_session_token = None  # Replace with your session token or keep None
+    region_name = 'us-east-1'  # Replace with your region or keep None for default
+
+    # S3 bucket and prefix
+    bucket_name = 'your-s3-bucket-name'
+    prefix = 'your/folder/prefix/'  # The folder or prefix in the S3 bucket
+
+    # Create an AWS session
+    session = get_aws_session(aws_access_key_id, aws_secret_access_key, aws_session_token, region_name)
     
-    # Define the S3 path (bucket and folder)
-    s3_bucket = "your-s3-bucket-name"
-    s3_prefix = "your/folder/prefix/"
-    s3_path = f"s3a://{s3_bucket}/{s3_prefix}"
-    
-    # List files in the S3 folder
-    files = list_files_in_s3_folder(spark, s3_path)
-    
-    # Print the list of files
-    for file in files:
-        print(file)
-    
-    # Stop the SparkSession if no further processing is needed
-    spark.stop()
+    if session:
+        # List files in the S3 bucket and prefix
+        files = list_s3_files(session, bucket_name, prefix)
+        
+        # Print the file names
+        for file_name in files:
+            print(file_name)
 
 if __name__ == "__main__":
     main()
