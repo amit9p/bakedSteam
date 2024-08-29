@@ -1,29 +1,3 @@
 
-from pyspark import SparkConf, SparkContext
-from awsglue.context import GlueContext  # Assuming you are using AWS Glue
 
-def main():
-    # Step 2: Create a SparkConf object
-    conf = SparkConf() \
-        .setAppName("MyGlueJob") \
-        .set("spark.executor.memory", "2g") \
-        .set("spark.driver.memory", "2g") \
-        .set("spark.sql.shuffle.partitions", "10") \
-        .set("spark.some.config.option", "config-value")  # Add more configurations as needed
-
-    # Step 3: Initialize SparkContext with the configured SparkConf
-    sc = SparkContext.getOrCreate(conf=conf)
-
-    # Initialize GlueContext with SparkContext
-    glueContext = GlueContext(sc)
-
-    # Your existing code
-    args = getResolvedOptions(sys.argv, options=["INPUT_S3_PATH", "OUTPUT_S3_PATH", "env"])
-    INPUT_S3_PATH = args["INPUT_S3_PATH"]
-    OUTPUT_S3_PATH = args["OUTPUT_S3_PATH"]
-    env = args["env"]
-
-    # Continue with the rest of your job logic...
-
-if __name__ == "__main__":
-    main()
+AWS Glue Cost EstimationAWS Glue pricing for jobs is based on the number of Data Processing Units (DPUs) used per hour.G.4X worker type: AWS Glue G.4X workers come with 16 DPUs each.200 DPUs total: This means the job is running with the equivalent of 12.5 G.4X workers (since 200 / 16 = 12.5).Job Duration: 30 minutes or 0.5 hours.AWS Glue Pricing Calculation: Let's assume the cost per DPU-hour is approximately $0.44 (AWS pricing may vary, so you should verify the exact rate on the AWS website).[ \text{Cost} = \text{DPUs} \times \text{DPU-hour rate} \times \text{Time (in hours)} ][ \text{Cost} = 200 \times 0.44 \times 0.5 = 44 \text{ USD} ]So, the cost for your AWS Glue job would be approximately $44.Amazon EMR Cost EstimationFor Amazon EMR, the cost depends on the instance types you choose and how long the instances run.Let's compare using a common setup with m5.xlarge instances:m5.xlarge instance: Costs about $0.096 per hour on-demand in the US East region.Job Duration: 30 minutes or 0.5 hours.Number of Instances: To roughly match 200 DPUs of Glue, you might use around 25 m5.xlarge instances (each with 4 vCPUs and 16 GB memory).EMR Pricing Calculation: Using on-demand pricing:[ \text{Cost} = \text{Number of instances} \times \text{Instance-hour rate} \times \text{Time (in hours)} ][ \text{Cost} = 25 \times 0.096 \times 0.5 = 1.2 \text{ USD} ]So, the cost for running the equivalent processing on EMR would be approximately $1.20 using m5.xlarge instances for 30 minutes.Cost ComparisonAWS Glue Cost: Approximately $44.Amazon EMR Cost: Approximately $1.20 with on-demand m5.xlarge instances.ConclusionIn this scenario, Amazon EMR is significantly cheaper than AWS Glue. Glue can be more expensive due to its serverless nature and managed service overhead, while EMR offers more control over resource allocation and can leverage cheaper instance pricing, especially when using Spot Instances or reserved pricing.If cost is a major consideration and you can manage the infrastructure, EMR might be the better option for processing your 10 GB of data. However, if ease of use, serverless operations, and integration with other AWS services are more important, you might prefer Glue despite the higher cost.
