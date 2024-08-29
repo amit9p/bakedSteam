@@ -1,28 +1,29 @@
 
-def setup_turing_config(dev_cred, env, tokenization):
-    env1 = "QA" if env in ["dev", "qa"] else "PROD"
+from pyspark import SparkConf, SparkContext
+from awsglue.context import GlueContext  # Assuming you are using AWS Glue
 
-    if env1 == "QA":
-        npi_turing_config = {
-            "TURING_API_GATEWAY_URL": "https://api-turing-precede.cloud.capitalone.com",
-            "TURING_API_OAUTH_URL": "https://api-precode.cloud.capitalone.com",
-            "TURING_OAUTH_CLIENT_ID": dev_cred["client_id"],
-            "TURING_OAUTH_CLIENT_SECRET": dev_cred["client_secret"],
-            "TURING_CLIENT_SSL_VERIFY": False,
-        }
-    else:
-        npi_turing_config = {
-            "TURING_API_GATEWAY_URL": "https://api.cloud.capitalone.com",
-            "TURING_API_OAUTH_URL": "https://api.cloud.capitalone.com",
-            "TURING_OAUTH_CLIENT_ID": dev_cred["client_id"],
-            "TURING_OAUTH_CLIENT_SECRET": dev_cred["client_secret"],
-            "TURING_CLIENT_SSL_VERIFY": False,
-        }
+def main():
+    # Step 2: Create a SparkConf object
+    conf = SparkConf() \
+        .setAppName("MyGlueJob") \
+        .set("spark.executor.memory", "2g") \
+        .set("spark.driver.memory", "2g") \
+        .set("spark.sql.shuffle.partitions", "10") \
+        .set("spark.some.config.option", "config-value")  # Add more configurations as needed
 
-    # Set the specific scope key based on the tokenization value
-    if tokenization == "ustaxid":
-        npi_turing_config["TURING_API_NPI_SCOPE"] = f"tokenize:{tokenization}"
-    elif tokenization == "pan":
-        npi_turing_config["TURING_API_PCI_SCOPE"] = f"tokenize:{tokenization}"
+    # Step 3: Initialize SparkContext with the configured SparkConf
+    sc = SparkContext.getOrCreate(conf=conf)
 
-    return npi_turing_config
+    # Initialize GlueContext with SparkContext
+    glueContext = GlueContext(sc)
+
+    # Your existing code
+    args = getResolvedOptions(sys.argv, options=["INPUT_S3_PATH", "OUTPUT_S3_PATH", "env"])
+    INPUT_S3_PATH = args["INPUT_S3_PATH"]
+    OUTPUT_S3_PATH = args["OUTPUT_S3_PATH"]
+    env = args["env"]
+
+    # Continue with the rest of your job logic...
+
+if __name__ == "__main__":
+    main()
