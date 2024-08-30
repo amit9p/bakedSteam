@@ -31,12 +31,12 @@ class TestAssemblerGlueJob(unittest.TestCase):
         self.sc._jvm = mock_jvm
         self.glue_context._jsc = MagicMock()  # Mocking the Java SparkContext
 
-        # Directly mock the call to the Java GlueContext or JavaSparkContext
-        mock_jvm.GlueContext = MagicMock()  # Prevent Java GlueContext calls
-        mock_jvm.JavaSparkContext = MagicMock()  # Prevent JavaSparkContext calls
+        # Mock the Java SparkContext and GlueContext to prevent callable errors
+        mock_jvm.GlueContext = MagicMock()
+        mock_jvm.JavaSparkContext = MagicMock()
         
-        # Mock the result of the Java GlueContext call if used
-        self.glue_context._jsc.GlueContext.return_value = MagicMock()
+        # Directly mock any JVM or GlueContext interactions that may occur
+        self.glue_context._jsc.return_value = MagicMock()
 
         # Set the mock return values for resolved options
         mock_get_resolved_options.return_value = {
