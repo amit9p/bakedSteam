@@ -1,10 +1,9 @@
 
-
 import unittest
 from unittest.mock import patch, MagicMock
 from pyspark.sql import SparkSession
+from pyspark.context import SparkContext
 from aws.glue.context import GlueContext
-from aws.glue.utils import getResolvedOptions
 
 import assembler_glue_job as job
 
@@ -12,25 +11,27 @@ class TestAssemblerGlueJob(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # Initialize the SparkSession and GlueContext for testing
         cls.spark = SparkSession.builder.master("local").appName("GlueJobTest").getOrCreate()
-        cls.glue_context = GlueContext(cls.spark)
+        cls.sc = SparkContext.getOrCreate()
+        cls.glue_context = GlueContext(cls.sc)
 
     @patch('assembler_glue_job.GlueContext')
     @patch('assembler_glue_job.getResolvedOptions')
     @patch('assembler_glue_job.SparkSession')
-    def test_main(self, mock_spark, mock_get_resolved_options, mock_glue_context):
-        # Mock the Glue context and SparkSession
+    @patch('assembler_glue_job.SparkContext')
+    def test_main(self, mock_spark_context, mock_spark_session, mock_get_resolved_options, mock_glue_context):
+        # Mock the SparkContext and GlueContext
+        mock_spark_context.getOrCreate.return_value = self.sc
         mock_glue_context.return_value = self.glue_context
-        mock_spark.return_value = self.spark
+        mock_spark_session.builder.getOrCreate.return_value = self.spark
 
-        # Mock Java SparkContext
-        mock_jsc = MagicMock(name='JavaSparkContext')
-        self.spark._jsc = mock_jsc
+        # Mock Java SparkContext to avoid 'JavaPackage' object issues
+        mock_jvm = MagicMock()
+        self.sc._jvm = mock_jvm
+        mock_jvm.org.apache.spark.api.java.JavaSparkContext.return_value = MagicMock()
 
-        # Mock Java GlueContext
-        mock_java_glue_context = MagicMock(name='JavaGlueContext')
-        self.glue_context._jsc = mock_java_glue_context
-
+        # Set the mock return values for resolved options
         mock_get_resolved_options.return_value = {
             'input_s3_path': 's3://mock-input-bucket/mock-input-path',
             'output_s3_path': 's3://mock-output-bucket/mock-output-path',
@@ -39,18 +40,18 @@ class TestAssemblerGlueJob(unittest.TestCase):
             'client_secret': 'mock-client-secret'
         }
 
-        # Mock the DataFrame operations
+        # Mock DataFrame and its methods
         df_mock = MagicMock()
         self.glue_context.read.parquet.return_value = df_mock
         df_mock.withColumn.return_value = df_mock
         df_mock.select.return_value = df_mock
         df_mock.write.mode.return_value = df_mock.write
         df_mock.write.parquet.return_value = None
-        
-        # Run the main function of the job script
+
+        # Run the job's main function
         job.main()
 
-        # Assert that the parquet file was attempted to be written
+        # Assert that the parquet write method was called correctly
         df_mock.write.parquet.assert_called_once_with('s3://mock-output-bucket/mock-output-path')
 
 if __name__ == '__main__':
