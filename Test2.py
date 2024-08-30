@@ -1,17 +1,25 @@
 
-# List of tuples with column names and their aliases
-columns_with_aliases = [
-    ("enriched_df.business_date", "business_date"),
-    ("enriched_df.run_identifier", "run_identifier"),
-    ("enriched_df.output_file_type", "output_file_type"),
-    ("enriched_df.output_record_sequence", "output_record_sequence"),
-    ("enriched_df.output_field_sequence", "output_field_sequence"),
-    ("enriched_df.attribute", "attribute"),
-    ("final_formatted", "formatted"),
-    ("enriched_df.tokenization", "tokenization"),
-    ("enriched_df.account_number", "account_number"),
-    ("enriched_df.segment", "segment")
-]
+from pyspark.sql import functions as F
 
-# Use list comprehension to dynamically select and alias columns
-df_final = df_final.select(*[col(c[0]).alias(c[1]) for c in columns_with_aliases])
+# Assuming df_A is the DataFrame for table A and df_B is the DataFrame for table B
+# Load your DataFrames here (df_A and df_B)
+
+# Perform a left join on tokenization, account_number, and segment
+df_joined = df_A.alias('A').join(
+    df_B.alias('B'),
+    on=[
+        df_A.tokenization == df_B.tokenization,
+        df_A.account_number == df_B.account_number,
+        df_A.segment == df_B.segment
+    ],
+    how='left'
+)
+
+# Use coalesce to replace 'formatted' with 'formatted' from table B if exists, otherwise keep original
+df_result = df_joined.withColumn(
+    'formatted',
+    F.coalesce(df_B.formatted, df_A.formatted)
+).select(df_A['*'])  # Selecting all columns from A (excluding duplicated columns from B)
+
+# Show the resulting DataFrame
+df_result.show()
