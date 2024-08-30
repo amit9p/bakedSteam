@@ -37,3 +37,45 @@ logging:
   prod:
     level: WARNING
     filepath: /var/log/prod_app.log
+
+
+
+import yaml
+
+def load_config(env):
+    """
+    Load the configuration file and return the configuration for the specified environment.
+    
+    :param env: The environment to fetch the config for ('dev', 'qa', 'prod').
+    :return: A dictionary containing the configuration for the specified environment.
+    """
+    with open("config.yaml", "r") as file:
+        config = yaml.safe_load(file)
+    
+    # Create a dictionary to store environment-specific config
+    env_config = {}
+    
+    # Loop through each section and fetch config for the specified environment
+    for section, environments in config.items():
+        if env in environments:
+            env_config[section] = environments[env]
+        else:
+            raise ValueError(f"Environment '{env}' not found in section '{section}'")
+    
+    return env_config
+
+# Example usage
+if __name__ == "__main__":
+    environment = "dev"  # Change this to 'qa' or 'prod' as needed
+    config = load_config(environment)
+    print(config)
+
+    # Access specific configuration values
+    db_host = config['database']['host']
+    api_url = config['api']['base_url']
+    log_level = config['logging']['level']
+
+    print(f"Database Host: {db_host}")
+    print(f"API URL: {api_url}")
+    print(f"Log Level: {log_level}")
+
