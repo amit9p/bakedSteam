@@ -1,66 +1,50 @@
 
-import os
 import unittest
-from unittest.mock import patch, mock_open, MagicMock
+from unittest.mock import patch, MagicMock
+from pyspark.sql import SparkSession
+from aws.glue.context import GlueContext
+from aws.glue.utils import getResolvedOptions
 
-# Importing functions from your setup.py; adjust the import path if needed
-from setup import get_install_requirements
+# Assume the script file is named 'assembler_glue_job.py'
+import assembler_glue_job as job
 
-class TestSetup(unittest.TestCase):
+class TestAssemblerGlueJob(unittest.TestCase):
 
-    def setUp(self):
-        # Setup a temporary directory and files for testing
-        self.working_directory = os.path.dirname(__file__)
-        self.pipfile_path = os.path.join(self.working_directory, "Pipfile")
+    @classmethod
+    def setUpClass(cls):
+        cls.spark = SparkSession.builder.master("local").appName("GlueJobTest").getOrCreate()
+        cls.glue_context = GlueContext(cls.spark)
+
+    @patch('assembler_glue_job.GlueContext')
+    @patch('assembler_glue_job.getResolvedOptions')
+    @patch('assembler_glue_job.SparkSession')
+    def test_main(self, mock_spark, mock_get_resolved_options, mock_glue_context):
+        # Mock the Glue context and SparkSession
+        mock_glue_context.return_value = self.glue_context
+        mock_spark.return_value = self.spark
+        mock_get_resolved_options.return_value = {
+            'input_s3_path': 's3://mock-input-bucket/mock-input-path',
+            'output_s3_path': 's3://mock-output-bucket/mock-output-path',
+            'env': 'qa',
+            'client_id': 'mock-client-id',
+            'client_secret': 'mock-client-secret'
+        }
         
-        # Sample Pipfile content for testing
-        self.sample_pipfile_content = """
-        [[source]]
-        name = "pypi"
-        url = "https://pypi.org/simple"
-        verify_ssl = true
+        # Mock the DataFrame operations
+        df_mock = MagicMock()
+        self.glue_context.read.parquet.return_value = df_mock
+        df_mock.withColumn.return_value = df_mock
+        df_mock.select.return_value = df_mock
+        df_mock.write.mode.return_value = df_mock.write
+        df_mock.write.parquet.return_value = None
+        
+        # Run the main function of the job script
+        job.main()
 
-        [packages]
-        requests = ">=2.25.1"
-        numpy = "==1.21.0"
+        # Assert that the parquet file was attempted to be written
+        df_mock.write.parquet.assert_called_once_with('s3://mock-output-bucket/mock-output-path')
 
-        [dev-packages]
-        pytest = "*"
+    # Additional test cases can be added here
 
-        [requires]
-        python_version = "3.8"
-        """
-
-        # Create a mock Pipfile for testing purposes
-        with open(self.pipfile_path, 'w') as f:
-            f.write(self.sample_pipfile_content)
-
-    def tearDown(self):
-        # Remove the Pipfile after tests
-        if os.path.exists(self.pipfile_path):
-            os.remove(self.pipfile_path)
-
-    @patch('builtins.open', new_callable=mock_open, read_data='__version__ = "1.0.0"')
-    @patch('setup.os.path.exists', MagicMock(return_value=True))
-    def test_read_version(self, mock_file):
-        import setup  # Import after patching to use the mocked file open
-        self.assertEqual(setup.version, "1.0.0")
-        mock_file.assert_called_once_with("version.py", "r")
-
-    def test_get_install_requirements(self):
-        # This will read from the actual or mock Pipfile created in setUp
-        requirements = get_install_requirements()
-        self.assertIsInstance(requirements, list)
-        self.assertIn('requests>=2.25.1', requirements)
-        self.assertIn('numpy==1.21.0', requirements)
-
-    @patch('setup.os.path.join', return_value="mocked_path")
-    @patch('builtins.open', new_callable=mock_open, read_data='[packages]\nrequests = ">=2.25.1"\n')
-    def test_get_install_requirements_mocked(self, mock_open, mock_path_join):
-        # Using mock to test if the function works with mocked data
-        requirements = get_install_requirements()
-        self.assertEqual(requirements, ['requests>=2.25.1'])
-        mock_open.assert_called_once_with("mocked_path", "r")
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     unittest.main()
