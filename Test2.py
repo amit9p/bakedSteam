@@ -1,9 +1,10 @@
 
 import os
 import unittest
-from unittest.mock import patch, mock_open
-from setup import get_install_requirements
+from unittest.mock import patch, mock_open, MagicMock
 
+# Importing functions from your setup.py; adjust the import path if needed
+from setup import get_install_requirements
 
 class TestSetup(unittest.TestCase):
 
@@ -40,9 +41,10 @@ class TestSetup(unittest.TestCase):
             os.remove(self.pipfile_path)
 
     @patch('builtins.open', new_callable=mock_open, read_data='__version__ = "1.0.0"')
+    @patch('setup.os.path.exists', MagicMock(return_value=True))
     def test_read_version(self, mock_file):
-        from setup import version  # Import version after mocking open
-        self.assertEqual(version, "1.0.0")
+        import setup  # Import after patching to use the mocked file open
+        self.assertEqual(setup.version, "1.0.0")
         mock_file.assert_called_once_with("version.py", "r")
 
     def test_get_install_requirements(self):
