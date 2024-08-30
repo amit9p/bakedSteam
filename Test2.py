@@ -26,10 +26,16 @@ class TestAssemblerGlueJob(unittest.TestCase):
         mock_glue_context.return_value = self.glue_context
         mock_spark_session.builder.getOrCreate.return_value = self.spark
 
-        # Mock Java SparkContext to avoid 'JavaPackage' object issues
+        # Mock Java components to avoid 'JavaPackage' object issues
         mock_jvm = MagicMock()
         self.sc._jvm = mock_jvm
-        mock_jvm.org.apache.spark.api.java.JavaSparkContext.return_value = MagicMock()
+        self.glue_context._jsc = MagicMock()  # Mocking the Java GlueContext
+        mock_jvm.org = MagicMock()
+        mock_jvm.org.apache = MagicMock()
+        mock_jvm.org.apache.spark = MagicMock()
+        mock_jvm.org.apache.spark.api = MagicMock()
+        mock_jvm.org.apache.spark.api.java = MagicMock()
+        mock_jvm.org.apache.spark.api.java.JavaSparkContext = MagicMock()
 
         # Set the mock return values for resolved options
         mock_get_resolved_options.return_value = {
