@@ -1,11 +1,11 @@
 
+
 import unittest
 from unittest.mock import patch, MagicMock
 from pyspark.sql import SparkSession
 from aws.glue.context import GlueContext
 from aws.glue.utils import getResolvedOptions
 
-# Assume the script file is named 'assembler_glue_job.py'
 import assembler_glue_job as job
 
 class TestAssemblerGlueJob(unittest.TestCase):
@@ -22,6 +22,15 @@ class TestAssemblerGlueJob(unittest.TestCase):
         # Mock the Glue context and SparkSession
         mock_glue_context.return_value = self.glue_context
         mock_spark.return_value = self.spark
+
+        # Mock Java SparkContext
+        mock_jsc = MagicMock(name='JavaSparkContext')
+        self.spark._jsc = mock_jsc
+
+        # Mock Java GlueContext
+        mock_java_glue_context = MagicMock(name='JavaGlueContext')
+        self.glue_context._jsc = mock_java_glue_context
+
         mock_get_resolved_options.return_value = {
             'input_s3_path': 's3://mock-input-bucket/mock-input-path',
             'output_s3_path': 's3://mock-output-bucket/mock-output-path',
@@ -29,7 +38,7 @@ class TestAssemblerGlueJob(unittest.TestCase):
             'client_id': 'mock-client-id',
             'client_secret': 'mock-client-secret'
         }
-        
+
         # Mock the DataFrame operations
         df_mock = MagicMock()
         self.glue_context.read.parquet.return_value = df_mock
@@ -43,8 +52,6 @@ class TestAssemblerGlueJob(unittest.TestCase):
 
         # Assert that the parquet file was attempted to be written
         df_mock.write.parquet.assert_called_once_with('s3://mock-output-bucket/mock-output-path')
-
-    # Additional test cases can be added here
 
 if __name__ == '__main__':
     unittest.main()
