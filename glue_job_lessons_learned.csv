@@ -1,0 +1,21 @@
+Section,Description,Details
+Job Configuration,Worker Type and Number of Workers,Choose the appropriate worker type based on the memory and compute needs. Start with a lower number of workers and scale up as needed.
+Job Configuration,DPUs (Data Processing Units),"Monitor the job’s performance and adjust DPUs accordingly. Over-provisioning increases costs, while under-provisioning may cause jobs to fail."
+Job Configuration,Job Timeout,Set a reasonable timeout to avoid long-running jobs that can accrue high costs. Consider adding retry logic for transient errors.
+Job Configuration,IAM Roles and Permissions,Use the principle of least privilege. Ensure that the IAM role has only the necessary permissions required for the job execution.
+Best Practices (Dos),Data Partitioning,Partition your data to optimize read performance and reduce costs by processing only the relevant partitions.
+Best Practices (Dos),Monitoring and Logging,"Enable detailed logging and monitoring through AWS CloudWatch to track job performance, errors, and cost metrics."
+Best Practices (Dos),Job Script Optimization,Write efficient ETL scripts by minimizing shuffles and using filter and select operations early.
+Best Practices (Dos),Data Formats,Prefer columnar data formats like Parquet or ORC over row-based formats like CSV for better performance and lower costs.
+Best Practices (Dos),Incremental Processing,"Use incremental data processing to reduce the volume of data processed, thus lowering costs and improving performance."
+Pitfalls to Avoid (Don'ts),Over-Provisioning Resources,Don’t allocate excessive DPUs or choose high-memory workers without assessing actual job needs.
+Pitfalls to Avoid (Don'ts),Ignoring Data Skew,"Avoid data processing that results in skewed distributions, as this can cause inefficiencies and increased costs."
+Pitfalls to Avoid (Don'ts),Neglecting Error Handling,Don’t overlook the importance of robust error handling in your ETL scripts.
+Pitfalls to Avoid (Don'ts),Hard-Coding Configurations,Avoid hard-coding parameters or configurations in scripts. Use Glue’s job parameters feature.
+Pitfalls to Avoid (Don'ts),Running Jobs on Full Datasets Unnecessarily,Don’t run jobs on full datasets if processing can be optimized using incremental processing or data partitioning.
+Common Challenges and Solutions,Job Memory Errors or Resource Exhaustion,Optimize the job script to reduce memory usage or choose a worker type with higher memory capacity.
+Common Challenges and Solutions,Long Execution Times,Review the job script for inefficiencies and consider increasing the number of DPUs or using more powerful worker types.
+Common Challenges and Solutions,High Costs,Monitor Glue job costs through AWS Cost Explorer. Adjust the DPU allocation and optimize ETL scripts.
+Future Improvements,Automation and Scheduling,Implement job scheduling using AWS Glue Workflows or AWS Step Functions.
+Future Improvements,Resource Tagging,Tag Glue jobs and associated resources to track costs effectively.
+Future Improvements,Advanced Monitoring,Use AWS CloudWatch dashboards for real-time monitoring and alerts on Glue job performance and costs.
