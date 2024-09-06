@@ -1,8 +1,8 @@
 
-from datetime import datetime
+import time
 
-# Get current timestamp
-current_timestamp = datetime.now()
+# Get the Unix timestamp (seconds since the epoch)
+unix_timestamp = time.time()
 
-# Print the current timestamp
-print(current_timestamp)
+# Print the Unix timestamp
+print(unix_timestamp)
