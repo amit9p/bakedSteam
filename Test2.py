@@ -1,4 +1,8 @@
 
+set start_dt = (select dateadd(day, -60, max(bus.dt)) from coaf_db.collab_lab_svcg.resolved_digtal_segment_August23);
+
+
+
 set start_dt = (select max(bus.dt) from coaf_db.collab_lab_svcg.resolved_digtal_segment_August23);
 set start_dt = dateadd(day, -60, $start_dt);
 import os
