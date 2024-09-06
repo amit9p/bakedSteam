@@ -1,4 +1,7 @@
-
+INSERT INTO target_table
+SELECT * 
+FROM source_table
+WHERE conditions;
 
 INSERT INTO employees (employee_id, first_name, last_name, department)
 SELECT employee_id, first_name, last_name, department
