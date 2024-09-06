@@ -1,4 +1,23 @@
 
+
+import os
+from datetime import datetime
+
+# Get the current timestamp in the format yyyymmddhhmmss
+current_time = datetime.now().strftime("%Y%m%d%H%M%S")
+
+# Define the directory name using the timestamp
+folder_name = current_time
+
+# Create the directory in the current working directory
+directory_path = os.path.join(os.getcwd(), folder_name)
+
+# Create the directory
+os.makedirs(directory_path, exist_ok=True)
+
+print(f"Folder '{folder_name}' created at {directory_path}")
+
+
 from pyspark.sql.functions import col
 
 # Update data types as per the schema in the second image
