@@ -1,4 +1,11 @@
 
+
+INSERT INTO employees (employee_id, first_name, last_name, department)
+SELECT employee_id, first_name, last_name, department
+FROM employees_backup
+WHERE hire_date > '2023-01-01';
+
+
 set start_dt = (select dateadd(day, -60, max(bus.dt)) from coaf_db.collab_lab_svcg.resolved_digtal_segment_August23);
 
 
