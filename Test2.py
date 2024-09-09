@@ -1,54 +1,71 @@
-INSERT INTO target_table
-SELECT * 
-FROM source_table
-WHERE conditions;
 
-INSERT INTO employees (employee_id, first_name, last_name, department)
-SELECT employee_id, first_name, last_name, department
-FROM employees_backup
-WHERE hire_date > '2023-01-01';
+import pytest
+from unittest.mock import patch, MagicMock
 
+# Import your actual methods here if they are in a module, for example:
+# from your_module import setup_turing_config, batch_process, assembler_etl
 
-set start_dt = (select dateadd(day, -60, max(bus.dt)) from coaf_db.collab_lab_svcg.resolved_digtal_segment_August23);
+# Mock data that might be passed to functions
+mock_df = MagicMock()  # This could represent a Spark DataFrame
+mock_dev_creds = {'client_id': 'mock_client_id', 'client_secret': 'mock_secret'}
+mock_env = "qa"
+mock_tokenization = "USTAXID"
 
+# Test for setup_turing_config
+@patch('your_module.setup_turing_config')
+def test_setup_turing_config(mock_setup):
+    # Mock the return value of setup_turing_config
+    mock_setup.return_value = {
+        'TURING_API_OAUTH_URL': 'mock_url',
+        'TURING_OAUTH_CLIENT_ID': 'mock_client_id',
+        'TURING_OAUTH_CLIENT_SECRET': 'mock_secret'
+    }
+    
+    result = setup_turing_config(mock_dev_creds, mock_env, mock_tokenization)
+    assert result['TURING_API_OAUTH_URL'] == 'mock_url'
+    assert result['TURING_OAUTH_CLIENT_ID'] == 'mock_client_id'
 
+# Test for batch_process
+@patch('your_module.setup_turing_config')
+@patch('your_module.TuringPySparkClient')
+@patch('your_module.DefaultAdapter')
+def test_batch_process(mock_adapter, mock_client, mock_setup):
+    # Mock return values for setup_turing_config
+    mock_setup.return_value = MagicMock()
+    
+    # Mock client processing
+    mock_client_instance = mock_client.return_value
+    mock_client_instance.process.return_value = "mocked_processed_df"
+    
+    # Mock adapter
+    mock_adapter_instance = mock_adapter.return_value
+    
+    # Call the batch_process function
+    from your_module import batch_process  # Import the actual method
+    result = batch_process(mock_df, mock_dev_creds, mock_env, mock_tokenization)
+    
+    mock_setup.assert_called_once()
+    mock_client_instance.process.assert_called_once_with(mock_df, mock_adapter_instance)
+    assert result == "mocked_processed_df"
 
-set start_dt = (select max(bus.dt) from coaf_db.collab_lab_svcg.resolved_digtal_segment_August23);
-set start_dt = dateadd(day, -60, $start_dt);
-import os
-from datetime import datetime
+# Test for assembler_etl
+@patch('your_module.batch_process')
+@patch('your_module.GlueContext')
+@patch('your_module.SparkContext')
+def test_assembler_etl(mock_spark_context, mock_glue_context, mock_batch_process):
+    # Mocking Spark and Glue Contexts
+    mock_spark = mock_spark_context.return_value
+    mock_glue = mock_glue_context.return_value
 
-# Get the current timestamp in the format yyyymmddhhmmss
-current_time = datetime.now().strftime("%Y%m%d%H%M%S")
+    # Mocking batch_process
+    mock_batch_process.side_effect = ["mocked_tokenized_ustaxid_df", "mocked_tokenized_pan_df"]
+    
+    # Mock other required dependencies in assembler_etl if necessary
+    
+    from your_module import assembler_etl  # Import the actual method
+    assembler_etl()  # Call the ETL method
 
-# Define the directory name using the timestamp
-folder_name = current_time
-
-# Create the directory in the current working directory
-directory_path = os.path.join(os.getcwd(), folder_name)
-
-# Create the directory
-os.makedirs(directory_path, exist_ok=True)
-
-print(f"Folder '{folder_name}' created at {directory_path}")
-
-
-from pyspark.sql.functions import col
-
-# Update data types as per the schema in the second image
-df_final = df_final.select(
-    col("df_a.business_date").cast("date").alias("business_date"),  # DATE
-    col("df_a.run_identifier").cast("int").alias("run_identifier"),  # INTEGER
-    col("df_a.output_file_type").cast("string").alias("output_filetype"),  # STRING
-    col("df_a.output_record_sequence").cast("int").alias("output_record_sequence"),  # INTEGER
-    col("df_a.output_field_sequence").cast("int").alias("output_field_sequence"),  # INTEGER
-    col("df_a.attribute").cast("string").alias("attribute"),  # STRING
-    col("final_formatted").cast("string").alias("formatted"),  # STRING
-    col("df_a.tokenization").cast("string").alias("tokenization"),  # NULLABLE STRING
-    col("df_a.account_number").cast("string").alias("account_number"),  # NULLABLE STRING
-    col("df_a.segment").cast("string").alias("segment")  # STRING
-)
-
-# Print schema and show some data for verification
-df_final.printSchema()
-df_final.show(n=500, truncate=False)
+    mock_glue_context.assert_called_once()
+    mock_spark_context.assert_called_once()
+    mock_batch_process.assert_any_call(mock.ANY, mock_dev_creds, mock_env, "USTAXID")
+    mock_batch_process.assert_any_call(mock.ANY, mock_dev_creds, mock_env, "PAN")
