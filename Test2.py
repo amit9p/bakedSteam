@@ -8,15 +8,15 @@ class TestBatchProcess(unittest.TestCase):
     @patch('cl_turing_sdk.pyspark.turing_pyspark_client.TuringPySparkClient')
     @patch('requests.post')  # Mocking the OAuth2 request
     def test_batch_process(self, mock_requests_post, mock_turing_client, mock_setup_turing_config):
-        # Mock setup_turing_config return values, including both NPI and PCI URLs
+        # Mock setup_turing_config return values, ensuring to use the correct keys
         mock_setup_turing_config.return_value = {
             'TURING_API_OAUTH_URL': 'https://api-pre.cede.cloud.capitalone.com',
             'TURING_OAUTH_CLIENT_ID': 'test_id',
             'TURING_OAUTH_CLIENT_SECRET': 'test_secret',
             'TURING_CLIENT_SSL_VERIFY': False,
-            'TURING_API_GATEWAY_NPI_URL': 'https://api-turing-precede.cloud.capitalone.com/npi',
+            'turing3.api.npi.url': 'https://api-turing-precede.cloud.capitalone.com/npi',
             'TURING_API_NPI_SCOPE': 'tokenize:ustaxid',
-            'TURING_API_GATEWAY_PCI_URL': 'https://api-turing-precede.cloud.capitalone.com/pci',
+            'turing3.api.pci.url': 'https://api-turing-precede.cloud.capitalone.com/pci',
             'TURING_API_PCI_SCOPE': 'tokenize:pan'
         }
         
