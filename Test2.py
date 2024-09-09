@@ -1,4 +1,5 @@
 
+
 import unittest
 from unittest.mock import patch, MagicMock
 import requests
@@ -8,7 +9,7 @@ class TestBatchProcess(unittest.TestCase):
     @patch('cl_turing_sdk.pyspark.turing_pyspark_client.TuringPySparkClient')
     @patch('requests.post')  # Mocking the OAuth2 request to avoid hitting the actual API
     def test_batch_process(self, mock_requests_post, mock_turing_client, mock_setup_turing_config):
-        # Mock setup_turing_config return values, ensuring to use the correct keys
+        # Mock setup_turing_config return values
         mock_setup_turing_config.return_value = {
             'TURING_API_OAUTH_URL': 'https://api-pre.cede.cloud.capitalone.com',
             'TURING_OAUTH_CLIENT_ID': 'test_id',
@@ -19,7 +20,7 @@ class TestBatchProcess(unittest.TestCase):
             'turing3.api.pci.url': 'https://api-turing-precede.cloud.capitalone.com/pci',
             'TURING_API_PCI_SCOPE': 'tokenize:pan'
         }
-        
+
         # Mock the response from the OAuth2 token request
         mock_response = MagicMock()
         mock_response.status_code = 200  # Simulate a successful response
@@ -31,6 +32,10 @@ class TestBatchProcess(unittest.TestCase):
         # Mock the Turing client process call
         mock_client = mock_turing_client.return_value
         mock_client.process.return_value = "mock_df"
+
+        # Debugging prints to ensure the mock is working
+        print("##### Mocking requests.post:")
+        print(mock_requests_post)
 
         # Simulate a Spark DataFrame
         spark = SparkSession.builder.master("local").appName("test").getOrCreate()
@@ -60,3 +65,9 @@ class TestBatchProcess(unittest.TestCase):
 
         # Ensure the token was used in the Turing client process
         mock_client.process.assert_called_once()
+
+        # Debug prints to ensure mocking worked
+        print("##### OAuth2 request (mocked) was called with:")
+        print(mock_requests_post.call_args)
+        print("##### Mocked response:")
+        print(mock_response.json())
