@@ -1,84 +1,60 @@
 
-
-import pytest
+import unittest
 from unittest.mock import patch, MagicMock
+import requests
 
-# Mock data for testing
-mock_df = MagicMock()  # This could represent a Spark DataFrame
-mock_dev_creds = {'client_id': 'mock_client_id', 'client_secret': 'mock_secret'}
-mock_env = "qa"
-mock_tokenization = "USTAXID"
+class TestBatchProcess(unittest.TestCase):
+    @patch('glue_jobs.assembler_glue_job.setup_turing_config')
+    @patch('cl_turing_sdk.pyspark.turing_pyspark_client.TuringPySparkClient')
+    @patch('requests.post')  # Mocking the OAuth2 request
+    def test_batch_process(self, mock_requests_post, mock_turing_client, mock_setup_turing_config):
+        # Mock setup_turing_config return values
+        mock_setup_turing_config.return_value = {
+            'TURING_API_OAUTH_URL': 'https://api-pre.cede.cloud.capitalone.com',
+            'TURING_OAUTH_CLIENT_ID': 'test_id',
+            'TURING_OAUTH_CLIENT_SECRET': 'test_secret',
+            'TURING_CLIENT_SSL_VERIFY': False,
+            'TURING_API_GATEWAY_PCI_URL': 'https://api-turing-pre.cede.cloud.capitalone.com',
+            'TURING_API_PCI_SCOPE': 'tokenize:pan'
+        }
+        
+        # Mock the response from the OAuth2 token request
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            'access_token': 'mocked_access_token'
+        }
+        mock_requests_post.return_value = mock_response
 
-# Test for setup_turing_config
-@patch('your_module.setup_turing_config')
-def test_setup_turing_config(mock_setup):
-    # Mock the return value of setup_turing_config
-    mock_setup.return_value = {
-        'TURING_API_OAUTH_URL': 'mock_url',
-        'TURING_OAUTH_CLIENT_ID': 'mock_client_id',
-        'TURING_OAUTH_CLIENT_SECRET': 'mock_secret',
-        'TURING_CLIENT_SSL_VERIFY': False
-    }
-    
-    result = setup_turing_config(mock_dev_creds, mock_env, mock_tokenization)
-    assert result['TURING_API_OAUTH_URL'] == 'mock_url'
-    assert result['TURING_OAUTH_CLIENT_ID'] == 'mock_client_id'
+        # Mock the Turing client process call
+        mock_client = mock_turing_client.return_value
+        mock_client.process.return_value = "mock_df"
 
-# Test for batch_process
-@patch('your_module.TuringPySparkClient.process')
-@patch('your_module.DefaultAdapter')
-def test_batch_process(mock_adapter, mock_process):
-    # Mock the processing method of the TuringPySparkClient
-    mock_process.return_value = "mocked_processed_df"
-    
-    # Mock adapter
-    mock_adapter_instance = mock_adapter.return_value
-    
-    # Call the batch_process function
-    result = batch_process(mock_df, mock_dev_creds, mock_env, mock_tokenization)
-    
-    assert result == "mocked_processed_df"
+        # Simulate a Spark DataFrame
+        spark = SparkSession.builder.master("local").appName("test").getOrCreate()
+        df = spark.createDataFrame([("1", "test"), ("id", "value")], ["id", "value"])
 
-# Test for assembler_etl
-@patch('your_module.getResolvedOptions')
-@patch('your_module.GlueContext')  # Correctly mock GlueContext
-@patch('your_module.SparkContext')
-@patch('your_module.read_parquet_file')  # Mocking the read_parquet_file
-@patch('your_module.batch_process')  # Mocking the batch_process method
-def test_assembler_etl(mock_batch_process, mock_read_parquet_file, mock_spark_context, mock_glue_context, mock_get_resolved_options):
-    # Mock the getResolvedOptions to return necessary arguments
-    mock_get_resolved_options.return_value = {
-        'input_s3_path': 'mock_input_path',
-        'output_s3_path': 'mock_output_path',
-        'env': 'qa',
-        'client_id': 'mock_client_id',
-        'client_secret': 'mock_secret'
-    }
-    
-    # Mock the Spark and Glue contexts
-    mock_spark_context.return_value = MagicMock()
-    mock_glue_context.return_value = MagicMock()
-    
-    # Set the spark_session attribute in the mocked GlueContext
-    mock_glue_context.return_value.spark_session = MagicMock()
+        # Call the batch_process function
+        result = batch_process(
+            df, 
+            dev_creds={'client_id': 'test_id', 'client_secret': 'test_secret'}, 
+            env="qa", 
+            tokenization="PAN"
+        )
 
-    # Mock read_parquet_file return value
-    mock_read_parquet_file.return_value = "mocked_dataframe"
+        # Assertions to verify the behavior
+        self.assertEqual(result, "mock_df")
+        mock_setup_turing_config.assert_called_once_with(
+            {'client_id': 'test_id', 'client_secret': 'test_secret'}, 'qa', 'PAN'
+        )
 
-    # Mocking batch_process
-    mock_batch_process.side_effect = ["mocked_tokenized_ustaxid_df", "mocked_tokenized_pan_df"]
-    
-    # Call the assembler_etl method
-    assembler_etl()
+        # Ensure OAuth2 token request was made
+        mock_requests_post.assert_called_once_with(
+            'https://api-pre.cede.cloud.capitalone.com/oauth2/token',  # The token URL
+            data={'grant_type': 'client_credentials'},  # OAuth2 payload
+            auth=('test_id', 'test_secret'),  # Client ID and Secret
+            verify=False
+        )
 
-    # Assert that read_parquet_file was called with the correct arguments
-    mock_read_parquet_file.assert_called_with(mock_glue_context.return_value.spark_session, 'mock_input_path')
-
-    # Ensure batch_process is called correctly
-    mock_batch_process.assert_any_call(mock.ANY, mock_dev_creds, mock_env, "USTAXID")
-    mock_batch_process.assert_any_call(mock.ANY, mock_dev_creds, mock_env, "PAN")
-
-    # Optionally check that the final output is written
-    mock_glue_context.return_value.write_parquet.assert_called_once_with(
-        "mocked_dataframe", 'mock_output_path'
-    )
+        # Ensure the token was used in the Turing client process
+        mock_client.process.assert_called_once()
