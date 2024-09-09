@@ -22,7 +22,7 @@ class TestBatchProcess(unittest.TestCase):
         
         # Mock the response from the OAuth2 token request
         mock_response = MagicMock()
-        mock_response.status_code = 200
+        mock_response.status_code = 200  # Simulate a successful response
         mock_response.json.return_value = {
             'access_token': 'mocked_access_token'
         }
