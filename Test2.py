@@ -41,7 +41,7 @@ def test_batch_process(mock_adapter, mock_process):
 
 # Test for assembler_etl
 @patch('your_module.getResolvedOptions')
-@patch('your_module.GlueContext')
+@patch('your_module.GlueContext')  # Correctly mock GlueContext
 @patch('your_module.SparkContext')
 @patch('your_module.read_parquet_file')  # Mocking the read_parquet_file
 @patch('your_module.batch_process')  # Mocking the batch_process method
@@ -58,6 +58,9 @@ def test_assembler_etl(mock_batch_process, mock_read_parquet_file, mock_spark_co
     # Mock the Spark and Glue contexts
     mock_spark_context.return_value = MagicMock()
     mock_glue_context.return_value = MagicMock()
+    
+    # Set the spark_session attribute in the mocked GlueContext
+    mock_glue_context.return_value.spark_session = MagicMock()
 
     # Mock read_parquet_file return value
     mock_read_parquet_file.return_value = "mocked_dataframe"
@@ -69,7 +72,7 @@ def test_assembler_etl(mock_batch_process, mock_read_parquet_file, mock_spark_co
     assembler_etl()
 
     # Assert that read_parquet_file was called with the correct arguments
-    mock_read_parquet_file.assert_called_with(mock_spark_context.return_value, 'mock_input_path')
+    mock_read_parquet_file.assert_called_with(mock_glue_context.return_value.spark_session, 'mock_input_path')
 
     # Ensure batch_process is called correctly
     mock_batch_process.assert_any_call(mock.ANY, mock_dev_creds, mock_env, "USTAXID")
