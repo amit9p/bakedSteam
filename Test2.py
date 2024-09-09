@@ -6,7 +6,7 @@ import requests
 class TestBatchProcess(unittest.TestCase):
     @patch('glue_jobs.assembler_glue_job.setup_turing_config')
     @patch('cl_turing_sdk.pyspark.turing_pyspark_client.TuringPySparkClient')
-    @patch('requests.post')  # Mocking the OAuth2 request
+    @patch('requests.post')  # Mocking the OAuth2 request to avoid hitting the actual API
     def test_batch_process(self, mock_requests_post, mock_turing_client, mock_setup_turing_config):
         # Mock setup_turing_config return values, ensuring to use the correct keys
         mock_setup_turing_config.return_value = {
@@ -50,7 +50,7 @@ class TestBatchProcess(unittest.TestCase):
             {'client_id': 'test_id', 'client_secret': 'test_secret'}, 'qa', 'PAN'
         )
 
-        # Ensure OAuth2 token request was made
+        # Ensure OAuth2 token request was made (mocked)
         mock_requests_post.assert_called_once_with(
             'https://api-pre.cede.cloud.capitalone.com/oauth2/token',  # The token URL
             data={'grant_type': 'client_credentials'},  # OAuth2 payload
