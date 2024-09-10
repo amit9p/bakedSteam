@@ -2,12 +2,11 @@
 
 import unittest
 from unittest.mock import patch, MagicMock
-import requests
 
 class TestBatchProcess(unittest.TestCase):
-    @patch('glue_jobs.assembler_glue_job.setup_turing_config')
-    @patch('cl_turing_sdk.pyspark.turing_pyspark_client.TuringPySparkClient')
-    @patch('requests.post')  # Mocking the OAuth2 request to avoid hitting the actual API
+    @patch('glue_jobs.assembler_glue_job.setup_turing_config')  # Mock setup_turing_config
+    @patch('cl_turing_sdk.pyspark.turing_pyspark_client.TuringPySparkClient')  # Mock TuringPySparkClient
+    @patch('requests.post')  # Mock the OAuth2 request
     def test_batch_process(self, mock_requests_post, mock_turing_client, mock_setup_turing_config):
         # Mock setup_turing_config return values
         mock_setup_turing_config.return_value = {
@@ -29,13 +28,9 @@ class TestBatchProcess(unittest.TestCase):
         }
         mock_requests_post.return_value = mock_response
 
-        # Mock the Turing client process call
-        mock_client = mock_turing_client.return_value
-        mock_client.process.return_value = "mock_df"
-
-        # Debugging prints to ensure the mock is working
-        print("##### Mocking requests.post:")
-        print(mock_requests_post)
+        # Mock the TuringPySparkClient and its process method
+        mock_client_instance = mock_turing_client.return_value
+        mock_client_instance.process.return_value = "mock_df"
 
         # Simulate a Spark DataFrame
         spark = SparkSession.builder.master("local").appName("test").getOrCreate()
@@ -63,11 +58,5 @@ class TestBatchProcess(unittest.TestCase):
             verify=False
         )
 
-        # Ensure the token was used in the Turing client process
-        mock_client.process.assert_called_once()
-
-        # Debug prints to ensure mocking worked
-        print("##### OAuth2 request (mocked) was called with:")
-        print(mock_requests_post.call_args)
-        print("##### Mocked response:")
-        print(mock_response.json())
+        # Ensure the Turing client process was called
+        mock_client_instance.process.assert_called_once_with(df, mock.ANY)
