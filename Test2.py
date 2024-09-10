@@ -7,8 +7,9 @@ from unittest.mock import patch, MagicMock
 
 @patch('batch_module.setup_turing_config')
 @patch('batch_module.TuringPySparkClient')
-@patch('batch_module.requests.post')  # Mock the POST request for OAuth2
-def test_batch_process(mock_post, mock_turing_client, mock_setup_turing_config):
+@patch('batch_module.requests.post')  # Mock the POST request for OAuth2 (or other API calls)
+@patch('batch_module.requests.get')   # Mock any potential GET requests
+def test_batch_process(mock_get, mock_post, mock_turing_client, mock_setup_turing_config):
     # Mock OAuth2 token request to avoid real HTTP calls
     mock_response = MagicMock()
     mock_response.status_code = 200
@@ -17,9 +18,18 @@ def test_batch_process(mock_post, mock_turing_client, mock_setup_turing_config):
 
     # Mock setup_turing_config to return a mock object with necessary properties
     mock_turing_obj = MagicMock()
-    mock_turing_obj.configure_mock(api_npi_url="mock_npi_url", api_pci_url="mock_pci_url")
-    mock_setup_turing_config.return_value = mock_turing_obj
-    
+    mock_setup_turing_config.return_value = {
+        'turing3.api.oauth.url': 'https://mock-oauth-url.com',
+        'turing3.oauth.clientId': 'test_id',
+        'turing3.oauth.clientSecret': 'test_secret',
+        'turing3.api.npi.url': 'https://mock-npi-url.com',
+        'turing3.api.npi.scope': 'tokenize:ustaxid',
+        'turingClient.sslVerify': False
+    }
+
+    # Prevent any potential GET requests (in case any are made during setup)
+    mock_get.return_value = MagicMock(status_code=200, json=lambda: {})
+
     # Now, do not mock the class itself. Create an instance but mock only the methods.
     with patch('batch_module.DefaultAdapter.__init__', return_value=None):
         # Mock the methods you are going to use
