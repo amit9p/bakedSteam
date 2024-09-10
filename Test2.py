@@ -1,62 +1,53 @@
 
-
-import unittest
+import pytest
 from unittest.mock import patch, MagicMock
 
-class TestBatchProcess(unittest.TestCase):
-    @patch('glue_jobs.assembler_glue_job.setup_turing_config')  # Mock setup_turing_config
-    @patch('cl_turing_sdk.pyspark.turing_pyspark_client.TuringPySparkClient')  # Mock TuringPySparkClient
-    @patch('requests.post')  # Mock the OAuth2 request
-    def test_batch_process(self, mock_requests_post, mock_turing_client, mock_setup_turing_config):
-        # Mock setup_turing_config return values
-        mock_setup_turing_config.return_value = {
-            'TURING_API_OAUTH_URL': 'https://api-pre.cede.cloud.capitalone.com',
-            'TURING_OAUTH_CLIENT_ID': 'test_id',
-            'TURING_OAUTH_CLIENT_SECRET': 'test_secret',
-            'TURING_CLIENT_SSL_VERIFY': False,
-            'turing3.api.npi.url': 'https://api-turing-precede.cloud.capitalone.com/npi',
-            'TURING_API_NPI_SCOPE': 'tokenize:ustaxid',
-            'turing3.api.pci.url': 'https://api-turing-precede.cloud.capitalone.com/pci',
-            'TURING_API_PCI_SCOPE': 'tokenize:pan'
-        }
+# Assuming the module is called `batch_module` and batch_process is within it.
+# Replace `batch_module` with the correct module name.
 
-        # Mock the response from the OAuth2 token request
-        mock_response = MagicMock()
-        mock_response.status_code = 200  # Simulate a successful response
-        mock_response.json.return_value = {
-            'access_token': 'mocked_access_token'
-        }
-        mock_requests_post.return_value = mock_response
-
-        # Mock the TuringPySparkClient and its process method
-        mock_client_instance = mock_turing_client.return_value
-        mock_client_instance.process.return_value = "mock_df"
-
-        # Simulate a Spark DataFrame
-        spark = SparkSession.builder.master("local").appName("test").getOrCreate()
-        df = spark.createDataFrame([("1", "test"), ("id", "value")], ["id", "value"])
-
-        # Call the batch_process function
-        result = batch_process(
-            df, 
-            dev_creds={'client_id': 'test_id', 'client_secret': 'test_secret'}, 
-            env="qa", 
-            tokenization="PAN"
-        )
-
-        # Assertions to verify the behavior
-        self.assertEqual(result, "mock_df")
-        mock_setup_turing_config.assert_called_once_with(
-            {'client_id': 'test_id', 'client_secret': 'test_secret'}, 'qa', 'PAN'
-        )
-
-        # Ensure OAuth2 token request was made (mocked)
-        mock_requests_post.assert_called_once_with(
-            'https://api-pre.cede.cloud.capitalone.com/oauth2/token',  # The token URL
-            data={'grant_type': 'client_credentials'},  # OAuth2 payload
-            auth=('test_id', 'test_secret'),  # Client ID and Secret
-            verify=False
-        )
-
-        # Ensure the Turing client process was called
-        mock_client_instance.process.assert_called_once_with(df, mock.ANY)
+@patch('batch_module.setup_turing_config')
+@patch('batch_module.DefaultAdapter')
+@patch('batch_module.TuringPySparkClient')
+def test_batch_process(mock_turing_client, mock_default_adapter, mock_setup_turing_config):
+    # Mock setup_turing_config to return a mock object
+    mock_turing_obj = MagicMock()
+    mock_setup_turing_config.return_value = mock_turing_obj
+    
+    # Mock DefaultAdapter
+    mock_adapter = MagicMock()
+    mock_default_adapter.return_value = mock_adapter
+    
+    # Mock TuringPySparkClient and its process method
+    mock_client = MagicMock()
+    mock_turing_client.return_value = mock_client
+    mock_client.process.return_value = "mocked_dataframe"
+    
+    # Test DataFrame and parameters
+    mock_df = MagicMock()
+    dev_creds = "mock_dev_creds"
+    env = "mock_env"
+    
+    # Test the case for "USTAXID"
+    result = batch_module.batch_process(mock_df, dev_creds, env, tokenization="USTAXID")
+    
+    # Assertions for "USTAXID"
+    mock_setup_turing_config.assert_called_once_with(dev_creds, env, "USTAXID")
+    mock_default_adapter.assert_called_once_with(batch_module.TuringScope.USTAXID, input_column="formatted", TuringOperation=batch_module.TuringOperation.TOKENIZE)
+    mock_client.process.assert_called_once_with(mock_df, mock_adapter)
+    
+    assert result == "mocked_dataframe"
+    
+    # Reset mocks to test "PAN" case
+    mock_setup_turing_config.reset_mock()
+    mock_default_adapter.reset_mock()
+    mock_client.process.reset_mock()
+    
+    # Test the case for "PAN"
+    result = batch_module.batch_process(mock_df, dev_creds, env, tokenization="PAN")
+    
+    # Assertions for "PAN"
+    mock_setup_turing_config.assert_called_once_with(dev_creds, env, "PAN")
+    mock_default_adapter.assert_called_once_with(batch_module.TuringScope.PAN, input_column="formatted", TuringOperation=batch_module.TuringOperation.TOKENIZE)
+    mock_client.process.assert_called_once_with(mock_df, mock_adapter)
+    
+    assert result == "mocked_dataframe"
