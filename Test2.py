@@ -1,25 +1,11 @@
 
-from pyspark.sql.types import StructType, StructField, StringType, LongType, ArrayType
+1. Copy Lambda: Copies data from S3 Bucket 1 to S3 Bucket 2 and drops a _SUCCESS file.
 
-# Define the schema
-schema = StructType([
-    StructField("business_date", StringType(), True),
-    StructField("run_identifier", LongType(), True),
-    StructField("output_filetype", ArrayType(StructType([
-        StructField("element", StringType(), True)
-    ])), True),
-    StructField("output_record_sequence", LongType(), True),
-    StructField("output_field_sequence", LongType(), True),
-    StructField("attribute", StringType(), True),
-    StructField("formatted", StringType(), True),
-    StructField("tokenization", StringType(), True),
-    StructField("account_number", StringType(), True),
-    StructField("segment", StringType(), True)
-])
 
-# Read the Parquet file with the specified schema
-df = spark.read.format("parquet").schema(schema).load("/mnt/data/file-bCmwHuDLwEIwcieA2BfGGsZL")
+2. S3 Event Notification: Detects the creation of the _SUCCESS file in S3 Bucket 2.
 
-# Show the DataFrame schema and content
-df.printSchema()
-df.show(truncate=False)
+
+3. Trigger Lambda: Invoked by the S3 event, this Lambda triggers the Glue job.
+
+
+4. DLQ: Configured for the Trigger Lambda to handle any failed Glue job invocations.
