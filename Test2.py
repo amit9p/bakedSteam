@@ -1,11 +1,13 @@
 
-1. Copy Lambda: Copies data from S3 Bucket 1 to S3 Bucket 2 and drops a _SUCCESS file.
+from pyspark.sql import functions as F
+from pyspark.sql.types import IntegerType, DateType
 
+# Assuming df is your DataFrame
+df = df.withColumn("business_date", F.to_date(F.col("business_date"))) \
+       .withColumn("run_identifier", F.col("run_identifier").cast(IntegerType()))
 
-2. S3 Event Notification: Detects the creation of the _SUCCESS file in S3 Bucket 2.
+# Now you can check the schema
+df.printSchema()
 
-
-3. Trigger Lambda: Invoked by the S3 event, this Lambda triggers the Glue job.
-
-
-4. DLQ: Configured for the Trigger Lambda to handle any failed Glue job invocations.
+# To see the changes applied
+df.show()
