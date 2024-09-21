@@ -31,3 +31,22 @@ Feature: Critical case for Glue job ETL process
     And if writing to S3 partially succeeds, log a non-critical warning
     And I should see the warning details logged in CloudWatch
     And the Jira X-Ray ticket should be created with a "Non-Critical" severity level
+
+
+    #######
+
+1. Critical Case:
+
+This test case covers critical failures in reading, processing, or writing data, where you would need to create a critical Jira X-Ray ticket.
+
+Examples include corrupted input files, failure in core processing functions like detokenize or get_trade_lines, or failure in writing data to S3.
+
+
+
+2. Non-Critical Case:
+
+This test case covers non-critical warnings, such as partial data being processed or some fields missing in the input data.
+
+Non-critical failures would result in warnings rather than full-blown failures, and the Jira X-Ray ticket would be created with a non-critical severity.
+
+    
