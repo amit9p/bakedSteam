@@ -1,4 +1,9 @@
 
+
+spark.conf.set("fs.s3a.multipart.size", "134217728")  # 128 MB
+
+
+
 Feature: Critical case for Glue job ETL process
 
   Background:
