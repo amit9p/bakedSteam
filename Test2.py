@@ -1,3 +1,21 @@
+
+def read_env_file(file_path):
+    env_vars = {}
+    with open(file_path, 'r') as file:
+        for line in file:
+            line = line.strip()
+            if line and not line.startswith('#'):  # Skip comments and empty lines
+                key, value = line.split('=', 1)
+                env_vars[key.strip()] = value.strip()
+    return env_vars
+
+# Example usage
+env_variables = read_env_file('path_to_your_env_file')
+print(env_variables)
+
+
+№##########
+
 Feature: Non-critical warning for Glue job exceeding expected execution time
 
   Background:
