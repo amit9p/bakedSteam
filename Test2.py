@@ -1,4 +1,46 @@
+Feature: Critical failure in reading data from S3
 
+  Background:
+    Given the Glue job "assembler_etl" is successfully deployed
+
+  Scenario: Failure to read input data from S3
+    Given I have an input file in S3 at "<input_s3_path>"
+    When the Glue job "assembler_etl" runs
+    Then the job should attempt to read the input data from "<input_s3_path>"
+    And if the data cannot be read due to missing or corrupted files, raise a critical alert
+    And I should see the error details logged in CloudWatch
+    And the Jira X-Ray ticket should be created with a "Critical" severity level
+
+
+
+    Feature: Critical failure in processing trade lines
+
+  Background:
+    Given the Glue job "assembler_etl" is successfully deployed
+
+  Scenario: Failure in processing trade lines using get_trade_lines
+    Given the Glue job successfully reads data from S3
+    When the Glue job "assembler_etl" processes the data using the "detokenize" and "get_trade_lines" functions
+    Then if the "detokenize" or "get_trade_lines" function fails, raise a critical alert
+    And I should see the error details logged in CloudWatch
+    And the Jira X-Ray ticket should be created with a "Critical" severity level
+
+
+Feature: Critical failure in writing data to S3
+
+  Background:
+    Given the Glue job "assembler_etl" is successfully deployed
+
+  Scenario: Failure to write output data to S3
+    Given the Glue job "assembler_etl" has successfully processed the data
+    When the Glue job "assembler_etl" attempts to write the output data to the destination S3 bucket
+    Then if writing to S3 fails due to permissions or connection issues, raise a critical alert
+    And I should see the error details logged in CloudWatch
+    And the Jira X-Ray ticket should be created with a "Critical" severity level
+    
+
+
+#######
 If you have a large string in your code that you need to write to S3, there are several ways you can accelerate the process. Here are some techniques and strategies to optimize the upload of large strings to S3 using boto3:
 
 1. Use Multipart Upload
