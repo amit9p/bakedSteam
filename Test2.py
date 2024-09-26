@@ -1,3 +1,16 @@
+Feature: Non-critical warning for Glue job exceeding expected execution time
+
+  Background:
+    Given the Glue job "assembler_etl" is successfully deployed
+
+  Scenario: Glue job execution time exceeds 25 minutes
+    Given the Glue job "assembler_etl" has started processing
+    When the Glue job execution time exceeds 25 minutes
+    Then log a non-critical warning that the job is taking longer than expected
+    And I should see the warning details logged in CloudWatch
+    And the Jira X-Ray ticket should be created with a "Non-Critical" severity level
+
+
 Feature: Critical failure in reading data from S3
 
   Background:
