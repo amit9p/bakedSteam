@@ -94,3 +94,31 @@ def parse_s3_path(s3_path):
     s3_path = s3_path.replace("s3://", "")
     bucket, key = s3_path.split("/", 1)
     return bucket, key
+
+
+
+import boto3
+from botocore.exceptions import ClientError
+
+@given('the Glue job "assembler_etl" is successfully deployed')
+def step_impl(context):
+    glue_client = boto3.client('glue')
+    job_name = "assembler_etl"
+    
+    try:
+        # Retrieve the Glue job to check if it exists
+        response = glue_client.get_job(JobName=job_name)
+        if response.get('Job'):
+            print(f"Glue job '{job_name}' is successfully deployed.")
+            context.is_deployed = True
+    except ClientError as e:
+        # Handle case where the job is not found or any other issues
+        if e.response['Error']['Code'] == 'EntityNotFoundException':
+            print(f"Glue job '{job_name}' is not deployed.")
+        else:
+            print(f"An error occurred: {e}")
+        context.is_deployed = False
+
+    # Ensure the job is actually deployed for the test to proceed
+    assert context.is_deployed is True, f"Glue job '{job_name}' is not deployed."
+
