@@ -62,3 +62,20 @@ def step_impl(context):
     
     # Check for successful completion
     print("Glue job 'assembler_etl' executed successfully with all steps.")
+
+
+########
+Feature: Execute Glue ETL Job
+
+  Background:
+    Given the Glue job "assembler_etl" is successfully deployed
+
+  Scenario Outline: Run assembler_etl method and perform all actions
+    When the assembler_etl method is called with input path "<input_s3_path>" and output path "<output_s3_path>"
+    Then the assembler_etl method performs all actions (read, process, write)
+
+  Examples:
+    | input_s3_path           | output_s3_path          |
+    | s3://bucket/input/file1 | s3://bucket/output/file1 |
+    | s3://bucket/input/file2 | s3://bucket/output/file2 |
+
