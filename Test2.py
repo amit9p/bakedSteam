@@ -1,4 +1,20 @@
 
+2. Partition Processing:
+
+concatenate_partition processes each partition to concatenate rows within it, reducing memory usage.
+
+mapPartitions applies this function to each partition of the RDD, building strings partition by partition.
+
+
+
+3. Final Collection and Join:
+
+Collects the strings from each partition and joins them into a single string.
+
+
+
+
+№###########
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, concat_ws
 from pyspark.sql.types import StringType, IntegerType
