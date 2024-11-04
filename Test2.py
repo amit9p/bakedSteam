@@ -1,3 +1,7 @@
+> This document explains the process of creating an AWS Glue client using specific AWS credentials and region settings, especially useful for developers working with multiple AWS accounts or profiles. This guide also covers troubleshooting steps for common errors encountered during setup
+
+
+
 
 ########
 import boto3
