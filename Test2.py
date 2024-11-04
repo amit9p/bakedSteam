@@ -1,5 +1,46 @@
 
 import boto3
+import logging
+
+# Setup logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Specify the profile name
+profile_name = 'profile_name'
+
+# Create a session with the specified profile
+session = boto3.Session(profile_name=profile_name)
+
+# Log the loaded credentials and region
+credentials = session.get_credentials()
+region = session.region_name or 'No region specified'
+
+if credentials:
+    logger.info(f"Credentials loaded successfully for profile '{profile_name}'")
+    logger.info(f"AWS Access Key ID: {credentials.access_key[:4]}...")  # Partially mask for security
+    logger.info(f"AWS Secret Access Key: {credentials.secret_key[:4]}...")  # Partially mask for security
+else:
+    logger.error("Failed to load credentials")
+
+if region:
+    logger.info(f"Region: {region}")
+else:
+    logger.warning("No region specified in the profile or session")
+
+# Use the session to create a Glue client
+glue_client = session.client('glue')
+
+# Verify Glue client creation by making a simple call (e.g., list jobs)
+try:
+    response = glue_client.list_jobs(MaxResults=5)
+    logger.info("Glue client created successfully, listing Glue jobs:")
+    logger.info(response['JobNames'])
+except Exception as e:
+    logger.error(f"Failed to create or use Glue client: {e}")
+
+##########@
+import boto3
 import time
 import logging
 
