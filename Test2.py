@@ -1,4 +1,12 @@
 
+CAST(
+    TO_DATE(
+        NULLIF(AUTO_LATE_FEE_WAIVER_REQUEST_V2.FEE_WAIVER_EFFECTIVE_DATE, ''),
+        'YYYY-MM-DD'  -- Adjust the format as needed to match your data
+    ) AS DATE
+) AS FEE_WAIVR_EFF_DT
+
+##№
 
 CAST(
     TO_DATE(
