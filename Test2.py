@@ -1,4 +1,27 @@
 
+import yaml
+import sys
+
+def check_yaml_validity(file_path):
+    try:
+        with open(file_path, 'r') as file:
+            # Load the YAML file. If there are any syntax errors, an exception will be raised
+            yaml.safe_load(file)
+        print("The YAML file is valid.")
+    except yaml.YAMLError as exc:
+        print("Error in YAML file:", exc)
+    except FileNotFoundError:
+        print("File not found. Please check the file path.")
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        check_yaml_validity(sys.argv[1])
+    else:
+        print("Please provide the path to a YAML file.")
+
+
+
+
 from pyspark.sql.functions import col
 
 def calculate_highest_credit(df):
