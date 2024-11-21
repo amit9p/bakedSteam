@@ -1,4 +1,22 @@
 
+from pyspark.sql import functions as F
+
+def calculate_highest_credit(df):
+    """
+    Extracts the highest credit amount utilized from the DataFrame.
+    
+    :param df: DataFrame containing account history.
+    :return: DataFrame with the highest credit utilized added as a new column.
+    """
+    # Assuming 'credit_utilized' is the column that stores the credit amount used at different times.
+    max_credit = df.agg(F.max(col('credit_utilized')).alias('highest_credit')).collect()[0]['highest_credit']
+    return df.withColumn('highest_credit', F.lit(max_credit))
+
+
+
+
+
+
 import yaml
 import sys
 
