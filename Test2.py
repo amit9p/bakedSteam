@@ -3,74 +3,41 @@ from pyspark.sql import functions as F
 
 def calculate_highest_credit(df):
     """
-    Extracts the highest credit amount utilized from the DataFrame.
+    Calculates the highest credit amount utilized across all accounts and 
+    adds it as a new column to the DataFrame along with account_id.
     
-    :param df: DataFrame containing account history.
-    :return: DataFrame with the highest credit utilized added as a new column.
+    :param df: DataFrame containing account history including 'account_id' and 'credit_utilized'.
+    :return: DataFrame with 'account_id' and 'highest_credit' as columns.
     """
-    # Assuming 'credit_utilized' is the column that stores the credit amount used at different times.
+    # Calculate the maximum credit utilized across all entries
     max_credit = df.agg(F.max(col('credit_utilized')).alias('highest_credit')).collect()[0]['highest_credit']
-    return df.withColumn('highest_credit', F.lit(max_credit))
-
-
-
-
-
-
-import yaml
-import sys
-
-def check_yaml_validity(file_path):
-    try:
-        with open(file_path, 'r') as file:
-            # Load the YAML file. If there are any syntax errors, an exception will be raised
-            yaml.safe_load(file)
-        print("The YAML file is valid.")
-    except yaml.YAMLError as exc:
-        print("Error in YAML file:", exc)
-    except FileNotFoundError:
-        print("File not found. Please check the file path.")
-
-if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        check_yaml_validity(sys.argv[1])
-    else:
-        print("Please provide the path to a YAML file.")
-
-
-
-
-from pyspark.sql.functions import col
-
-def calculate_highest_credit(df):
-    """
-    Extracts the highest credit amount utilized from the DataFrame.
     
-    :param df: DataFrame containing account history.
-    :return: DataFrame with highest credit utilized.
-    """
-    # Assuming 'credit_utilized' is the column storing credit amount used by the consumer at different points.
-    return df.withColumn('highest_credit', max(col('credit_utilized')))
+    # Add 'highest_credit' to each row, keeping 'account_id' intact
+    return df.select('account_id', 'credit_utilized').withColumn('highest_credit', F.lit(max_credit))
 
+# Example of usage
+# Assuming spark is your SparkSession and df is loaded with appropriate data
+# df = spark.createDataFrame([...])
+# result_df = calculate_highest_credit(df)
+# result_df.show()
 
 
 import pytest
-from pyspark.sql import SparkSession
-from pyspark.sql import Row
+from pyspark.sql import SparkSession, Row
 
 def test_calculate_highest_credit():
     spark = SparkSession.builder.master("local").appName("TestApp").getOrCreate()
     test_data = [
-        Row(credit_utilized=500),
-        Row(credit_utilized=1500),
-        Row(credit_utilized=1000)  # Example data
+        Row(account_id=1, credit_utilized=500),
+        Row(account_id=2, credit_utilized=1500),
+        Row(account_id=3, credit_utilized=1000)  # Example data
     ]
     df = spark.createDataFrame(test_data)
     result_df = calculate_highest_credit(df)
     expected_data = [
-        Row(credit_utilized=500, highest_credit=1500),
-        Row(credit_utilized=1500, highest_credit=1500),
-        Row(credit_utilized=1000, highest_credit=1500)  # Expected highest credit shown for all records
+        Row(account_id=1, credit_utilized=500, highest_credit=1500),
+        Row(account_id=2, credit_utilized=1500, highest_credit=1500),
+        Row(account_id=3, credit_utilized=1000, highest_credit=1500)  # Highest credit should be 1500 for all records
     ]
     expected_df = spark.createDataFrame(expected_data)
     assert result_df.collect() == expected_df.collect()
