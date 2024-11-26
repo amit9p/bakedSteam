@@ -1,4 +1,44 @@
 
+def test_happy_path():
+    spark = SparkSession.builder.master("local").appName("TestApp").getOrCreate()
+    happy_test_data = [
+        Row(account_id=1, credit_utilized=500, is_converted=False, conversion_balance=None, is_charged_off=False),
+        Row(account_id=1, credit_utilized=700, is_converted=False, conversion_balance=None, is_charged_off=False),
+        Row(account_id=2, credit_utilized=800, is_converted=True, conversion_balance=800, is_charged_off=False)
+    ]
+    df = spark.createDataFrame(happy_test_data)
+    result_df = calculate_highest_credit_per_account(df)
+    expected_data = [
+        Row(account_id=1, highest_credit=700),
+        Row(account_id=2, highest_credit=800)
+    ]
+    expected_df = spark.createDataFrame(expected_data)
+    assert result_df.collect() == expected_df.collect(), "Happy path test failed: The DataFrame does not match the expected output."
+
+def test_unhappy_path():
+    spark = SparkSession.builder.master("local").appName("TestApp").getOrCreate()
+    unhappy_test_data = [
+        Row(account_id=2, credit_utilized="invalid", is_converted=False, conversion_balance=None, is_charged_off=False),  # non-integer value
+        Row(account_id=3, credit_utilized=None, is_converted=False, conversion_balance=None, is_charged_off=False),  # Missing value
+        Row(account_id=4, credit_utilized=-100, is_converted=False, conversion_balance=None, is_charged_off=False)  # Negative value
+    ]
+    df = spark.createDataFrame(unhappy_test_data)
+    result_df = calculate_highest_credit_per_account(df)
+    expected_data = [
+        Row(account_id=2, highest_credit=0),  # Assumes non-integer handled as zero
+        Row(account_id=3, highest_credit=0),  # Handled missing value
+        Row(account_id=4, highest_credit=0)   # Negative value treated as zero or excluded
+    ]
+    expected_df = spark.createDataFrame(expected_data)
+    assert result_df.collect() == expected_df.collect(), "Unhappy path test failed: The DataFrame does not match the expected output."
+
+# Run the tests
+test_happy_path()
+test_unhappy_path()
+
+
+
+##############################
 from pyspark.sql import functions as F
 
 def calculate_highest_credit_per_account(df):
