@@ -37,3 +37,28 @@ schema = StructType([
 
 df = spark.createDataFrame(data, schema=schema)
 result_df = calculate_highest_credit_per_account(df)
+
+
+def test_unhappy_path():
+    # Assuming the function and spark session setup is done properly
+    unhappy_test_data = [
+        (2, "invalid", False),  # Non-integer, expect 0
+        (3, None, False),       # NULL, expect 0
+        (4, "-100", False)      # Negative value, expect 0
+    ]
+    df = spark.createDataFrame(unhappy_test_data, schema=schema)
+    result_df = calculate_highest_credit_per_account(df)
+
+    # Define the expected results to all be 0, as the function should handle all input errors
+    expected_data = [
+        (2, 0),
+        (3, 0),
+        (4, 0)
+    ]
+    expected_df = spark.createDataFrame(expected_data, schema=expected_schema)
+
+    assert result_df.collect() == expected_df.collect(), "Unhappy path test failed"
+
+test_unhappy_path()
+
+
