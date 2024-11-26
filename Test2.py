@@ -1,4 +1,41 @@
+def test_unhappy_path():
+    spark = SparkSession.builder.master("local").appName("TestApp").getOrCreate()
+    
+    schema = StructType([
+        StructField("account_id", IntegerType(), True),
+        StructField("credit_utilized", StringType(), True),
+        StructField("is_charged_off", BooleanType(), True)
+    ])
+    
+    unhappy_test_data = [
+        (2, "invalid", False),
+        (3, None, False),
+        (4, "-100", False)
+    ]
+    df = spark.createDataFrame(unhappy_test_data, schema=schema)
+    result_df = calculate_highest_credit_per_account(df)
+    
+    expected_data = [
+        (2, 0),
+        (3, 0),
+        (4, 0)
+    ]
+    expected_schema = StructType([
+        StructField("account_id", IntegerType(), True),
+        StructField("highest_credit", IntegerType(), True)
+    ])
+    expected_df = spark.createDataFrame(expected_data, expected_schema)
+    
+    print("Actual:", result_df.collect())
+    print("Expected:", expected_df.collect())
+    
+    assert result_df.collect() == expected_df.collect(), "Unhappy path test failed"
 
+# Make sure to call this debugging version of the test
+test_unhappy_path()
+
+
+########
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, when, max
 from pyspark.sql.types import StructType, StructField, IntegerType, StringType, BooleanType
