@@ -1,4 +1,25 @@
 
+1. Include None Values:
+
+Added rows with None values in the highest_credit_value column.
+
+
+
+2. Assertions:
+
+Ensures all rows are retained, even with None values.
+
+Validates the count of None values in the output DataFrame.
+
+
+
+
+This test will verify how your function handles null values and ensure that the logic behaves as expected in such scenarios. If you expect the function to drop rows with None values or handle them differently, you can adjust the assertions accordingly.
+
+
+
+
+
 def test_highest_credit_value_missing_column(spark_session):
     """
     Test the scenario where a required column is missing or has None values.
