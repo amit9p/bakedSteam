@@ -1,23 +1,24 @@
 
-1. Include None Values:
+def test_highest_credit_value_negative_credit(spark_session):
+    """
+    Test the scenario where the highest credit value is negative.
+    """
+    schema = StructType([
+        StructField("account_id", StringType(), True),
+        StructField("highest_credit_value", IntegerType(), True)
+    ])
+    data = [("1", -100), ("2", 2000)]
+    input_df = spark_session.createDataFrame(data, schema)
+    output_df = highest_credit_value(input_df)
 
-Added rows with None values in the highest_credit_value column.
-
-
-
-2. Assertions:
-
-Ensures all rows are retained, even with None values.
-
-Validates the count of None values in the output DataFrame.
-
-
-
-
-This test will verify how your function handles null values and ensure that the logic behaves as expected in such scenarios. If you expect the function to drop rows with None values or handle them differently, you can adjust the assertions accordingly.
-
-
-
+    # Assert that the output is not filtered incorrectly
+    assert output_df.count() == 2  # Check that both rows are present
+    
+    # Assert specific values
+    output_data = output_df.collect()  # Collect data for assertion
+    expected_data = [("1", -100), ("2", 2000)]
+    actual_data = [(row["account_id"], row["highest_credit_value"]) for row in output_data]
+    assert actual_data == expected_data  # Verify that values match
 
 
 def test_highest_credit_value_missing_column(spark_session):
@@ -39,91 +40,9 @@ def test_highest_credit_value_missing_column(spark_session):
     # Assert that rows with None values are handled correctly
     assert output_df.count() == 3  # Ensure all rows are present
     assert output_df.filter(output_df.highest_credit_value.isNull()).count() == 2  # Check the count of None values
-
-
-
-
-import pytest
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType
-
-# Sample implementation of the highest_credit_value function for testing
-def highest_credit_value(df):
-    """
-    Select account_id and highest_credit_value columns from the input DataFrame.
-    """
-    return df.select("account_id", "highest_credit_value")
-
-
-# Setting up Spark session for tests
-@pytest.fixture(scope="module")
-def spark():
-    return SparkSession.builder.master("local[1]").appName("Pytest").getOrCreate()
-
-
-@pytest.fixture
-def input_dataframe(spark):
-    """
-    Input DataFrame for testing.
-    """
-    schema = StructType([
-        StructField("account_id", StringType(), True),
-        StructField("highest_credit_value", IntegerType(), True)
-    ])
-    data = [("1", 1000), ("2", 5000), ("3", 0)]
-    return spark.createDataFrame(data, schema)
-
-
-def test_highest_credit_value_happy_path(spark, input_dataframe):
-    """
-    Test the happy path where values are valid and correct.
-    """
-    output_df = highest_credit_value(input_dataframe)
-    assert "account_id" in output_df.columns
-    assert "highest_credit_value" in output_df.columns
-    assert output_df.count() == 3
-
-
-def test_highest_credit_value_negative_credit(spark):
-    """
-    Test the scenario where the highest credit value is negative.
-    """
-    schema = StructType([
-        StructField("account_id", StringType(), True),
-        StructField("highest_credit_value", IntegerType(), True)
-    ])
-    data = [("1", -100), ("2", 2000)]
-    input_df = spark.createDataFrame(data, schema)
-    output_df = highest_credit_value(input_df)
     
-    # Assert that the output is not filtered incorrectly
-    assert output_df.count() == 2
-
-
-def test_highest_credit_value_missing_column(spark):
-    """
-    Test the scenario where a required column is missing.
-    """
-    schema = StructType([
-        StructField("account_id", StringType(), True)
-    ])
-    data = [("1",), ("2",)]
-    input_df = spark.createDataFrame(data, schema)
-    
-    with pytest.raises(Exception):
-        highest_credit_value(input_df)
-
-
-def test_highest_credit_value_invalid_column_type(spark):
-    """
-    Test the scenario where column types are invalid.
-    """
-    schema = StructType([
-        StructField("account_id", StringType(), True),
-        StructField("highest_credit_value", StringType(), True)  # Should be integer
-    ])
-    data = [("1", "one thousand"), ("2", "five thousand")]
-    input_df = spark.createDataFrame(data, schema)
-    
-    with pytest.raises(Exception):
-        highest_credit_value(input_df)
+    # Assert specific values
+    output_data = output_df.collect()  # Collect data for assertion
+    expected_data = [("1", None), ("2", 500), ("3", None)]
+    actual_data = [(row["account_id"], row["highest_credit_value"]) for row in output_data]
+    assert actual_data == expected_data  # Verify that values match
