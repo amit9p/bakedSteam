@@ -1,4 +1,36 @@
 
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, max as spark_max
+
+def date_of_last_payment(input_df: DataFrame) -> DataFrame:
+    """
+    Returns the date of the last payment for each account_id.
+    
+    :param input_df: Input DataFrame with columns:
+        - 'account_id': The ID of the account.
+        - 'transaction_date': The date of the last non-returned payment.
+    :return: Output DataFrame with columns:
+        - 'account_id': The ID of the account.
+        - 'date_of_last_payment': The date of the last payment.
+    """
+    # Ensure input DataFrame has the required columns
+    required_columns = {"account_id", "transaction_date"}
+    if not required_columns.issubset(input_df.columns):
+        raise ValueError(f"Input DataFrame must contain the following columns: {required_columns}")
+    
+    # Group by account_id and get the maximum transaction_date
+    result_df = input_df.groupBy("account_id").agg(
+        spark_max("transaction_date").alias("date_of_last_payment")
+    )
+    
+    return result_df
+
+#####
+
+
+
+
+
 def date_of_last_payment(input_df: DataFrame) -> DataFrame:
     """
     Returns the date of the last payment for each account_id.
