@@ -1,4 +1,13 @@
 
+
+import uuid
+
+def lambda_handler(event, context):
+    run_id = event.get("run_id", str(uuid.uuid4()))
+    print(f"Run ID: {run_id}")
+    return run_id
+
+
 def test_date_of_last_payment_with_none_account_id(spark_session):
     # Define schema
     schema = StructType([
