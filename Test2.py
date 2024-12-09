@@ -30,6 +30,47 @@ def test_date_of_last_payment_with_none_account_id(spark_session):
     # Call the method
     result_df = date_of_last_payment(input_df)
 
+    # Custom sorting key to handle None values in account_id
+    def sort_key(row):
+        return (row["account_id"] is None, row["account_id"], row["date_of_last_payment"])
+
+    # Assertions
+    assert result_df.count() == expected_df.count(), "Row counts do not match"
+    assert sorted(result_df.collect(), key=sort_key) == sorted(expected_df.collect(), key=sort_key), "Output data does not match expected data"
+
+
+#####
+def test_date_of_last_payment_with_none_account_id(spark_session):
+    # Define schema
+    schema = StructType([
+        StructField("account_id", StringType(), True),
+        StructField("transaction_date", StringType(), True),
+    ])
+
+    # Input data (account_id includes None)
+    data = [
+        (None, "2024-12-01"),  # Null account_id
+        ("1", "2024-11-25"),
+        ("2", "2024-11-20"),
+        ("2", "2024-12-05"),  # Latest transaction for account_id "2"
+    ]
+    input_df = spark_session.createDataFrame(data, schema)
+
+    # Expected output
+    expected_data = [
+        (None, "2024-12-01"),  # Null account_id is retained
+        ("1", "2024-11-25"),
+        ("2", "2024-12-05"),  # Latest transaction for account_id "2"
+    ]
+    expected_schema = StructType([
+        StructField("account_id", StringType(), True),
+        StructField("date_of_last_payment", StringType(), True),
+    ])
+    expected_df = spark_session.createDataFrame(expected_data, expected_schema)
+
+    # Call the method
+    result_df = date_of_last_payment(input_df)
+
     # Assertions
     assert result_df.count() == expected_df.count(), "Row counts do not match"
     assert sorted(result_df.collect()) == sorted(expected_df.collect()), "Output data does not match expected data"
