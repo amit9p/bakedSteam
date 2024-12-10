@@ -1,5 +1,13 @@
 
 
+# Select only the relevant columns and alias transaction_date to date_of_last_payment
+return input_df.select(
+    col("account_id"),
+    col("transaction_date").alias("date_of_last_payment")
+)
+
+####
+
 import uuid
 
 def lambda_handler(event, context):
