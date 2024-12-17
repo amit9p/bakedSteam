@@ -1,4 +1,24 @@
 
+
+def test_calculate_country_code_empty_dataframe(spark_session):
+    # Edge case: Empty DataFrame with required columns
+    from pyspark.sql.types import StructType, StructField, StringType
+    
+    schema = StructType([
+        StructField("account_id", StringType(), True),
+        StructField("country_code", StringType(), True)
+    ])
+    
+    df = spark_session.createDataFrame([], schema)
+    result_df = calculate_country_code(df).collect()
+
+    # Should return an empty DF with the same schema
+    assert len(result_df) == 0
+    assert "account_id" in calculate_country_code(df).columns
+    assert "country_code" in calculate_country_code(df).columns
+
+
+#####
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col
 
