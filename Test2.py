@@ -1,66 +1,114 @@
-glue_lambda.feature
 
-Feature: Trigger Lambda Function that invokes a Glue job
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
 
-  Scenario: Successfully trigger Glue job on S3 event
-    Given I have a Lambda function that triggers a Glue job upon S3 event
-    And the Glue job and S3 event are mocked
-    When I invoke the Lambda function with the mocked S3 event
-    Then the Glue job should be invoked with the correct parameters
-    And the Lambda function should return a success response
+def calculate_country_code(input_df: DataFrame) -> DataFrame:
+    """
+    Returns the country_code for each account_id.
 
+    :param input_df: Input DataFrame with columns:
+        - 'account_id': The ID of the account.
+        - 'country_code': The country code associated with this account.
+    
+    :return: Output DataFrame with columns:
+        - 'account_id': The ID of the account.
+        - 'country_code': The country code associated with the account.
+    """
+    required_columns = {"account_id", "country_code"}
+    if not required_columns.issubset(input_df.columns):
+        raise ValueError(f"Input DataFrame must contain the following columns: {required_columns}")
 
-step.py
-
-
-import boto3
-import os
-from unittest.mock import patch, MagicMock
-from behave import given, when, then
-
-@given("I have a Lambda function that triggers a Glue job upon S3 event")
-def step_impl(context):
-    # Set up the environment variable for the Glue job
-    os.environ["GLUE_JOB_NAME"] = "test-glue-job"
-    context.lambda_function = __import__("lambda_function.trigger_lambda")
-
-@given("the Glue job and S3 event are mocked")
-def step_impl(context):
-    # Mock the Glue client
-    mock_glue_client = MagicMock()
-    mock_glue_client.start_job_run.return_value = {"JobRunId": "mock-job-run-id"}
-
-    # Patch boto3 client for Glue
-    context.glue_client_patcher = patch("boto3.client", return_value=mock_glue_client)
-    context.mock_glue_client = context.glue_client_patcher.start()
-
-    # Mock S3 event (simulate _SUCCESS file drop)
-    context.mock_s3_event = {
-        "Records": [
-            {
-                "s3": {
-                    "bucket": {"name": "test-bucket"},
-                    "object": {"key": "path/to/_SUCCESS"}
-                }
-            }
-        ]
-    }
-
-@when("I invoke the Lambda function with the mocked S3 event")
-def step_impl(context):
-    # Invoke the Lambda function with the mocked S3 event
-    context.response = context.lambda_function.lambda_handler(context.mock_s3_event, None)
-
-@then("the Glue job should be invoked with the correct parameters")
-def step_impl(context):
-    # Assert that the Glue client's start_job_run was called with the correct arguments
-    context.mock_glue_client.start_job_run.assert_called_once_with(
-        JobName="test-glue-job",
-        Arguments={}
+    return input_df.select(
+        col("account_id"),
+        col("country_code")
     )
 
-@then("the Lambda function should return a success response")
-def step_impl(context):
-    # Assert that the Lambda function returns the expected response
-    assert context.response["statusCode"] == 200
-    assert context.response["jobRunId"] == "mock-job-run-id"
+
+
+
+import pytest
+from pyspark.sql import Row
+from transform_module import calculate_country_code  # Adjust as needed
+
+def test_calculate_country_code_positive(spark):
+    # Positive test: Both columns present and valid values
+    input_data = [
+        ("123", "US"),
+        ("456", "GBR"),
+        ("789", "IND")
+    ]
+    df = spark.createDataFrame(input_data, ["account_id", "country_code"])
+    result_df = calculate_country_code(df).collect()
+
+    assert len(result_df) == 3
+    assert result_df[0]["account_id"] == "123" and result_df[0]["country_code"] == "US"
+    assert result_df[1]["account_id"] == "456" and result_df[1]["country_code"] == "GBR"
+    assert result_df[2]["account_id"] == "789" and result_df[2]["country_code"] == "IND"
+
+def test_calculate_country_code_nullable(spark):
+    # Edge case: country_code is nullable
+    input_data = [
+        ("123", None),
+        ("456", "  "),   # just spaces
+        ("789", "")
+    ]
+    df = spark.createDataFrame(input_data, ["account_id", "country_code"])
+    result_df = calculate_country_code(df).collect()
+
+    # Check that nullable and unusual strings are passed through unchanged
+    assert result_df[0]["account_id"] == "123"
+    assert result_df[0]["country_code"] is None
+
+    assert result_df[1]["account_id"] == "456"
+    assert result_df[1]["country_code"] == "  "
+
+    assert result_df[2]["account_id"] == "789"
+    assert result_df[2]["country_code"] == ""
+
+def test_calculate_country_code_missing_country_code_column(spark):
+    # Negative test: Missing 'country_code' column
+    input_data = [
+        ("123",),
+        ("456",)
+    ]
+    df = spark.createDataFrame(input_data, ["account_id"])
+
+    with pytest.raises(ValueError) as exc_info:
+        calculate_country_code(df)
+    assert "must contain the following columns" in str(exc_info.value)
+
+def test_calculate_country_code_missing_account_id_column(spark):
+    # Negative test: Missing 'account_id' column
+    input_data = [
+        ("US",),
+        ("GBR",)
+    ]
+    df = spark.createDataFrame(input_data, ["country_code"])
+
+    with pytest.raises(ValueError) as exc_info:
+        calculate_country_code(df)
+    assert "must contain the following columns" in str(exc_info.value)
+
+def test_calculate_country_code_special_chars(spark):
+    # Edge case: Special and non-Latin characters
+    input_data = [
+        ("123", "@#$!"),
+        ("456", "日本"),
+        ("789", "México")
+    ]
+    df = spark.createDataFrame(input_data, ["account_id", "country_code"])
+    result_df = calculate_country_code(df).collect()
+
+    assert result_df[0]["country_code"] == "@#$!"
+    assert result_df[1]["country_code"] == "日本"
+    assert result_df[2]["country_code"] == "México"
+
+def test_calculate_country_code_empty_dataframe(spark):
+    # Edge case: Empty DataFrame with required columns
+    df = spark.createDataFrame([], ["account_id", "country_code"])
+    result_df = calculate_country_code(df).collect()
+
+    # Should return an empty DF with the same schema
+    assert len(result_df) == 0
+    assert "account_id" in calculate_country_code(df).columns
+    assert "country_code" in calculate_country_code(df).columns
