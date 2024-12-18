@@ -1,5 +1,6 @@
 
-
+print("Expected Data:", expected_df_sorted.collect())
+print("Result Data:", result_df_sorted.collect())
 def test_calculate_country_code_empty_dataframe(spark_session):
     # Edge case: Empty DataFrame with required columns
     from pyspark.sql.types import StructType, StructField, StringType
