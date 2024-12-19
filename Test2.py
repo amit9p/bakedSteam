@@ -1,4 +1,8 @@
 
+INSERT INTO LATE_FEE_WAIVR_FACT (BUS.DT, ...) -- Include other columns
+VALUES (TO_DATE('20240702', 'YYYYMMDD'), ...); -- Include other values
+
+
 print("Expected Data:", expected_df_sorted.collect())
 print("Result Data:", result_df_sorted.collect())
 def test_calculate_country_code_empty_dataframe(spark_session):
