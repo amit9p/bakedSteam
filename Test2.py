@@ -1,4 +1,8 @@
 
+SELECT TO_CHAR(TO_DATE(BUS.DT, 'YYYY-MM-DD'), 'YYYYMMDD') AS formatted_date
+FROM LATE_FEE_WAIVR_FACT;
+
+
 INSERT INTO LATE_FEE_WAIVR_FACT (BUS.DT, ...) -- Include other columns
 VALUES (TO_DATE('20240702', 'YYYYMMDD'), ...); -- Include other values
 
