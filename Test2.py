@@ -1,4 +1,17 @@
 
+
+
+from pyspark.sql import SparkSession
+
+def create_spark_session():
+    spark = (
+        SparkSession
+        .builder
+        .appName("My App")
+        .getOrCreate()
+    )
+    return spark
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, when, lit
 
