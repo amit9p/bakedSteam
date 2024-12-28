@@ -1,4 +1,46 @@
 
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, when, lit
+
+def calculate_payment_rating_spark(input_df: DataFrame) -> DataFrame:
+    """
+    Given a PySpark DataFrame containing 'account_id', 'account_status',
+    and 'past_due_bucket', compute 'payment_rating' using the
+    if/then logic from your spec, and return a new DataFrame
+    with at least 'account_id' and 'payment_rating'.
+    """
+
+    blank_statuses = [11, 78, 80, 82, 83, 84, 97, 64, 'DA']
+
+    payment_rating_col = (
+        when(col("account_status").isin(blank_statuses), lit(""))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 0), lit("0"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 1), lit("1"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 2), lit("2"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 3), lit("3"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 4), lit("4"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 5), lit("5"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 6), lit("L"))
+        .otherwise(lit(None))
+    )
+
+    # Add the payment_rating column
+    df_with_rating = input_df.withColumn("payment_rating", payment_rating_col)
+
+    # Option A: Return all columns (including account_id)
+    # return df_with_rating
+
+    # Option B: Return *only* account_id + payment_rating + whichever columns you want
+    return df_with_rating.select(
+        "account_id",
+        "account_status",
+        "past_due_bucket",
+        "payment_rating"
+    )
+
+
+
+###########
 
 
 from pyspark.sql import SparkSession
