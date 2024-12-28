@@ -1,143 +1,188 @@
 
-SELECT TO_CHAR(TO_DATE(BUS.DT, 'YYYY-MM-DD'), 'YYYYMMDD') AS formatted_date
-FROM LATE_FEE_WAIVR_FACT;
-
-
-INSERT INTO LATE_FEE_WAIVR_FACT (BUS.DT, ...) -- Include other columns
-VALUES (TO_DATE('20240702', 'YYYYMMDD'), ...); -- Include other values
-
-
-print("Expected Data:", expected_df_sorted.collect())
-print("Result Data:", result_df_sorted.collect())
-def test_calculate_country_code_empty_dataframe(spark_session):
-    # Edge case: Empty DataFrame with required columns
-    from pyspark.sql.types import StructType, StructField, StringType
-    
-    schema = StructType([
-        StructField("account_id", StringType(), True),
-        StructField("country_code", StringType(), True)
-    ])
-    
-    df = spark_session.createDataFrame([], schema)
-    result_df = calculate_country_code(df).collect()
-
-    # Should return an empty DF with the same schema
-    assert len(result_df) == 0
-    assert "account_id" in calculate_country_code(df).columns
-    assert "country_code" in calculate_country_code(df).columns
-
-
-#####
 from pyspark.sql import DataFrame
-from pyspark.sql.functions import col
+from pyspark.sql.functions import col, when, lit
 
-def calculate_country_code(input_df: DataFrame) -> DataFrame:
+def calculate_payment_rating_spark(input_df: DataFrame) -> DataFrame:
     """
-    Returns the country_code for each account_id.
+    Given a PySpark DataFrame containing 'account_status' and 'past_due_bucket',
+    compute 'payment_rating' using the if/then logic from your spec.
 
-    :param input_df: Input DataFrame with columns:
-        - 'account_id': The ID of the account.
-        - 'country_code': The country code associated with this account.
-    
-    :return: Output DataFrame with columns:
-        - 'account_id': The ID of the account.
-        - 'country_code': The country code associated with the account.
+    Rules Recap:
+      - If account_status in [11, 78, 80, 82, 83, 84, 97, 64, 'DA']:
+          payment_rating = ''  (blank string)
+      - Else if account_status = 13:
+          past_due_bucket = 0 -> payment_rating = '0'
+          past_due_bucket = 1 -> payment_rating = '1'
+          past_due_bucket = 2 -> payment_rating = '2'
+          past_due_bucket = 3 -> payment_rating = '3'
+          past_due_bucket = 4 -> payment_rating = '4'
+          past_due_bucket = 5 -> payment_rating = '5'
+          past_due_bucket = 6 -> payment_rating = 'L'
+          otherwise -> None
+      - Otherwise (account_status not in the above sets),
+          payment_rating = None
     """
-    required_columns = {"account_id", "country_code"}
-    if not required_columns.issubset(input_df.columns):
-        raise ValueError(f"Input DataFrame must contain the following columns: {required_columns}")
 
-    return input_df.select(
-        col("account_id"),
-        col("country_code")
+    blank_statuses = [11, 78, 80, 82, 83, 84, 97, 64, 'DA']
+
+    # Construct the payment_rating column using a chain of when() conditions:
+    payment_rating_col = (
+        # 1) If in blank_statuses => '' (blank string)
+        when(col("account_status").isin(blank_statuses), lit(""))
+        
+        # 2) If account_status == 13, then handle past_due_bucket logic
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 0), lit("0"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 1), lit("1"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 2), lit("2"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 3), lit("3"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 4), lit("4"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 5), lit("5"))
+        .when((col("account_status") == 13) & (col("past_due_bucket") == 6), lit("L"))
+
+        # 3) Otherwise => None
+        .otherwise(lit(None))
     )
 
+    # Return a new DataFrame with the derived column
+    return input_df.withColumn("payment_rating", payment_rating_col)
 
 
+
+# test_payment_rating_spark.py
 
 import pytest
-from pyspark.sql import Row
-from transform_module import calculate_country_code  # Adjust as needed
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
 
-def test_calculate_country_code_positive(spark):
-    # Positive test: Both columns present and valid values
-    input_data = [
-        ("123", "US"),
-        ("456", "GBR"),
-        ("789", "IND")
+# Import the function we want to test
+from payment_rating_spark import calculate_payment_rating_spark
+
+@pytest.fixture(scope="session")
+def spark_session():
+    """
+    Create a Spark session for testing.
+    """
+    spark = SparkSession.builder \
+        .master("local[1]") \
+        .appName("TestCalculatePaymentRating") \
+        .getOrCreate()
+    yield spark
+    spark.stop()
+
+
+def test_blank_account_status(spark_session):
+    """
+    Test statuses in [11, 78, 80, 82, 83, 84, 97, 64, 'DA']
+    return a blank string for payment_rating.
+    """
+    blank_statuses = [11, 78, 80, 82, 83, 84, 97, 64, 'DA']
+    data = [(status, 0) for status in blank_statuses]
+    columns = ["account_status", "past_due_bucket"]
+    df_in = spark_session.createDataFrame(data, columns)
+
+    df_out = calculate_payment_rating_spark(df_in)
+    results = df_out.select("payment_rating").rdd.flatMap(lambda x: x).collect()
+
+    for r in results:
+        assert r == "", f"Expected blank string, got {r}."
+
+
+def test_account_status_13_valid_past_due_buckets(spark_session):
+    """
+    Test that account_status = 13 with valid bucket values
+    returns the correct payment ratings.
+    """
+    # We'll test buckets 0..6
+    data = [(13, i) for i in range(7)]
+    columns = ["account_status", "past_due_bucket"]
+    df_in = spark_session.createDataFrame(data, columns)
+
+    df_out = calculate_payment_rating_spark(df_in)
+    results = df_out.select("past_due_bucket", "payment_rating") \
+                    .orderBy("past_due_bucket") \
+                    .collect()
+
+    expected_map = {
+        0: "0",
+        1: "1",
+        2: "2",
+        3: "3",
+        4: "4",
+        5: "5",
+        6: "L"
+    }
+
+    for row in results:
+        bucket = row["past_due_bucket"]
+        actual = row["payment_rating"]
+        expected = expected_map[bucket]
+        assert actual == expected, f"For bucket {bucket}, expected {expected} but got {actual}"
+
+
+def test_account_status_13_invalid_past_due_bucket(spark_session):
+    """
+    Test that account_status=13 with an invalid past-due bucket
+    (negative or beyond 6) returns None.
+    """
+    data = [(13, -1), (13, 7), (13, 999)]
+    columns = ["account_status", "past_due_bucket"]
+    df_in = spark_session.createDataFrame(data, columns)
+
+    df_out = calculate_payment_rating_spark(df_in)
+    results = df_out.select("payment_rating").rdd.flatMap(lambda x: x).collect()
+
+    for r in results:
+        assert r is None, f"Expected None for invalid buckets, got {r}."
+
+
+def test_unexpected_account_status(spark_session):
+    """
+    Test that an account_status not in [11,78,80,82,83,84,97,64,'DA',13]
+    yields payment_rating = None.
+    """
+    data = [(999, 0), (10, 1), ("XYZ", 2)]
+    columns = ["account_status", "past_due_bucket"]
+    df_in = spark_session.createDataFrame(data, columns)
+
+    df_out = calculate_payment_rating_spark(df_in)
+    results = df_out.select("payment_rating").rdd.flatMap(lambda x: x).collect()
+
+    for r in results:
+        assert r is None, f"Expected None for unexpected statuses, got {r}."
+
+
+def test_mixed_values(spark_session):
+    """
+    Test mixing various account_status and bucket values in one DataFrame.
+    """
+    data = [
+        (13, 2),    # => '2'
+        (78, 1),    # => ''
+        (13, 4),    # => '4'
+        ('DA', 6),  # => ''
+        (13, 6),    # => 'L'
+        (64, 0)     # => ''
     ]
-    df = spark.createDataFrame(input_data, ["account_id", "country_code"])
-    result_df = calculate_country_code(df).collect()
+    columns = ["account_status", "past_due_bucket"]
+    df_in = spark_session.createDataFrame(data, columns)
 
-    assert len(result_df) == 3
-    assert result_df[0]["account_id"] == "123" and result_df[0]["country_code"] == "US"
-    assert result_df[1]["account_id"] == "456" and result_df[1]["country_code"] == "GBR"
-    assert result_df[2]["account_id"] == "789" and result_df[2]["country_code"] == "IND"
+    df_out = calculate_payment_rating_spark(df_in).orderBy("past_due_bucket")
 
-def test_calculate_country_code_nullable(spark):
-    # Edge case: country_code is nullable
-    input_data = [
-        ("123", None),
-        ("456", "  "),   # just spaces
-        ("789", "")
-    ]
-    df = spark.createDataFrame(input_data, ["account_id", "country_code"])
-    result_df = calculate_country_code(df).collect()
+    # Collect the result in the same order we inserted, so let's just do a .collect() 
+    # but make sure we don't rely on any reorder unless we explicitly do .orderBy. 
+    # We'll just gather them in the same sequence for clarity:
+    df_out_unordered = calculate_payment_rating_spark(df_in)
+    results = df_out_unordered.select("payment_rating").rdd.flatMap(lambda x: x).collect()
 
-    # Check that nullable and unusual strings are passed through unchanged
-    assert result_df[0]["account_id"] == "123"
-    assert result_df[0]["country_code"] is None
+    # Expected in the same row order:
+    # (13, 2) => "2"
+    # (78, 1) => ""
+    # (13, 4) => "4"
+    # ('DA',6) => ""
+    # (13, 6) => "L"
+    # (64, 0) => ""
+    expected = ["2", "", "4", "", "L", ""]
 
-    assert result_df[1]["account_id"] == "456"
-    assert result_df[1]["country_code"] == "  "
-
-    assert result_df[2]["account_id"] == "789"
-    assert result_df[2]["country_code"] == ""
-
-def test_calculate_country_code_missing_country_code_column(spark):
-    # Negative test: Missing 'country_code' column
-    input_data = [
-        ("123",),
-        ("456",)
-    ]
-    df = spark.createDataFrame(input_data, ["account_id"])
-
-    with pytest.raises(ValueError) as exc_info:
-        calculate_country_code(df)
-    assert "must contain the following columns" in str(exc_info.value)
-
-def test_calculate_country_code_missing_account_id_column(spark):
-    # Negative test: Missing 'account_id' column
-    input_data = [
-        ("US",),
-        ("GBR",)
-    ]
-    df = spark.createDataFrame(input_data, ["country_code"])
-
-    with pytest.raises(ValueError) as exc_info:
-        calculate_country_code(df)
-    assert "must contain the following columns" in str(exc_info.value)
-
-def test_calculate_country_code_special_chars(spark):
-    # Edge case: Special and non-Latin characters
-    input_data = [
-        ("123", "@#$!"),
-        ("456", "日本"),
-        ("789", "México")
-    ]
-    df = spark.createDataFrame(input_data, ["account_id", "country_code"])
-    result_df = calculate_country_code(df).collect()
-
-    assert result_df[0]["country_code"] == "@#$!"
-    assert result_df[1]["country_code"] == "日本"
-    assert result_df[2]["country_code"] == "México"
-
-def test_calculate_country_code_empty_dataframe(spark):
-    # Edge case: Empty DataFrame with required columns
-    df = spark.createDataFrame([], ["account_id", "country_code"])
-    result_df = calculate_country_code(df).collect()
-
-    # Should return an empty DF with the same schema
-    assert len(result_df) == 0
-    assert "account_id" in calculate_country_code(df).columns
-    assert "country_code" in calculate_country_code(df).columns
+    assert len(results) == len(expected), "Mismatch in the number of returned rows"
+    for i in range(len(results)):
+        assert results[i] == expected[i], f"Row {i} => expected {expected[i]} but got {results[i]}"
