@@ -1,611 +1,196 @@
-import pytest
-from pyspark.sql import SparkSession
 
-# Import your updated function
-from payment_rating_spark import calculate_payment_rating_spark
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, when, lit, round as spark_round
+
+def calculate_credit_limit_spark(input_df: DataFrame) -> DataFrame:
+    """
+    Given a PySpark DataFrame with columns:
+      - account_id (any type, retained in output)
+      - portfolio_type (string; valid values 'O' or 'R', could be others)
+      - assigned_credit_limit (int/float/string; might be 'NPSL' or a numeric value)
+    Return a new DataFrame with:
+      - account_id
+      - calculated_credit_limit
+
+    Logic:
+      1. If portfolio_type = 'O':
+         --> calculated_credit_limit = 0 (zero-filled)
+      2. If portfolio_type = 'R':
+         --> if assigned_credit_limit = 'NPSL', keep 'NPSL'
+         --> else parse assigned_credit_limit as float & round to nearest whole dollar
+      3. Otherwise, set calculated_credit_limit = None
+    """
+
+    # Handle the assigned credit limit:
+    # If it's 'NPSL', keep 'NPSL'. Else, convert to float & round.
+    parsed_assigned_limit = when(
+        col("assigned_credit_limit") == "NPSL",
+        lit("NPSL")
+    ).otherwise(
+        spark_round(col("assigned_credit_limit").cast("double"))
+    )
+
+    # Now apply the logic based on portfolio_type.
+    final_credit_limit = (
+        when(col("portfolio_type") == lit("O"), lit(0))
+        .when(col("portfolio_type") == lit("R"), parsed_assigned_limit)
+        .otherwise(lit(None))
+    )
+
+    # Return a DF with just the account_id & calculated_credit_limit columns
+    return (
+        input_df
+        .withColumn("calculated_credit_limit", final_credit_limit)
+        .select("account_id", "calculated_credit_limit")
+    )
+
+
+
+########
+
+import pytest
+from pyspark.sql import SparkSession, Row
+from credit_limit_calc import calculate_credit_limit_spark
 
 @pytest.fixture(scope="session")
 def spark_session():
     """
-    Create (or reuse) a SparkSession for all tests in this file.
+    Create a local SparkSession for testing.
     """
     spark = (
         SparkSession.builder
-        .master("local[1]")   # or omit if you prefer
-        .appName("TestCalculatePaymentRating")
-        .getOrCreate()
-    )
-    yield spark
-    spark.stop()
-
-
-def test_schema_output(spark_session):
-    """
-    Verify that the resulting DataFrame contains exactly:
-      [account_id, payment_rating]
-    """
-    data = [
-        (1001, 13, 0),
-        (1002, 'DA', 2),
-    ]
-    columns = ["account_id", "account_status", "past_due_bucket"]
-
-    df_in = spark_session.createDataFrame(data, columns)
-    df_out = calculate_payment_rating_spark(df_in)
-
-    expected_cols = ["account_id", "payment_rating"]
-    assert df_out.columns == expected_cols, (
-        f"Expected columns {expected_cols}, but got {df_out.columns}"
-    )
-
-
-def test_blank_account_status(spark_session):
-    """
-    Test that statuses in [11,78,80,82,83,84,97,64,'DA']
-    return a blank string ('') for payment_rating.
-    """
-    blank_statuses = [11, 78, 80, 82, 83, 84, 97, 64, 'DA']
-    data = []
-    for i, status in enumerate(blank_statuses, start=1):
-        data.append((i, status, 0))  # account_id=i, bucket=0
-    columns = ["account_id", "account_status", "past_due_bucket"]
-
-    df_in = spark_session.createDataFrame(data, columns)
-    df_out = calculate_payment_rating_spark(df_in).orderBy("account_id")
-    rows = df_out.collect()
-
-    # Each row => payment_rating should be an empty string
-    for row in rows:
-        assert row.payment_rating == "", (
-            f"For account_status in blank set, expected '', got {row.payment_rating}"
-        )
-
-
-def test_account_status_13_valid_past_due_buckets(spark_session):
-    """
-    Test that account_status=13 with valid bucket values 0..6
-    yields '0','1','2','3','4','5','L' respectively.
-    """
-    data = []
-    # We'll test buckets 0..6
-    for b in range(7):
-        data.append((2000 + b, 13, b))
-    columns = ["account_id", "account_status", "past_due_bucket"]
-
-    df_in = spark_session.createDataFrame(data, columns)
-    df_out = calculate_payment_rating_spark(df_in).orderBy("account_id")
-    rows = df_out.collect()
-
-    expected_map = {
-        0: "0",
-        1: "1",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5",
-        6: "L",
-    }
-
-    for row in rows:
-        # Figure out which bucket from account_id or from our data
-        # We can parse bucket from account_id - 2000
-        bucket = row.account_id - 2000
-        expected = expected_map[bucket]
-        assert row.payment_rating == expected, (
-            f"For bucket={bucket}, expected '{expected}', but got '{row.payment_rating}'"
-        )
-
-
-def test_account_status_13_invalid_past_due_bucket(spark_session):
-    """
-    For account_status=13 with invalid buckets (e.g. -1, 7, 999),
-    payment_rating should be None.
-    """
-    data = [
-        (3001, 13, -1),
-        (3002, 13, 7),
-        (3003, 13, 999),
-    ]
-    columns = ["account_id", "account_status", "past_due_bucket"]
-
-    df_in = spark_session.createDataFrame(data, columns)
-    df_out = calculate_payment_rating_spark(df_in).orderBy("account_id")
-    rows = df_out.collect()
-
-    for row in rows:
-        assert row.payment_rating is None, (
-            f"Expected None for invalid bucket with status=13, got {row.payment_rating}"
-        )
-
-
-def test_unexpected_account_status(spark_session):
-    """
-    For an account_status not in [11,78,80,82,83,84,97,64,'DA',13],
-    we expect payment_rating = None.
-    """
-    data = [
-        (4001, 999,  0),
-        (4002, 10,   1),
-        (4003, "XYZ",2),
-    ]
-    columns = ["account_id", "account_status", "past_due_bucket"]
-
-    df_in = spark_session.createDataFrame(data, columns)
-    df_out = calculate_payment_rating_spark(df_in).orderBy("account_id")
-    rows = df_out.collect()
-
-    for row in rows:
-        assert row.payment_rating is None, (
-            f"Expected None for unexpected account_status, got {row.payment_rating}"
-        )
-
-
-def test_mixed_values(spark_session):
-    """
-    Test a single DataFrame with multiple different account_status & bucket combos.
-    The final output will only have (account_id, payment_rating).
-    """
-    data = [
-        # account_id, account_status, past_due_bucket
-        (5001, 13,    2),   # => '2'
-        (5002, 78,    1),   # => '' (blank_status)
-        (5003, 13,    4),   # => '4'
-        (5004, 'DA',  6),   # => '' (blank_status)
-        (5005, 13,    6),   # => 'L'
-        (5006, 64,    0),   # => '' (blank_status)
-        (5007, 13,    9),   # => None (invalid bucket)
-        (5008, 999,   2),   # => None (unexpected status)
-    ]
-    columns = ["account_id", "account_status", "past_due_bucket"]
-
-    df_in = spark_session.createDataFrame(data, columns)
-    df_out = calculate_payment_rating_spark(df_in).orderBy("account_id")
-    rows = df_out.collect()
-
-    # Expectation by account_id
-    expected_map = {
-        5001: "2",
-        5002: "",
-        5003: "4",
-        5004: "",
-        5005: "L",
-        5006: "",
-        5007: None,
-        5008: None
-    }
-
-    for row in rows:
-        acct_id = row.account_id
-        actual_rating = row.payment_rating
-        expected_rating = expected_map[acct_id]
-        assert actual_rating == expected_rating, (
-            f"For account_id={acct_id}, expected '{expected_rating}' but got '{actual_rating}'"
-        )
-
-:::::::::::::::::
-# test_payment_rating_spark.py
-
-import pytest
-from pyspark.sql import SparkSession
-
-# Import your updated function (adjust the import path as needed)
-from payment_rating_spark import calculate_payment_rating_spark
-
-@pytest.fixture(scope="session")
-def spark_session():
-    """
-    Create or retrieve a Spark session for all tests in this file.
-    """
-    spark = (
-        SparkSession.builder
-        # If you do NOT want to specify a master explicitly, just omit .master(...)
         .master("local[1]")
-        .appName("TestCalculatePaymentRating")
+        .appName("TestCreditLimitCalculation")
         .getOrCreate()
     )
     yield spark
     spark.stop()
 
-
-def test_schema_output(spark_session):
+def test_portfolio_o_zero_filled(spark_session):
     """
-    Verify that the resulting DataFrame contains exactly:
-      [account_id, account_status, past_due_bucket, payment_rating]
+    If portfolio_type = 'O', the calculated credit limit should be 0.
     """
     data = [
-        (1001, 13, 0),
-        (1002, 'DA', 2),
+        ("A001", "O", 500),
+        ("A002", "O", "999"),
     ]
-    columns = ["account_id", "account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
+    cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
+    df_in = spark_session.createDataFrame(data, cols)
 
-    df_out = calculate_payment_rating_spark(df_in)
+    df_out = calculate_credit_limit_spark(df_in).orderBy("account_id").collect()
 
-    expected_cols = ["account_id", "account_status", "past_due_bucket", "payment_rating"]
-    assert df_out.columns == expected_cols, (
-        f"Expected columns {expected_cols}, but got {df_out.columns}"
-    )
+    # Check results
+    assert df_out[0]["account_id"] == "A001"
+    assert df_out[0]["calculated_credit_limit"] == 0
 
+    assert df_out[1]["account_id"] == "A002"
+    assert df_out[1]["calculated_credit_limit"] == 0
 
-def test_blank_account_status(spark_session):
+def test_portfolio_r_numeric_limit(spark_session):
     """
-    Test that statuses in [11,78,80,82,83,84,97,64,'DA']
-    return a blank string for payment_rating.
-    """
-    blank_statuses = [11, 78, 80, 82, 83, 84, 97, 64, 'DA']
-    data = []
-    for i, status in enumerate(blank_statuses, start=1):
-        # We'll just set account_id=i, past_due_bucket=0 for simplicity
-        data.append((i, status, 0))
-    columns = ["account_id", "account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
-
-    df_out = calculate_payment_rating_spark(df_in)
-    out_rows = df_out.collect()
-
-    for row in out_rows:
-        assert row.payment_rating == "", (
-            f"Expected blank string, got '{row.payment_rating}' for status={row.account_status}"
-        )
-
-
-def test_account_status_13_valid_past_due_buckets(spark_session):
-    """
-    Test that account_status=13 with valid bucket values 0..6
-    returns '0','1','2','3','4','5','L' respectively.
-    """
-    data = []
-    # We'll create 7 rows for buckets 0..6
-    for b in range(7):
-        # Keep account_id distinct: 2000+b
-        data.append((2000 + b, 13, b))
-    columns = ["account_id", "account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
-
-    df_out = calculate_payment_rating_spark(df_in).orderBy("past_due_bucket")
-    results = df_out.collect()
-
-    expected_map = {
-        0: "0",
-        1: "1",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5",
-        6: "L"
-    }
-    for row in results:
-        bucket = row.past_due_bucket
-        expected_rating = expected_map[bucket]
-        assert row.payment_rating == expected_rating, (
-            f"For bucket={bucket}, expected '{expected_rating}' but got '{row.payment_rating}'"
-        )
-
-
-def test_account_status_13_invalid_past_due_bucket(spark_session):
-    """
-    Test that account_status=13 with invalid buckets (negative or >6)
-    returns payment_rating=None.
+    If portfolio_type = 'R' and assigned_credit_limit is numeric,
+    we should round to the nearest whole dollar.
     """
     data = [
-        (3001, 13, -1),
-        (3002, 13, 7),
-        (3003, 13, 999)
+        ("A001", "R", 129.2),
+        ("A002", "R", "456.7"),
+        ("A003", "R", 123.5),
     ]
-    columns = ["account_id", "account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
+    cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
+    df_in = spark_session.createDataFrame(data, cols)
+    df_out = calculate_credit_limit_spark(df_in).orderBy("account_id").collect()
 
-    df_out = calculate_payment_rating_spark(df_in)
-    rows = df_out.collect()
+    # A001 => 129.2 => round => 129
+    assert df_out[0]["calculated_credit_limit"] == 129
+    # A002 => "456.7" => cast to float => round => 457
+    assert df_out[1]["calculated_credit_limit"] == 457
+    # A003 => 123.5 => should round to 124
+    assert df_out[2]["calculated_credit_limit"] == 124
 
-    for row in rows:
-        assert row.payment_rating is None, (
-            f"Expected None for bucket={row.past_due_bucket}, got '{row.payment_rating}'"
-        )
-
-
-def test_unexpected_account_status(spark_session):
+def test_portfolio_r_npsl(spark_session):
     """
-    Test that an account_status not in [11,78,80,82,83,84,97,64,'DA',13]
-    yields payment_rating=None.
+    If portfolio_type = 'R' and assigned_credit_limit = 'NPSL',
+    the result should remain 'NPSL'.
     """
     data = [
-        (4001, 999, 0),
-        (4002, 10,  1),
-        (4003, "XYZ", 2)
+        ("A001", "R", "NPSL"),
+        ("A002", "R", "npsl"),  # see if mismatch case
     ]
-    columns = ["account_id", "account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
+    cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
+    df_in = spark_session.createDataFrame(data, cols)
 
-    df_out = calculate_payment_rating_spark(df_in)
-    rows = df_out.collect()
+    # We'll assume the function only checks uppercase 'NPSL';
+    # so 'npsl' might cause a cast failure => None, or we adapt logic if needed
+    # For demonstration, let's see what it actually does.
 
-    for row in rows:
-        assert row.payment_rating is None, (
-            f"Expected None for account_status={row.account_status}, got '{row.payment_rating}'"
-        )
+    df_out = calculate_credit_limit_spark(df_in).orderBy("account_id").collect()
 
+    # A001 => "NPSL" => 'NPSL'
+    assert df_out[0]["calculated_credit_limit"] == "NPSL"
+
+    # A002 => "npsl" => likely tries casting => fails => null (based on current code)
+    # If we want to handle case-insensitively, we'd adjust the function logic.
+    assert df_out[1]["calculated_credit_limit"] is None
+
+def test_unrecognized_portfolio_type(spark_session):
+    """
+    If portfolio_type is not 'O' or 'R', we expect None for calculated_credit_limit.
+    """
+    data = [
+        ("A001", "X", 100),
+        ("A002", "", 200),
+        ("A003", None, 300),
+    ]
+    cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
+    df_in = spark_session.createDataFrame(data, cols)
+    df_out = calculate_credit_limit_spark(df_in).orderBy("account_id").collect()
+
+    for row in df_out:
+        assert row["calculated_credit_limit"] is None
+
+def test_invalid_assigned_value(spark_session):
+    """
+    If assigned_credit_limit is not numeric or 'NPSL', it casts to float => fails => returns None.
+    """
+    data = [
+        ("A001", "R", "abc"),
+        ("A002", "R", "---"),
+    ]
+    cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
+
+    df_in = spark_session.createDataFrame(data, cols)
+    df_out = calculate_credit_limit_spark(df_in).orderBy("account_id").collect()
+
+    for row in df_out:
+        assert row["calculated_credit_limit"] is None
 
 def test_mixed_values(spark_session):
     """
-    Test a single DataFrame with mixed account_status and bucket values.
+    Test a single DataFrame with a variety of scenarios.
     """
     data = [
-        # account_id, account_status, past_due_bucket
-        (5001, 13,    2),   # => '2'
-        (5002, 78,    1),   # => ''
-        (5003, 13,    4),   # => '4'
-        (5004, 'DA',  6),   # => ''
-        (5005, 13,    6),   # => 'L'
-        (5006, 64,    0),   # => ''
-        (5007, 13,    9),   # => None
-        (5008, 999,   2),   # => None (unexpected status)
+        ("A001", "O", 500),       # => 0
+        ("A002", "R", 129.5),     # => round(129.5) => 130
+        ("A003", "R", "NPSL"),    # => 'NPSL'
+        ("A004", "X", "100"),     # => None
+        ("A005", "R", "invalid"), # => None
     ]
-    columns = ["account_id", "account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
+    cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
 
-    df_out = calculate_payment_rating_spark(df_in).orderBy("account_id")
-    rows = df_out.collect()
-
-    # We'll map out each row's expected payment_rating
-    expected_by_id = {
-        5001: "2",
-        5002: "",
-        5003: "4",
-        5004: "",
-        5005: "L",
-        5006: "",
-        5007: None,
-        5008: None
-    }
-
-    for row in rows:
-        acct_id = row.account_id
-        expected = expected_by_id[acct_id]
-        assert row.payment_rating == expected, (
-            f"For account_id={acct_id}, expected '{expected}' but got '{row.payment_rating}'"
-        )
-
-_______________
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import col, when, lit
-
-def calculate_payment_rating_spark(input_df: DataFrame) -> DataFrame:
-    """
-    Given a PySpark DataFrame containing 'account_id', 'account_status',
-    and 'past_due_bucket', compute 'payment_rating' using the
-    if/then logic from your spec, and return a new DataFrame
-    with at least 'account_id' and 'payment_rating'.
-    """
-
-    blank_statuses = [11, 78, 80, 82, 83, 84, 97, 64, 'DA']
-
-    payment_rating_col = (
-        when(col("account_status").isin(blank_statuses), lit(""))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 0), lit("0"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 1), lit("1"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 2), lit("2"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 3), lit("3"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 4), lit("4"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 5), lit("5"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 6), lit("L"))
-        .otherwise(lit(None))
-    )
-
-    # Add the payment_rating column
-    df_with_rating = input_df.withColumn("payment_rating", payment_rating_col)
-
-    # Option A: Return all columns (including account_id)
-    # return df_with_rating
-
-    # Option B: Return *only* account_id + payment_rating + whichever columns you want
-    return df_with_rating.select(
-        "account_id",
-        "account_status",
-        "past_due_bucket",
-        "payment_rating"
-    )
-
-
-
-###########
-
-
-from pyspark.sql import SparkSession
-
-def create_spark_session():
-    spark = (
-        SparkSession
-        .builder
-        .appName("My App")
-        .getOrCreate()
-    )
-    return spark
-
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import col, when, lit
-
-def calculate_payment_rating_spark(input_df: DataFrame) -> DataFrame:
-    """
-    Given a PySpark DataFrame containing 'account_status' and 'past_due_bucket',
-    compute 'payment_rating' using the if/then logic from your spec.
-
-    Rules Recap:
-      - If account_status in [11, 78, 80, 82, 83, 84, 97, 64, 'DA']:
-          payment_rating = ''  (blank string)
-      - Else if account_status = 13:
-          past_due_bucket = 0 -> payment_rating = '0'
-          past_due_bucket = 1 -> payment_rating = '1'
-          past_due_bucket = 2 -> payment_rating = '2'
-          past_due_bucket = 3 -> payment_rating = '3'
-          past_due_bucket = 4 -> payment_rating = '4'
-          past_due_bucket = 5 -> payment_rating = '5'
-          past_due_bucket = 6 -> payment_rating = 'L'
-          otherwise -> None
-      - Otherwise (account_status not in the above sets),
-          payment_rating = None
-    """
-
-    blank_statuses = [11, 78, 80, 82, 83, 84, 97, 64, 'DA']
-
-    # Construct the payment_rating column using a chain of when() conditions:
-    payment_rating_col = (
-        # 1) If in blank_statuses => '' (blank string)
-        when(col("account_status").isin(blank_statuses), lit(""))
-        
-        # 2) If account_status == 13, then handle past_due_bucket logic
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 0), lit("0"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 1), lit("1"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 2), lit("2"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 3), lit("3"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 4), lit("4"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 5), lit("5"))
-        .when((col("account_status") == 13) & (col("past_due_bucket") == 6), lit("L"))
-
-        # 3) Otherwise => None
-        .otherwise(lit(None))
-    )
-
-    # Return a new DataFrame with the derived column
-    return input_df.withColumn("payment_rating", payment_rating_col)
-
-
-
-# test_payment_rating_spark.py
-
-import pytest
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-
-# Import the function we want to test
-from payment_rating_spark import calculate_payment_rating_spark
-
-@pytest.fixture(scope="session")
-def spark_session():
-    """
-    Create a Spark session for testing.
-    """
-    spark = SparkSession.builder \
-        .master("local[1]") \
-        .appName("TestCalculatePaymentRating") \
-        .getOrCreate()
-    yield spark
-    spark.stop()
-
-
-def test_blank_account_status(spark_session):
-    """
-    Test statuses in [11, 78, 80, 82, 83, 84, 97, 64, 'DA']
-    return a blank string for payment_rating.
-    """
-    blank_statuses = [11, 78, 80, 82, 83, 84, 97, 64, 'DA']
-    data = [(status, 0) for status in blank_statuses]
-    columns = ["account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
-
-    df_out = calculate_payment_rating_spark(df_in)
-    results = df_out.select("payment_rating").rdd.flatMap(lambda x: x).collect()
-
-    for r in results:
-        assert r == "", f"Expected blank string, got {r}."
-
-
-def test_account_status_13_valid_past_due_buckets(spark_session):
-    """
-    Test that account_status = 13 with valid bucket values
-    returns the correct payment ratings.
-    """
-    # We'll test buckets 0..6
-    data = [(13, i) for i in range(7)]
-    columns = ["account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
-
-    df_out = calculate_payment_rating_spark(df_in)
-    results = df_out.select("past_due_bucket", "payment_rating") \
-                    .orderBy("past_due_bucket") \
-                    .collect()
+    df_in = spark_session.createDataFrame(data, cols)
+    df_out = calculate_credit_limit_spark(df_in).orderBy("account_id").collect()
 
     expected_map = {
-        0: "0",
-        1: "1",
-        2: "2",
-        3: "3",
-        4: "4",
-        5: "5",
-        6: "L"
+        "A001": 0,
+        "A002": 130,
+        "A003": "NPSL",
+        "A004": None,
+        "A005": None
     }
 
-    for row in results:
-        bucket = row["past_due_bucket"]
-        actual = row["payment_rating"]
-        expected = expected_map[bucket]
-        assert actual == expected, f"For bucket {bucket}, expected {expected} but got {actual}"
-
-
-def test_account_status_13_invalid_past_due_bucket(spark_session):
-    """
-    Test that account_status=13 with an invalid past-due bucket
-    (negative or beyond 6) returns None.
-    """
-    data = [(13, -1), (13, 7), (13, 999)]
-    columns = ["account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
-
-    df_out = calculate_payment_rating_spark(df_in)
-    results = df_out.select("payment_rating").rdd.flatMap(lambda x: x).collect()
-
-    for r in results:
-        assert r is None, f"Expected None for invalid buckets, got {r}."
-
-
-def test_unexpected_account_status(spark_session):
-    """
-    Test that an account_status not in [11,78,80,82,83,84,97,64,'DA',13]
-    yields payment_rating = None.
-    """
-    data = [(999, 0), (10, 1), ("XYZ", 2)]
-    columns = ["account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
-
-    df_out = calculate_payment_rating_spark(df_in)
-    results = df_out.select("payment_rating").rdd.flatMap(lambda x: x).collect()
-
-    for r in results:
-        assert r is None, f"Expected None for unexpected statuses, got {r}."
-
-
-def test_mixed_values(spark_session):
-    """
-    Test mixing various account_status and bucket values in one DataFrame.
-    """
-    data = [
-        (13, 2),    # => '2'
-        (78, 1),    # => ''
-        (13, 4),    # => '4'
-        ('DA', 6),  # => ''
-        (13, 6),    # => 'L'
-        (64, 0)     # => ''
-    ]
-    columns = ["account_status", "past_due_bucket"]
-    df_in = spark_session.createDataFrame(data, columns)
-
-    df_out = calculate_payment_rating_spark(df_in).orderBy("past_due_bucket")
-
-    # Collect the result in the same order we inserted, so let's just do a .collect() 
-    # but make sure we don't rely on any reorder unless we explicitly do .orderBy. 
-    # We'll just gather them in the same sequence for clarity:
-    df_out_unordered = calculate_payment_rating_spark(df_in)
-    results = df_out_unordered.select("payment_rating").rdd.flatMap(lambda x: x).collect()
-
-    # Expected in the same row order:
-    # (13, 2) => "2"
-    # (78, 1) => ""
-    # (13, 4) => "4"
-    # ('DA',6) => ""
-    # (13, 6) => "L"
-    # (64, 0) => ""
-    expected = ["2", "", "4", "", "L", ""]
-
-    assert len(results) == len(expected), "Mismatch in the number of returned rows"
-    for i in range(len(results)):
-        assert results[i] == expected[i], f"Row {i} => expected {expected[i]} but got {results[i]}"
+    for row in df_out:
+        acct_id = row["account_id"]
+        assert row["calculated_credit_limit"] == expected_map[acct_id], (
+            f"For {acct_id}, expected {expected_map[acct_id]}, got {row['calculated_credit_limit']}"
+        )
