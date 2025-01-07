@@ -1,5 +1,22 @@
 
 
+from pyspark.sql.functions import col, when, lit, round as spark_round
+
+parsed_assigned_limit = when(
+    col("assigned_credit_limit") == "NPSL", 
+    lit("NPSL")
+).otherwise(
+    spark_round(col("assigned_credit_limit").cast("double")).cast("long").cast("string")
+)
+
+final_credit_limit = (
+    when(col("portfolio_type") == "O", lit("0"))
+    .when(col("portfolio_type") == "R", parsed_assigned_limit)
+    .otherwise(lit(None).cast("string"))
+)
+
+#####
+
 data = [
     ("A001", "O", 500.0),    # Use 500.0 instead of 500
     ("A002", "R", 129.5),
