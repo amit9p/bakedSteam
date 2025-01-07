@@ -1,5 +1,18 @@
 
 
+data = [
+    ("A001", "O", 500.0),    # Use 500.0 instead of 500
+    ("A002", "R", 129.5),
+    ("A003", "R", "NPSL"),
+    ("A004", "X", "100"),
+    ("A005", "R", "invalid"),
+]
+cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
+
+df_in = spark_session.createDataFrame(data, cols)
+######
+
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, when, lit, round as spark_round
 
