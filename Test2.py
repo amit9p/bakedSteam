@@ -1,4 +1,16 @@
 
+No, you don’t strictly need a for loop in your test code—you can certainly test DataFrame results in other ways. However, many developers use a loop because it’s a straightforward way to:
+
+1. Match each row to the expected result, and
+
+
+2. Raise clear, row-by-row assertion messages if something goes wrong.
+
+    #####
+
+
+
+
 We only sort to ensure a stable, consistent row order for comparison. We’re not testing the row order itself; we verify row counts and contents match our expectations.
 
     ###
