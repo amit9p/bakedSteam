@@ -1,4 +1,7 @@
 
+We only sort to ensure a stable, consistent row order for comparison. We’re not testing the row order itself; we verify row counts and contents match our expectations.
+
+    ###
 
 In Spark, DataFrames have no guaranteed inherent row ordering. When you do something like:
 
