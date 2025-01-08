@@ -1,5 +1,20 @@
 
 
+In Spark, DataFrames have no guaranteed inherent row ordering. When you do something like:
+
+df_out = calculate_credit_limit_spark(df_in).collect()
+
+the rows can come back in any sequence (depending on optimizations or distributed processing). If your test expects the rows in a particular order (e.g. matching index-by-index with your “expected” list), you can get spurious test failures if rows are returned in a different sequence.
+
+By adding:
+
+df_out = calculate_credit_limit_spark(df_in).orderBy("account_id").collect()
+
+you ensure deterministic ordering by account_id before collecting the results. This way, you always know which row in the collected list corresponds to which account, and your test’s row-by-row comparisons will be stable and consistent every time you run it.
+
+
+
+
 from pyspark.sql.functions import col, when, lit, round as spark_round
 
 parsed_assigned_limit = when(
