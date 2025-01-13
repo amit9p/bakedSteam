@@ -1,4 +1,44 @@
 
+from pyspark.sql.types import StructType, StructField, StringType
+
+def test_unrecognized_portfolio_type(spark_session):
+    data = [("A001", "X", "100"), ("A002", "Y", "200")]
+    cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
+    df_in = spark_session.createDataFrame(data, cols)
+
+    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit")
+
+    # Define explicit schema for the expected DataFrame
+    schema = StructType([
+        StructField("account_id", StringType(), True),
+        StructField("calculated_credit_limit", StringType(), True)
+    ])
+    expected_data = [("A001", None), ("A002", None)]
+    expected_df = spark_session.createDataFrame(expected_data, schema=schema)
+
+    assert_dataframe_equality(result, expected_df)
+
+
+def test_invalid_assigned_value(spark_session):
+    data = [("A001", "R", "abc"), ("A002", "R", "---")]
+    cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
+    df_in = spark_session.createDataFrame(data, cols)
+
+    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit")
+
+    # Define explicit schema for the expected DataFrame
+    schema = StructType([
+        StructField("account_id", StringType(), True),
+        StructField("calculated_credit_limit", StringType(), True)
+    ])
+    expected_data = [("A001", None), ("A002", None)]
+    expected_df = spark_session.createDataFrame(expected_data, schema=schema)
+
+    assert_dataframe_equality(result, expected_df)
+
+
+
+
 Yes, the updated test cases remove both orderBy and for loops completely, addressing the review comments:
 
 1. orderBy Removed:
