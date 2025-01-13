@@ -1,16 +1,4 @@
 
-Key Improvements:
-
-1. Avoided orderBy: Using set comparison ensures the order of rows is irrelevant.
-
-
-2. Avoided for loops: Directly asserting the result with the expected output.
-
-
-3. Enhanced readability: Clear test cases for each scenario.
-
-
-
 def test_portfolio_o_zero_filled(spark_session):
     # If portfolio_type is 'O', the calculated credit limit should be '0'.
     data = [
@@ -20,7 +8,7 @@ def test_portfolio_o_zero_filled(spark_session):
     cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
     df_in = spark_session.createDataFrame(data, cols)
 
-    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collectAsList()
+    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collect()
     expected = [{"account_id": "A001", "calculated_credit_limit": "0"},
                 {"account_id": "A002", "calculated_credit_limit": "0"}]
 
@@ -38,7 +26,7 @@ def test_portfolio_r_numeric_limit(spark_session):
     cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
     df_in = spark_session.createDataFrame(data, cols)
 
-    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collectAsList()
+    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collect()
     expected = [{"account_id": "A001", "calculated_credit_limit": "129"},
                 {"account_id": "A002", "calculated_credit_limit": "457"},
                 {"account_id": "A003", "calculated_credit_limit": "124"}]
@@ -55,7 +43,7 @@ def test_portfolio_r_npsl(spark_session):
     cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
     df_in = spark_session.createDataFrame(data, cols)
 
-    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collectAsList()
+    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collect()
     expected = [{"account_id": "A001", "calculated_credit_limit": "NPSL"},
                 {"account_id": "A002", "calculated_credit_limit": None}]  # Case-sensitive mismatch
 
@@ -71,7 +59,7 @@ def test_unrecognized_portfolio_type(spark_session):
     cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
     df_in = spark_session.createDataFrame(data, cols)
 
-    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collectAsList()
+    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collect()
     expected = [{"account_id": "A001", "calculated_credit_limit": None},
                 {"account_id": "A002", "calculated_credit_limit": None}]
 
@@ -87,7 +75,7 @@ def test_invalid_assigned_value(spark_session):
     cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
     df_in = spark_session.createDataFrame(data, cols)
 
-    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collectAsList()
+    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collect()
     expected = [{"account_id": "A001", "calculated_credit_limit": None},
                 {"account_id": "A002", "calculated_credit_limit": None}]
 
@@ -106,7 +94,7 @@ def test_mixed_values(spark_session):
     cols = ["account_id", "portfolio_type", "assigned_credit_limit"]
     df_in = spark_session.createDataFrame(data, cols)
 
-    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collectAsList()
+    result = calculate_credit_limit_spark(df_in).select("account_id", "calculated_credit_limit").collect()
     expected = [{"account_id": "A001", "calculated_credit_limit": "0"},
                 {"account_id": "A002", "calculated_credit_limit": "130"},
                 {"account_id": "A003", "calculated_credit_limit": "NPSL"},
