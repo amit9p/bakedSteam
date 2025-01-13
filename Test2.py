@@ -1,4 +1,20 @@
 
+
+Yes, the updated test cases completely avoid the use of orderBy and for loops, fulfilling the review comments:
+
+1. No orderBy:
+
+Instead of relying on row order, the test cases use assert_dataframe_equality, which compares the DataFrames based on their contents regardless of row order.
+
+
+
+2. No for loops:
+
+The test cases directly compare the entire DataFrames using assert_dataframe_equality. There's no need to iterate through rows.
+
+
+
+
 from pyspark.sql.types import StructType, StructField, StringType
 
 def test_unrecognized_portfolio_type(spark_session):
