@@ -1,4 +1,74 @@
 
+from pyspark.sql import SparkSession
+
+# Setup Spark session
+spark = SparkSession.builder.master("local").appName("Test").getOrCreate()
+
+# Positive Test Case
+def test_positive_case():
+    test_data = [
+        (1, True, False, False, "STL", 100, "Open", "BANKRUPTCY_CHAPTER_7"),
+        (2, False, True, False, "BD", -200, "Open", "BANKRUPTCY_CHAPTER_11"),
+    ]
+    schema = [
+        "account_id",
+        "PIF Notification",
+        "SIF Notification",
+        "Asset Sales Notification",
+        "Charge Off Reason Code",
+        "Current Balance of the Account",
+        "Bankruptcy Status",
+        "Bankruptcy Chapter",
+    ]
+    input_df = spark.createDataFrame(test_data, schema)
+    result = calculate_current_balance(input_df)
+    assert result.collect() == [(1, 0), (2, 0)]
+    print("Positive test case passed!")
+
+# Negative Test Case
+def test_negative_case():
+    test_data = [
+        (3, False, False, False, "BD", 300, "Closed", "BANKRUPTCY_CHAPTER_7"),
+        (4, False, False, False, "BD", 400, "Open", "BANKRUPTCY_CHAPTER_11"),
+    ]
+    schema = [
+        "account_id",
+        "PIF Notification",
+        "SIF Notification",
+        "Asset Sales Notification",
+        "Charge Off Reason Code",
+        "Current Balance of the Account",
+        "Bankruptcy Status",
+        "Bankruptcy Chapter",
+    ]
+    input_df = spark.createDataFrame(test_data, schema)
+    result = calculate_current_balance(input_df)
+    assert result.collect() == [(3, 300), (4, 400)]
+    print("Negative test case passed!")
+
+# Edge Test Case
+def test_edge_case():
+    test_data = [
+        (5, False, True, False, "STL", 0, "Open", "BANKRUPTCY_CHAPTER_13"),
+    ]
+    schema = [
+        "account_id",
+        "PIF Notification",
+        "SIF Notification",
+        "Asset Sales Notification",
+        "Charge Off Reason Code",
+        "Current Balance of the Account",
+        "Bankruptcy Status",
+        "Bankruptcy Chapter",
+    ]
+    input_df = spark.createDataFrame(test_data, schema)
+    result = calculate_current_balance(input_df)
+    assert result.collect() == [(5, 0)]
+    print("Edge test case passed!")
+
+
+###
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import when, col
 
