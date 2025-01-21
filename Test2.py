@@ -1,4 +1,46 @@
 
+
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import when, col
+from pyspark.sql.utils import AnalysisException
+
+def calculate_current_balance(input_df: DataFrame) -> DataFrame:
+    try:
+        # Cast integer columns to Boolean where necessary
+        calculated_df = input_df.withColumn("PIF Notification", col("PIF Notification").cast("boolean")) \
+                                .withColumn("SIF Notification", col("SIF Notification").cast("boolean")) \
+                                .withColumn("Asset Sales Notification", col("Asset Sales Notification").cast("boolean"))
+
+        # Adding the logic for calculating the current balance
+        calculated_df = calculated_df.withColumn(
+            "Calculated Current Balance",
+            when(
+                col("PIF Notification") |
+                col("SIF Notification") |
+                col("Asset Sales Notification") |
+                (col("Charge Off Reason Code") == "STL") |
+                (col("Current Balance of the Account") < 0),
+                0
+            )
+            .when(
+                (col("Bankruptcy Status") == "Open") &
+                (col("Bankruptcy Chapter") == "BANKRUPTCY_CHAPTER_13"), 0
+            )
+            .when(col("Bankruptcy Status") == "Discharged", 0)
+            .otherwise(col("Current Balance of the Account"))
+        )
+
+        return calculated_df.select("account_id", "Calculated Current Balance")
+
+    except AnalysisException as e:
+        print(f"AnalysisException: {e}")
+        raise
+
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        raise
+
+######
 # Positive Test Case
 def test_positive_case():
     test_data = [
