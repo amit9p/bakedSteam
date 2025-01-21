@@ -5,17 +5,16 @@ from pyspark.sql.utils import AnalysisException
 
 def calculate_current_balance(input_df: DataFrame) -> DataFrame:
     try:
-        # Validate required columns
-        required_columns = [
+        # Validate required columns using set operations (faster than looping)
+        required_columns = {
             "PIF Notification", "SIF Notification", "Asset Sales Notification",
             "Charge Off Reason Code", "Current Balance of the Account",
-            "Bankruptcy Status", "Bankruptcy Chapter"
-        ]
+            "Bankruptcy Status", "Bankruptcy Chapter", "account_id"
+        }
         
-        # Check if all required columns are present
-        for col_name in required_columns:
-            if col_name not in input_df.columns:
-                raise KeyError(f"Missing required column: {col_name}")
+        missing_columns = required_columns - set(input_df.columns)
+        if missing_columns:
+            raise KeyError(f"Missing required columns: {', '.join(missing_columns)}")
         
         # Adding the logic for calculating the current balance
         calculated_df = input_df.withColumn(
@@ -25,8 +24,8 @@ def calculate_current_balance(input_df: DataFrame) -> DataFrame:
                 col("SIF Notification") |
                 col("Asset Sales Notification") |
                 (col("Charge Off Reason Code") == "STL") |
-                (col("Current Balance of the Account") < 0)
-                , 0
+                (col("Current Balance of the Account") < 0),
+                0
             )
             .when(
                 (col("Bankruptcy Status") == "Open") &
