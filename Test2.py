@@ -1,4 +1,39 @@
 
+# Positive Test Case
+def test_positive_case():
+    test_data = [
+        [1, 1, 0, 0, "STL", 100, "Open", "BANKRUPTCY_CHAPTER_7"],
+        [2, 0, 1, 0, "BD", -200, "Open", "BANKRUPTCY_CHAPTER_11"]
+    ]
+    input_df = spark.createDataFrame(test_data, SCHEMA)
+    result = calculate_current_balance(input_df)
+    assert result.collect() == [(1, 0), (2, 0)]
+    print("Positive test case passed!")
+
+# Negative Test Case
+def test_negative_case():
+    test_data = [
+        [3, 0, 0, 0, "BD", 300, "Closed", "BANKRUPTCY_CHAPTER_7"],
+        [4, 0, 0, 0, "BD", 400, "Open", "BANKRUPTCY_CHAPTER_11"]
+    ]
+    input_df = spark.createDataFrame(test_data, SCHEMA)
+    result = calculate_current_balance(input_df)
+    assert result.collect() == [(3, 300), (4, 400)]
+    print("Negative test case passed!")
+
+# Edge Test Case
+def test_edge_case():
+    test_data = [
+        [5, 0, 1, 0, "STL", 0, "Open", "BANKRUPTCY_CHAPTER_13"]
+    ]
+    input_df = spark.createDataFrame(test_data, SCHEMA)
+    result = calculate_current_balance(input_df)
+    assert result.collect() == [(5, 0)]
+    print("Edge test case passed!")
+
+
+
+########
 
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import when, col
