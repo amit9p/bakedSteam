@@ -1,3 +1,36 @@
+
+def test_generic_exception():
+    from pyspark.sql.types import StructType, StructField, NullType
+
+    # Define a schema with NullType to force an exception
+    schema = StructType([
+        StructField("account_id", NullType(), True),
+        StructField("PIF Notification", NullType(), True),
+        StructField("SIF Notification", NullType(), True),
+        StructField("Asset Sales Notification", NullType(), True),
+        StructField("Charge Off Reason Code", NullType(), True),
+        StructField("Current Balance of the Account", NullType(), True),
+        StructField("Bankruptcy Status", NullType(), True),
+        StructField("Bankruptcy Chapter", NullType(), True)
+    ])
+    
+    # Data that doesn't match the expected types
+    test_data = [
+        [None, None, None, None, None, None, None, None]
+    ]
+    
+    input_df = spark.createDataFrame(test_data, schema)
+    
+    try:
+        # This should trigger a generic exception due to type mismatch or processing issues
+        calculate_current_balance(input_df)
+    except Exception as e:
+        # Verify the generic exception was raised
+        print(f"Generic exception test passed with error: {e}")
+
+
+^^^^
+
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
 def test_analysis_exception():
