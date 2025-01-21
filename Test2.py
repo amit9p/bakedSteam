@@ -1,4 +1,34 @@
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
+def test_analysis_exception():
+    # Define the schema with incorrect column names to simulate an AnalysisException
+    schema = StructType([
+        StructField("wrong_account_id", IntegerType(), True),
+        StructField("wrong_PIF_Notification", IntegerType(), True),
+        StructField("wrong_SIF_Notification", IntegerType(), True),
+        StructField("wrong_Asset_Sales_Notification", IntegerType(), True),
+        StructField("wrong_Charge_Off_Reason_Code", StringType(), True),
+        StructField("wrong_Current_Balance_of_the_Account", IntegerType(), True),
+        StructField("wrong_Bankruptcy_Status", StringType(), True),
+        StructField("wrong_Bankruptcy_Chapter", StringType(), True)
+    ])
+    
+    # Test data with the same number of columns as the schema
+    test_data = [
+        [1, 1, 0, 0, "STL", 100, "Open", "BANKRUPTCY_CHAPTER_7"]
+    ]
+    
+    # Create a DataFrame with the incorrect schema
+    input_df = spark.createDataFrame(test_data, schema)
+    
+    try:
+        # This should trigger an AnalysisException because of column name mismatch
+        calculate_current_balance(input_df)
+    except AnalysisException as e:
+        print(f"AnalysisException test passed with error: {e}")
+
+
+*******
 def test_analysis_exception():
     test_data = [
         [1, 1, 0, 0, "STL", 100, "Open", "BANKRUPTCY_CHAPTER_7"]
