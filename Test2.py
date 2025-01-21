@@ -1,3 +1,53 @@
+
+def test_analysis_exception():
+    test_data = [
+        [1, 1, 0, 0, "STL", 100, "Open", "BANKRUPTCY_CHAPTER_7"]
+    ]
+    
+    schema = StructType([
+        StructField("invalid_column", IntegerType(), True)
+    ])
+    
+    input_df = spark.createDataFrame(test_data, schema)
+    
+    try:
+        calculate_current_balance(input_df)
+    except AnalysisException as e:
+        print(f"AnalysisException test passed with error: {e}")
+
+
+def test_generic_exception():
+    test_data = [
+        [None, None, None, None, None, None, None, None]
+    ]
+    
+    schema = StructType([
+        StructField("account_id", NullType(), True),
+        StructField("PIF Notification", NullType(), True),
+        StructField("SIF Notification", NullType(), True),
+        StructField("Asset Sales Notification", NullType(), True),
+        StructField("Charge Off Reason Code", NullType(), True),
+        StructField("Current Balance of the Account", NullType(), True),
+        StructField("Bankruptcy Status", NullType(), True),
+        StructField("Bankruptcy Chapter", NullType(), True)
+    ])
+    
+    input_df = spark.createDataFrame(test_data, schema)
+    
+    try:
+        calculate_current_balance(input_df)
+    except Exception as e:
+        print(f"Generic exception test passed with error: {e}")
+
+
+%%%%%
+
+
+
+
+
+
+
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType, NullType
 
 def test_invalid_input_case():
