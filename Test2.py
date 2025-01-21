@@ -1,21 +1,11 @@
 
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import when, col
 from pyspark.sql.utils import AnalysisException
 
 def calculate_current_balance(input_df: DataFrame) -> DataFrame:
     try:
-        # Validate required columns using set operations (faster than looping)
-        required_columns = {
-            "PIF Notification", "SIF Notification", "Asset Sales Notification",
-            "Charge Off Reason Code", "Current Balance of the Account",
-            "Bankruptcy Status", "Bankruptcy Chapter", "account_id"
-        }
-        
-        missing_columns = required_columns - set(input_df.columns)
-        if missing_columns:
-            raise KeyError(f"Missing required columns: {', '.join(missing_columns)}")
-        
         # Adding the logic for calculating the current balance
         calculated_df = input_df.withColumn(
             "Calculated Current Balance",
@@ -36,10 +26,6 @@ def calculate_current_balance(input_df: DataFrame) -> DataFrame:
         )
 
         return calculated_df.select("account_id", "Calculated Current Balance")
-
-    except KeyError as e:
-        print(f"KeyError: {e}")
-        raise
 
     except AnalysisException as e:
         print(f"AnalysisException: {e}")
