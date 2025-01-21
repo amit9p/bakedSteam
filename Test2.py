@@ -1,3 +1,33 @@
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType, NullType
+
+def test_invalid_input_case():
+    schema = StructType([
+        StructField("account_id", IntegerType(), True),
+        StructField("PIF Notification", IntegerType(), True),
+        StructField("SIF Notification", IntegerType(), True),
+        StructField("Asset Sales Notification", IntegerType(), True),
+        StructField("Charge Off Reason Code", StringType(), True),
+        StructField("Current Balance of the Account", IntegerType(), True),
+        StructField("Bankruptcy Status", StringType(), True),
+        StructField("Bankruptcy Chapter", StringType(), True)
+    ])
+    
+    test_data = [
+        [6, None, 1, None, "INVALID", 500, None, None]
+    ]
+    
+    input_df = spark.createDataFrame(test_data, schema)
+    try:
+        result = calculate_current_balance(input_df)
+        result.collect()
+    except Exception as e:
+        print(f"Invalid input test case passed with error: {e}")
+
+
+#####
+
+
+
 
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import when, col
