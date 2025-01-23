@@ -1,4 +1,61 @@
 
+Review Comments:
+
+1. Trailing 24 Months Logic:
+
+The implementation does not consider extracting only the last 24 months of payment history from the past_due_bucket column, as described in the output requirements. This logic needs to be explicitly implemented.
+
+
+
+2. Character Mapping:
+
+The implementation does not translate the past_due_bucket values into the required characters (e.g., 0 for 0-29 days, 1 for 30-59 days, etc.). This mapping is a key requirement.
+
+
+
+3. Handling Bankruptcy Status:
+
+There is no logic for incorporating the Bankruptcy Status field. As per the requirements, if the bankruptcy status is "OPEN," you should add D until it transitions to "CLOSED," "DISCHARGED," or "DISMISSED."
+
+
+
+4. Account Open Date:
+
+The implementation does not include handling for B to indicate the account's opening month. This condition is critical if the account was opened within the 24-month window.
+
+
+
+5. Charge-Off Handling:
+
+There is no logic for marking L for months when the account is charged off, as specified in the notes.
+
+
+
+6. Position Logic:
+
+The implementation lacks the mechanism to ensure the most recent month is at position 127 and the oldest month at position 150 in the output string.
+
+
+
+7. Output Formatting:
+
+The result must be a string of 24 characters, representing the payment history, which is not evident in the current implementation.
+
+
+
+8. Lagging One Month:
+
+The function does not incorporate the "trailing one month" logic. For example, a March report should include data up to February.
+
+
+
+9. Error Handling:
+
+There is no error handling for invalid or missing data in the inputs (e.g., past_due_bucket or Bankruptcy Status).
+
+
+
+____<<<<<<<<<________
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType
