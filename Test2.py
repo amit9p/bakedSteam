@@ -1,7 +1,6 @@
 
-
 from pyspark.sql import DataFrame
-from pyspark.sql.functions import col, when
+from pyspark.sql.functions import col, when, lit
 
 def calculate_consumer_information_indicator(input_df: DataFrame) -> DataFrame:
     """
@@ -31,20 +30,13 @@ def calculate_consumer_information_indicator(input_df: DataFrame) -> DataFrame:
                 (col("Bankruptcy Status") == "Discharge") & (col("Bankruptcy Chapter") == "13"), "H"
             ).when(
                 (col("Bankruptcy Status").isin("Closed", "Dismissed")), "Q"
-            ).otherwise(None)
+            ).otherwise(lit(""))  # Set blank for unmatched cases
         )
         return result_df.select("Account ID", "Consumer Information Indicator")
     except Exception as e:
         raise ValueError(f"Error processing data: {e}")
 
-
-import pytest
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType
-
-@pytest.fixture(scope="module")
-def spark():
-    return SparkSession.builder.master("local").appName("pytest").getOrCreate()
+___________
 
 def test_calculate_consumer_information_indicator_valid(spark):
     from your_module import calculate_consumer_information_indicator
@@ -75,31 +67,13 @@ def test_calculate_consumer_information_indicator_valid(spark):
         ("3", "G"),
         ("4", "Q"),
         ("5", "Q"),
-        ("6", None),
-        ("7", None),
+        ("6", ""),  # Blank instead of None
+        ("7", ""),  # Blank instead of None
     ]
 
     expected_df = spark.createDataFrame(expected_data, ["Account ID", "Consumer Information Indicator"])
 
     assert result_df.collect() == expected_df.collect()
-
-def test_calculate_consumer_information_indicator_invalid_column(spark):
-    from your_module import calculate_consumer_information_indicator
-
-    schema = StructType([
-        StructField("Account ID", StringType(), True),
-        StructField("Invalid Column", StringType(), True),
-        StructField("Bankruptcy Status", StringType(), True)
-    ])
-
-    input_data = [
-        ("1", "07", "Open"),
-    ]
-
-    input_df = spark.createDataFrame(input_data, schema)
-
-    with pytest.raises(ValueError, match="Error processing data:"):
-        calculate_consumer_information_indicator(input_df)
 
 def test_calculate_consumer_information_indicator_invalid_values(spark):
     from your_module import calculate_consumer_information_indicator
@@ -120,8 +94,8 @@ def test_calculate_consumer_information_indicator_invalid_values(spark):
     result_df = calculate_consumer_information_indicator(input_df)
 
     expected_data = [
-        ("1", None),  # No match for invalid chapter
-        ("2", None),  # No match for invalid status
+        ("1", ""),  # Blank for invalid chapter
+        ("2", ""),  # Blank for invalid status
     ]
 
     expected_df = spark.createDataFrame(expected_data, ["Account ID", "Consumer Information Indicator"])
@@ -133,8 +107,7 @@ def test_calculate_consumer_information_indicator_missing_column(spark):
 
     schema = StructType([
         StructField("Account ID", StringType(), True),
-        StructField("Bankruptcy Status", StringType(), True)
-        # Missing "Bankruptcy Chapter"
+        StructField("Bankruptcy Status", StringType(), True)  # Missing "Bankruptcy Chapter"
     ])
 
     input_data = [
@@ -145,3 +118,79 @@ def test_calculate_consumer_information_indicator_missing_column(spark):
 
     with pytest.raises(ValueError, match="Error processing data:"):
         calculate_consumer_information_indicator(input_df)
+
+def test_calculate_consumer_information_indicator_invalid_column(spark):
+    from your_module import calculate_consumer_information_indicator
+
+    schema = StructType([
+        StructField("Account ID", StringType(), True),
+        StructField("Invalid Column", StringType(), True),
+        StructField("Bankruptcy Status", StringType(), True)
+    ])
+
+    input_data = [
+        ("1", "07", "Open"),
+    ]
+
+    input_df = spark.createDataFrame(input_data, schema)
+
+    with pytest.raises(ValueError, match="Error processing data:"):
+        calculate_consumer_information_indicator(input_df)
+
+
+def test_calculate_consumer_information_indicator_invalid_values(spark):
+    from your_module import calculate_consumer_information_indicator
+
+    schema = StructType([
+        StructField("Account ID", StringType(), True),
+        StructField("Bankruptcy Chapter", StringType(), True),
+        StructField("Bankruptcy Status", StringType(), True)
+    ])
+
+    input_data = [
+        ("1", "99", "Open"),  # Invalid Bankruptcy Chapter
+        ("2", "11", "Unknown"),  # Invalid Bankruptcy Status
+    ]
+
+    input_df = spark.createDataFrame(input_data, schema)
+
+    result_df = calculate_consumer_information_indicator(input_df)
+
+    expected_data = [
+        ("1", ""),  # Blank for invalid chapter
+        ("2", ""),  # Blank for invalid status
+    ]
+
+    expected_df = spark.createDataFrame(expected_data, ["Account ID", "Consumer Information Indicator"])
+
+    assert result_df.collect() == expected_df.collect()
+
+
+def test_calculate_consumer_information_indicator_null_values(spark):
+    from your_module import calculate_consumer_information_indicator
+
+    schema = StructType([
+        StructField("Account ID", StringType(), True),
+        StructField("Bankruptcy Chapter", StringType(), True),
+        StructField("Bankruptcy Status", StringType(), True)
+    ])
+
+    input_data = [
+        ("1", None, "Open"),
+        ("2", "07", None),
+    ]
+
+    input_df = spark.createDataFrame(input_data, schema)
+
+    result_df = calculate_consumer_information_indicator(input_df)
+
+    expected_data = [
+        ("1", ""),  # Blank for null chapter
+        ("2", ""),  # Blank for null status
+    ]
+
+    expected_df = spark.createDataFrame(expected_data, ["Account ID", "Consumer Information Indicator"])
+
+    assert result_df.collect() == expected_df.collect()
+
+
