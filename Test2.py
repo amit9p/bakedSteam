@@ -1,4 +1,20 @@
 
+import pytest
+from pyspark.sql import SparkSession
+
+@pytest.fixture(scope="module")
+def spark():
+    # Initialize the SparkSession
+    spark_session = SparkSession.builder \
+        .master("local[*]") \
+        .appName("PySpark Unit Testing") \
+        .getOrCreate()
+    yield spark_session
+    spark_session.stop()
+
+
+
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, when, lit
 
