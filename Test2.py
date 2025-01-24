@@ -1,5 +1,11 @@
 
 
+SELECT column1, column2, COUNT(*)
+FROM table1
+GROUP BY column1, column2
+HAVING COUNT(*) > 1;
+
+
 SELECT *
 FROM table1 t1
 JOIN table2 t2
