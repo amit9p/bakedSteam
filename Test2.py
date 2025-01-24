@@ -1,5 +1,11 @@
 
 
+SELECT *
+FROM table1 t1
+JOIN table2 t2
+ON t1.column = t2.column
+WHERE t1.column = '<specific value>';
+
 is_reactivation_notification_exists = col("reactivation_notification").isNotNull() & (col("reactivation_notification") == 1)
 is_deceased_notification_exists = col("deceased_notification").isNotNull() & (col("deceased_notification") == 1)
 is_deceased_in_error_notification_exists = col("deceased_in_error_notification").isNotNull() & (col("deceased_in_error_notification") == 1)
