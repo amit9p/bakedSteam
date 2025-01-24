@@ -1,4 +1,14 @@
 
+
+is_reactivation_notification_exists = col("reactivation_notification").isNotNull() & (col("reactivation_notification") == 1)
+is_deceased_notification_exists = col("deceased_notification").isNotNull() & (col("deceased_notification") == 1)
+is_deceased_in_error_notification_exists = col("deceased_in_error_notification").isNotNull() & (col("deceased_in_error_notification") == 1)
+
+=====
+
+
+
+
 Review Comments:
 
 1. Trailing 24 Months Logic:
