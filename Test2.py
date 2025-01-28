@@ -1,4 +1,31 @@
 
+account_type_col = (
+    when(
+        (col("product_type") == "private_label_partnership")
+        & (col("assigned_credit_limit_str") == "NPSL"),
+        None,  # <-- NPSL + private_label_partnership => NULL
+    )
+    .when(
+        col("assigned_credit_limit_str") == "NPSL",
+        "0G",  # <-- NPSL => 0G for everything else
+    )
+    .when(
+        (col("product_type") == "small_business") & (is_numeric_expr),
+        "8A",
+    )
+    .when(
+        (col("product_type") == "private_label_partnership") & (is_numeric_expr),
+        "07",
+    )
+    .otherwise("18")
+)
+
+
+###
+
+
+
+
 
 # test_account_type_calculator.py
 
