@@ -1,4 +1,26 @@
 
+SELECT 
+    LOAN_ACCT_NUM, 
+    COUNT(*) AS row_count
+FROM (
+    SELECT 
+        AUTO_ACCOUNTS_CURING_SOLUTIONS_V2.ACCOUNTNUMBER::NUMBER(17, 0) AS LOAN_ACCT_NUM,
+        -- (other selected columns from your query)
+    FROM 
+        COAF_DB.COAF_SVCG.DT_LB.AUTO_ACCOUNTS_CURING_SOLUTIONS_V2,
+        LATERAL FLATTEN(input => COAF_DB.COAF_SVCG.DT_LB.AUTO_ACCOUNTS_CURING_SOLUTIONS_V2.solution.solutionPaymentPlanDetails) LF0
+    WHERE 
+        TO_VARCHAR(AUTO_ACCOUNTS_CURING_SOLUTIONS_V2.SF_LOAD_TIMESTAMP,'YYYYMMDDHH24MISS') = '20241213155847'
+        AND EVT_TYPE_TXT IN ('PRE_SOLUTION_ENROLLMENT', 'SOLUTION_ENROLLMENT')
+        AND LOAN_ACCT_NUM IN ('62102453857251001', 'another_account_number', 'another_one') -- Add multiple account numbers here
+) subquery
+GROUP BY LOAN_ACCT_NUM;
+
+
+#@####
+
+
+
 import pytest
 from pyspark.sql import SparkSession
 from ecbr_calculations.utils.account_type import calculate_account_type
