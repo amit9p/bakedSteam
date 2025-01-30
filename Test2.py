@@ -1,4 +1,40 @@
 
+
+
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+import pytest
+from pyspark.sql import SparkSession
+from ecbr_calculations.utils.account_type import calculate_account_type
+
+@pytest.fixture(scope="module")
+def spark():
+    spark_session = SparkSession.builder \
+        .appName("TestAccountType") \
+        .master("local[1]") \
+        .getOrCreate()
+    return spark_session
+
+def test_plp_npsl(spark):
+    data = [
+        ("NPSL", "private_label_partnership", 1, None),
+        ("NPSL", "private_label_partnership", 2, None),
+    ]
+    # Define schema so Spark knows expected_account_type is String (can hold null)
+    schema = StructType([
+        StructField("credit_limit", StringType(), True),
+        StructField("product_type", StringType(), True),
+        StructField("account_id", IntegerType(), True),
+        StructField("expected_account_type", StringType(), True),
+    ])
+    
+    df = spark.createDataFrame(data, schema=schema)
+    # Apply your function, assert correctness, etc.
+    result_df = calculate_account_type(df)
+    ...
+
+
+
+
 # test_account_type.py
 
 import pytest
