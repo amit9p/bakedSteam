@@ -1,3 +1,8 @@
+Everything except “Assigned Credit Limit = [blank] ⇒ NULL” is clearly in the diagram. You would need one extra branch or box for the blank‐credit‐limit scenario.
+
+
+
+
 
 result_df = calculate_account_type(df)
 # e.g. do some assertion on result_df, or call a helper function, etc.
