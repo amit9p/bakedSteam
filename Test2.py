@@ -1,18 +1,17 @@
 
-┌─────────────────────────────────────────────┐
-│ Assigned credit limit is neither           │
-│ "NPSL" nor a valid "$ value"               │
-└─────────────────────────────────────────────┘
-             ▼
-┌─────────────────────────────────────────────┐
-│ Account Type = "18"                        │
-└─────────────────────────────────────────────┘
+Everything else should come after that check. This is exactly why we usually place that (PLP + NPSL) => NULL check above the universal “NPSL ⇒ 0G” condition. If we don’t do it first, Spark will match the NPSL rule prematurely and never reach the (PLP + NPSL) rule.
+
+In short:
+
+1. First: (private_label_partnership & NPSL) => NULL
 
 
-Yes—the non‐numeric scenario (neither “NPSL” nor a valid “$ value”) is missing from the original Lucid diagram. The written rules indicate that anything not NPSL and not a dollar‐value gets mapped to 18, but the second diagram does not explicitly show that “non‐numeric” fallback path.
+2. Then: NPSL => 0G
 
-Below is a text‐based “Lucid‐style” flowchart covering all the scenarios, including that missing branch. It assumes:
 
-Assigned credit limit can be "NPSL" or a dollar amount ($ value) or something else (non‐numeric).
+3. Then: anything else (like numeric small_business => 8A, numeric PLP => 07, fallback => 18, etc.)
 
-Product type can be "small_business", "private_label_partnership", or any other string
+
+
+That ensures the “PLP + NPSL => NULL” scenario is always applied before the simpler “NPSL => 0G.”
+
