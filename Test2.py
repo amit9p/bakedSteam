@@ -1,3 +1,25 @@
+
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+
+def test_blank_credit_limit(spark):
+    data = [
+        ("",  "small_business", 50, None),
+        ("  ", "random_type",   51, None),
+    ]
+
+    schema = StructType([
+        StructField("credit_limit", StringType(), True),
+        StructField("product_type", StringType(), True),
+        StructField("account_id",   IntegerType(), True),
+        StructField("expected_account_type", StringType(), True),
+    ])
+
+    df = spark.createDataFrame(data, schema=schema)
+    result_df = calculate_account_type(df)
+    # ... do your assertions or _check_results ...
+
+
+
 def test_blank_credit_limit(spark):
     """
     If assigned credit limit is an empty string (after trim), 
