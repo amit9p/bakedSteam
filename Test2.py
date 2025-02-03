@@ -1,4 +1,11 @@
 
+result_df = calculate_account_type(df)
+# e.g. do some assertion on result_df, or call a helper function, etc.
+assert result_df.count() == len(data)
+
+
+
+
 def calculate_account_type(input_df: DataFrame) -> DataFrame:
     """
     Expects a DataFrame containing at least:
