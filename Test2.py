@@ -1,17 +1,16 @@
+Typing/Dataclasses
 
-Everything else should come after that check. This is exactly why we usually place that (PLP + NPSL) => NULL check above the universal “NPSL ⇒ 0G” condition. If we don’t do it first, Spark will match the NPSL rule prematurely and never reach the (PLP + NPSL) rule.
+If you’re using Python 3.7+, you can leverage dataclasses or TypedDict to give structure. This can help with IDE autocompletion and catch mistakes earlier.
 
-In short:
+Example with a simple dataclass for columns:
 
-1. First: (private_label_partnership & NPSL) => NULL
+from dataclasses import dataclass
 
+@dataclass(frozen=True)
+class Schema:
+    user_id: str = "user_id"
+    order_id: str = "order_id"
+    timestamp: str = "timestamp"
 
-2. Then: NPSL => 0G
-
-
-3. Then: anything else (like numeric small_business => 8A, numeric PLP => 07, fallback => 18, etc.)
-
-
-
-That ensures the “PLP + NPSL => NULL” scenario is always applied before the simpler “NPSL => 0G.”
+Then reference Schema().user_id in your code.
 
