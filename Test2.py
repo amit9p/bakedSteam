@@ -1,3 +1,18 @@
+def test_blank_credit_limit(spark):
+    """
+    If assigned credit limit is an empty string (after trim), 
+    we should assign NULL per the new table.
+    """
+    data = [
+        ("", "small_business",  50, None),
+        ("  ", "random_type",   51, None),  # if you consider trimmed whitespace also "blank"
+    ]
+    # Optional: same schema as your other tests
+    # Then run _check_results(data, spark) or do the join-based approach.
+    _check_results(data, spark)
+
+
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import when, col, trim
 
