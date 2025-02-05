@@ -1,4 +1,31 @@
 
+test_data = [
+    # account_id, pif, sif, pre_co_sif, asset_sales, posted_bal, bank_status,  chapter, last_1099
+    (1, 1, 0, 0, 0, 100, "None",       "None", 0),  # PIF => 0
+    (2, 0, 1, 0, 0, 200, "None",       "None", 0),  # SIF => 0
+    (3, 0, 0, 1, 0, 300, "None",       "None", 0),  # Pre-CO SIF => 0
+    (4, 0, 0, 0, 1, 400, "None",       "None", 0),  # Asset => 0
+    (5, 0, 0, 0, 0, -10, "None",       "None", 0),  # posted_balance <= 0 => 0
+    (6, 0, 0, 0, 0, 600, "Open",       "13",   0),  # Bankruptcy open & 13 => 0
+    (7, 0, 0, 0, 0, 700, "Discharged", "7",    0),  # Discharged => 0
+    (8, 0, 0, 0, 0, 800, "None",       "None", 100) # Else => 800 - 100 = 700
+]
+
+
+expected = [
+    (1, 0),
+    (2, 0),
+    (3, 0),
+    (4, 0),
+    (5, 0),
+    (6, 0),
+    (7, 0),
+    (8, 700),
+]
+
+
+
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import when, col
 from pyspark.sql.utils import AnalysisException
