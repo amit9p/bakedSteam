@@ -1,4 +1,18 @@
 
+schema = StructType([
+    StructField("account_id", StringType()),
+    StructField("customer_address_postal_code", StringType()),  # matches function
+])
+
+data = [
+    ("123", "11111"),
+    ("456", "22222"),
+    # ...
+]
+
+
+
+
 git push --force-with-lease origin CT4019T-220-group3-testing
 
 
