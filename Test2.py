@@ -1,4 +1,25 @@
 
+from pyspark.sql.functions import col, when
+
+# Find columns that exist in both DataFrames
+common_columns = [c for c in df1.columns if c in df2.columns]
+
+# Compare each column and create a new column indicating mismatch
+comparison_df = df1.alias("df1").join(df2.alias("df2"), on="account_id", how="inner")
+
+for column in common_columns:
+    comparison_df = comparison_df.withColumn(
+        f"mismatch_{column}",
+        when(col(f"df1.{column}") != col(f"df2.{column}"), "Mismatch").otherwise("Match")
+    )
+
+comparison_df.select("account_id", *[f"mismatch_{col}" for col in common_columns]).show(truncate=False)
+
+
+####
+
+
+
 schema = StructType([
     StructField("account_id", StringType()),
     StructField("customer_address_postal_code", StringType()),  # matches function
