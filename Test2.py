@@ -1,4 +1,8 @@
 
+SELECT COUNT(DISTINCT column_name) AS distinct_count
+FROM table_name;
+
+
 SELECT t2.*
 FROM tbl2 t2
 LEFT JOIN tbl1 t1 
