@@ -4,6 +4,12 @@ FROM tbl2
 WHERE id NOT IN (SELECT id FROM tbl1);
 
 
+
+SELECT * 
+FROM tbl2 
+WHERE id NOT IN (SELECT id FROM tbl1);
+
+
 SELECT * 
 FROM tbl2 t2
 WHERE NOT EXISTS (
