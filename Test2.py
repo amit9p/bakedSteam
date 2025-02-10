@@ -1,4 +1,12 @@
 
+SELECT t2.*
+FROM tbl2 t2
+LEFT JOIN tbl1 t1 
+ON t1.id = t2.id  -- Replace 'id' with your primary key or unique column
+WHERE t1.id IS NULL;
+
+
+
 import pytest
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
