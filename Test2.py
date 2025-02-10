@@ -1,4 +1,21 @@
 
+SELECT * 
+FROM tbl2 
+WHERE id NOT IN (SELECT id FROM tbl1);
+
+
+SELECT * 
+FROM tbl2 t2
+WHERE NOT EXISTS (
+    SELECT 1 
+    FROM tbl1 t1 
+    WHERE t1.id = t2.id  -- Replace 'id' with your primary key or unique column
+);
+
+
+
+
+
 SELECT COUNT(DISTINCT column_name) AS distinct_count
 FROM table_name;
 
