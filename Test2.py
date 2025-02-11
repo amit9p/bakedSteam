@@ -1,3 +1,34 @@
+import pytest
+from pyspark.sql import SparkSession, Row
+from pyspark.sql.utils import AnalysisException
+
+# Suppose this is your function
+# from my_module import calculate_current_balance
+
+def test_analysis_exception(spark):
+    # DataFrames missing required columns
+    account_data = [ Row(account_id="X1") ]  # e.g. has no "posted_balance" column
+    rec_data = [ Row(account_id="X1") ]
+    cust_data = [ Row(account_id="X1") ]
+
+    account_df = spark.createDataFrame(account_data)
+    rec_df = spark.createDataFrame(rec_data)
+    cust_df = spark.createDataFrame(cust_data)
+
+    # Expect an AnalysisException because "posted_balance" (or some required column)
+    # does not exist in account_df
+    with pytest.raises(AnalysisException):
+        calculate_current_balance(account_df, rec_df, cust_df)
+
+def test_generic_exception(spark):
+    # Passing None or a non-DataFrame argument is likely to raise a generic Exception
+    # if your code tries to call methods on it.
+    with pytest.raises(Exception, match="unexpected error"):
+        calculate_current_balance(None, None, None)
+
+
+
+
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
