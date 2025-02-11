@@ -1,4 +1,58 @@
 
+import pytest
+from pyspark.sql import SparkSession, Row
+from pyspark.sql.utils import AnalysisException
+
+# Import your function that has the two except blocks
+# e.g. from ecb_calculations.utils.current_balance import calculate_current_balance
+
+@pytest.fixture(scope="module")
+def spark():
+    """Provides a SparkSession for all tests."""
+    return (SparkSession.builder
+            .master("local[*]")
+            .appName("TestCalculateCurrentBalance")
+            .getOrCreate())
+
+def test_analysis_exception(spark):
+    """
+    Forces a Spark AnalysisException by omitting a required column that
+    calculate_current_balance() references. 
+    For example, if the function does F.col("posted_balance"), 
+    we do NOT include 'posted_balance' in account_data.
+    """
+    # We intentionally do NOT include "posted_balance" (or some other required column)
+    account_data = [
+        Row(account_id="X1", some_other_col=123),
+    ]
+    rec_data = [
+        Row(account_id="X1", asset_sales_notification=0),
+    ]
+    cust_data = [
+        Row(account_id="X1", bankruptcy_status="Open", bankruptcy_chapter="13"),
+    ]
+
+    account_df = spark.createDataFrame(account_data)
+    rec_df = spark.createDataFrame(rec_data)
+    cust_df = spark.createDataFrame(cust_data)
+
+    # Spark should raise AnalysisException because the function
+    # tries to reference a missing column (e.g., posted_balance).
+    with pytest.raises(AnalysisException):
+        calculate_current_balance(account_df, rec_df, cust_df)
+
+
+def test_generic_exception(spark):
+    """
+    Forces a generic Python error by passing None instead of actual DataFrames.
+    This triggers an AttributeError ('NoneType' object has no attribute 'alias'), 
+    which is caught by the generic except Exception: block.
+    """
+    with pytest.raises(Exception):
+        calculate_current_balance(None, None, None)
+
+
+---------
 def test_generic_exception(spark, capfd):
     with pytest.raises(Exception):
         calculate_current_balance(None, None, None)
