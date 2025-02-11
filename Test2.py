@@ -1,4 +1,15 @@
 
+import json
+
+def lambda_handler(event, context):
+    # If event is a JSON string, parse it:
+    if isinstance(event, str):
+        event = json.loads(event)
+
+    component = event["component"]
+    ...
+
+
 import pytest
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.utils import AnalysisException
