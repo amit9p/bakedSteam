@@ -1,3 +1,14 @@
+
+def test_generic_exception(spark, capfd):
+    with pytest.raises(Exception):
+        calculate_current_balance(None, None, None)
+
+    # Now check what got printed to stdout/stderr
+    captured = capfd.readouterr()
+    assert "An unexpected error occurred: NoneType object has no attribute 'alias'" in captured.out
+
+
+
 import pytest
 from pyspark.sql import SparkSession, Row
 from pyspark.sql.utils import AnalysisException
