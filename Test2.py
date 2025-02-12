@@ -1,60 +1,4 @@
 
-F.when(F.col("some_column").isNull(), F.lit(0)).otherwise(F.col("some_column"))
-
-
-
-It depends on how you want to treat NULL values in your conditional logic.
-
-If you are okay with “missing” (NULL) columns being interpreted as False, then COALESCE is the simplest, most explicit way to do it.
-
-If you do not use COALESCE, then any row missing those columns will wind up with NULL. This can cause your conditions in Spark SQL to evaluate to NULL rather than False, which might yield unexpected results.
-
-def test_mismatched_ids(spark):
-    """
-    Ensures that if 'recoveries_df' or 'customer_df' does NOT have a matching record,
-    we still handle NULL columns gracefully.
-    """
-    # Account has "A100"
-    account_data = [
-        Row(account_id="A100", 
-            is_account_paid_in_full=0,
-            post_charge_off_account_settled_in_full_notification=0,
-            pre_charge_off_account_settled_in_full_notification=0,
-            posted_balance=999,
-            last_reported_1099_amount=123
-        ),
-    ]
-
-    # recoveries_df has NO matching row for "A100" -> those columns will be NULL
-    rec_data = [
-        Row(account_id="B200", asset_sales_notification=1)  # Some unrelated ID
-    ]
-
-    # customer_df also doesn't match "A100"
-    cust_data = [
-        Row(account_id="C300", bankruptcy_status="Open", bankruptcy_chapter="13")
-    ]
-
-    account_df = spark.createDataFrame(account_data)
-    rec_df = spark.createDataFrame(rec_data)
-    cust_df = spark.createDataFrame(cust_data)
-
-    # Now call your function
-    result_df = calculate_current_balance(account_df, rec_df, cust_df)
-    result = result_df.collect()[0]
-    # Confirm we didn't crash and see what the "current_balance_amount" is.
-    
-    # For example, if the code treats missing data as booleans = False,
-    # none of the "is_account_paid_in_full" or "asset_sales_notification" 
-    # conditions would be triggered. posted_balance=999 means it's > 0,
-    # so if there's no SIF/PIF, no bankruptcy, we might end up in 
-    # .otherwise(F.col(CURRENT_BALANCE) - F.col(LAST_1099_AMOUNT))  or
-    # .otherwise(F.col(LAST_1099_AMOUNT)) 
-    # depending on your code. Let's say you expect 123:
-    assert result["current_balance_amount"] == 123
-
-________
-
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.utils import AnalysisException
@@ -69,16 +13,15 @@ BANKRUPTCY_STATUS = "bankruptcy_status"
 BANKRUPTCY_CHAPTER = "bankruptcy_chapter"
 LAST_1099_AMOUNT = "last_reported_1099_amount"
 
+
 def calculate_current_balance(
     account_df: DataFrame,
     recoveries_df: DataFrame,
     customer_df: DataFrame
 ) -> DataFrame:
     """
-    Joins account_df, recoveries_df, customer_df on account_id (left joins),
-    then applies the business logic for current_balance_amount.
-    In Option A, we coalesce each potentially-null column to 0 before
-    casting to boolean, so that missing records become False.
+    Demonstrates handling NULL columns (due to left joins) using isNull + WHEN/OTHERWISE 
+    to assign default values before applying the final logic.
     """
 
     try:
@@ -89,36 +32,70 @@ def calculate_current_balance(
             .join(customer_df.alias("cust"), on="account_id", how="left")
         )
 
-        # 2) Cast integer columns to booleans, but coalesce to 0 first
+        # 2) For each column that might be NULL, use isNull + WHEN/OTHERWISE to set a default.
+        #    Example: boolean flags -> 0 -> cast("boolean"), numeric -> 0, string -> "" (adjust as needed).
+
+        # Boolean flags originally 0/1 -> default them to 0 if null
         calculated_df = (
             joined_df
-            # Coalesce to 0 for missing or null values
             .withColumn(
                 PIF_NOTIFICATION,
-                F.coalesce(F.col("is_account_paid_in_full"), F.lit(0)).cast("boolean")
+                F.when(F.col("is_account_paid_in_full").isNull(), F.lit(0))
+                 .otherwise(F.col("is_account_paid_in_full"))
+                 .cast("boolean")
             )
             .withColumn(
                 SIF_NOTIFICATION,
-                F.coalesce(
-                    F.col("post_charge_off_account_settled_in_full_notification"),
-                    F.lit(0)
-                ).cast("boolean")
+                F.when(F.col("post_charge_off_account_settled_in_full_notification").isNull(), F.lit(0))
+                 .otherwise(F.col("post_charge_off_account_settled_in_full_notification"))
+                 .cast("boolean")
             )
             .withColumn(
                 PRE_CO_SIF_NOTIFICATION,
-                F.coalesce(
-                    F.col("pre_charge_off_account_settled_in_full_notification"),
-                    F.lit(0)
-                ).cast("boolean")
+                F.when(F.col("pre_charge_off_account_settled_in_full_notification").isNull(), F.lit(0))
+                 .otherwise(F.col("pre_charge_off_account_settled_in_full_notification"))
+                 .cast("boolean")
             )
             .withColumn(
                 ASSET_SALES_NOTIFICATION,
-                F.coalesce(F.col("asset_sales_notification"), F.lit(0)).cast("boolean")
+                F.when(F.col("asset_sales_notification").isNull(), F.lit(0))
+                 .otherwise(F.col("asset_sales_notification"))
+                 .cast("boolean")
             )
         )
 
-        # 3) Define the logic for calculating the current balance.
-        #    Adjust the logic as needed; shown here as an example.
+        # Numeric columns -> default them to 0 if null (example: posted_balance, last_reported_1099_amount)
+        calculated_df = (
+            calculated_df
+            .withColumn(
+                CURRENT_BALANCE,
+                F.when(F.col(CURRENT_BALANCE).isNull(), F.lit(0))
+                 .otherwise(F.col(CURRENT_BALANCE))
+            )
+            .withColumn(
+                LAST_1099_AMOUNT,
+                F.when(F.col(LAST_1099_AMOUNT).isNull(), F.lit(0))
+                 .otherwise(F.col(LAST_1099_AMOUNT))
+            )
+        )
+
+        # String columns -> default them to "" if null (example: bankruptcy_status/chapter)
+        calculated_df = (
+            calculated_df
+            .withColumn(
+                BANKRUPTCY_STATUS,
+                F.when(F.col(BANKRUPTCY_STATUS).isNull(), F.lit(""))
+                 .otherwise(F.col(BANKRUPTCY_STATUS))
+            )
+            .withColumn(
+                BANKRUPTCY_CHAPTER,
+                F.when(F.col(BANKRUPTCY_CHAPTER).isNull(), F.lit(""))
+                 .otherwise(F.col(BANKRUPTCY_CHAPTER))
+            )
+        )
+
+        # 3) Apply the logic to compute current_balance_amount
+        #    (Adjust as needed for your actual requirements)
         calculated_df = calculated_df.withColumn(
             "current_balance_amount",
             F.when(
@@ -137,8 +114,8 @@ def calculate_current_balance(
                 F.col(BANKRUPTCY_STATUS) == "Discharged",
                 0
             )
-            # Example of otherwise subtracting last_1099 from posted_balance;
-            # If your real logic is just .otherwise(F.col(LAST_1099_AMOUNT)), adjust accordingly.
+            # Example "otherwise"—subtract last_1099 from posted_balance. 
+            # Or use .otherwise(F.col(LAST_1099_AMOUNT)) if that's your actual logic.
             .otherwise(F.col(CURRENT_BALANCE) - F.col(LAST_1099_AMOUNT))
         )
 
