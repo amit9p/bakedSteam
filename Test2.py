@@ -1,3 +1,10 @@
+
+It depends on how you want to treat NULL values in your conditional logic.
+
+If you are okay with “missing” (NULL) columns being interpreted as False, then COALESCE is the simplest, most explicit way to do it.
+
+If you do not use COALESCE, then any row missing those columns will wind up with NULL. This can cause your conditions in Spark SQL to evaluate to NULL rather than False, which might yield unexpected results.
+
 def test_mismatched_ids(spark):
     """
     Ensures that if 'recoveries_df' or 'customer_df' does NOT have a matching record,
