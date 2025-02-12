@@ -1,4 +1,8 @@
 
+F.when(F.col("some_column").isNull(), F.lit(0)).otherwise(F.col("some_column"))
+
+
+
 It depends on how you want to treat NULL values in your conditional logic.
 
 If you are okay with “missing” (NULL) columns being interpreted as False, then COALESCE is the simplest, most explicit way to do it.
