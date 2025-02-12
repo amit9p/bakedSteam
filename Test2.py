@@ -1,4 +1,48 @@
+def test_mismatched_ids(spark):
+    """
+    Ensures that if 'recoveries_df' or 'customer_df' does NOT have a matching record,
+    we still handle NULL columns gracefully.
+    """
+    # Account has "A100"
+    account_data = [
+        Row(account_id="A100", 
+            is_account_paid_in_full=0,
+            post_charge_off_account_settled_in_full_notification=0,
+            pre_charge_off_account_settled_in_full_notification=0,
+            posted_balance=999,
+            last_reported_1099_amount=123
+        ),
+    ]
 
+    # recoveries_df has NO matching row for "A100" -> those columns will be NULL
+    rec_data = [
+        Row(account_id="B200", asset_sales_notification=1)  # Some unrelated ID
+    ]
+
+    # customer_df also doesn't match "A100"
+    cust_data = [
+        Row(account_id="C300", bankruptcy_status="Open", bankruptcy_chapter="13")
+    ]
+
+    account_df = spark.createDataFrame(account_data)
+    rec_df = spark.createDataFrame(rec_data)
+    cust_df = spark.createDataFrame(cust_data)
+
+    # Now call your function
+    result_df = calculate_current_balance(account_df, rec_df, cust_df)
+    result = result_df.collect()[0]
+    # Confirm we didn't crash and see what the "current_balance_amount" is.
+    
+    # For example, if the code treats missing data as booleans = False,
+    # none of the "is_account_paid_in_full" or "asset_sales_notification" 
+    # conditions would be triggered. posted_balance=999 means it's > 0,
+    # so if there's no SIF/PIF, no bankruptcy, we might end up in 
+    # .otherwise(F.col(CURRENT_BALANCE) - F.col(LAST_1099_AMOUNT))  or
+    # .otherwise(F.col(LAST_1099_AMOUNT)) 
+    # depending on your code. Let's say you expect 123:
+    assert result["current_balance_amount"] == 123
+
+________
 
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
