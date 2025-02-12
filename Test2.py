@@ -1,4 +1,14 @@
 
+SELECT *
+FROM Table2 t2
+JOIN Table1 t1
+ON t2.LOAN_ACCT_NUM = t1.LOAN_ACCT_NUM
+AND t2.SLTN_ENRLMT_ID = t1.SLTN_ENRLMT_ID
+AND t2.EVT_TYPE_TXT = t1.EVT_TYPE_TXT;
+
+
+
+
 from pyspark.sql import DataFrame
 from pyspark.sql import functions as F
 from pyspark.sql.utils import AnalysisException
