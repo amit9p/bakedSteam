@@ -1,3 +1,9 @@
+UPDATE table_a
+SET a = my_sequence.NEXTVAL
+WHERE a IS NULL
+LIMIT 100;
+
+
 
 SELECT NEXTVAL('my_sequence');
 
