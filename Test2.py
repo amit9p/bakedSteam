@@ -1,3 +1,13 @@
+
+SELECT data_col1, data_col2, data_col3, data_col4, data_col5
+FROM t2
+EXCEPT
+SELECT data_col1, data_col2, data_col3, data_col4, data_col5
+FROM t1;
+
+
+
+
 UPDATE table_a
 SET a = my_sequence.NEXTVAL
 WHERE a IS NULL
