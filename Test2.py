@@ -1,50 +1,20 @@
 
-SELECT data_col1, data_col2, data_col3, data_col4, data_col5
+WITH data_diff AS (
+    SELECT data_col1, data_col2, data_col3, data_col4, data_col5
+    FROM t2
+    EXCEPT
+    SELECT data_col1, data_col2, data_col3, data_col4, data_col5
+    FROM t1
+)
+
+
+
+SELECT t2.audit_col1, t2.audit_col2, t2.audit_col3, t2.audit_col4, t2.audit_col5, 
+       t2.data_col1, t2.data_col2, t2.data_col3, t2.data_col4, t2.data_col5
 FROM t2
-EXCEPT
-SELECT data_col1, data_col2, data_col3, data_col4, data_col5
-FROM t1;
-
-
-
-
-UPDATE table_a
-SET a = my_sequence.NEXTVAL
-WHERE a IS NULL
-LIMIT 100;
-
-
-
-SELECT NEXTVAL('my_sequence');
-
-
-
-INSERT INTO prod_table (LOAN_ACCT_NUM, SLTN_ENRLMT_ID, EVT_TYPE_TXT)
-SELECT c.LOAN_ACCT_NUM, c.SLTN_ENRLMT_ID, c.EVT_TYPE_TXT
-FROM collab_table c
-JOIN coaf_db_collab.lab_svcg.delta_Feb2025 d
-    ON c.LOAN_ACCT_NUM = d.LOAN_ACCT_NUM
-    AND c.SLTN_ENRLMT_ID = d.SLTN_ENRLMT_ID
-    AND c.EVT_TYPE_TXT = d.EVT_TYPE_TXT
-WHERE NOT EXISTS (
-    SELECT 1 FROM prod_table p
-    WHERE p.LOAN_ACCT_NUM = c.LOAN_ACCT_NUM
-    AND p.SLTN_ENRLMT_ID = c.SLTN_ENRLMT_ID
-    AND p.EVT_TYPE_TXT = c.EVT_TYPE_TXT
-);
-
-
-
-
-CREATE OR REPLACE TEMPORARY TABLE coaf_db_collab.lab_svcg.delta_Feb2025 AS (
-    SELECT DISTINCT t2.LOAN_ACCT_NUM, t2.SLTN_ENRLMT_ID, t2.EVT_TYPE_TXT
-    FROM coaf_db_collab.lab_svcg.DELQ_ACCT_SLTN_PMT_PLAN_FACT t2
-    WHERE NOT EXISTS (
-        SELECT 1 FROM DELQ_ACCT_SLTN_PMT_PLAN_FACT t1
-        WHERE t1.PMT_PLAN_DETL_ID = t2.PMT_PLAN_DETL_ID
-        AND t1.EVT_TYPE_TXT = t2.EVT_TYPE_TXT
-        AND t1.PMT_STAT_TXT = t2.PMT_STAT_TXT
-        AND t1.PMT_UPDTD_TS = t2.PMT_UPDTD_TS
-        AND t1.PMT_LAST_STAT_TS = t2.PMT_LAST_STAT_TS
-    )
-);
+JOIN data_diff d
+ON t2.data_col1 = d.data_col1
+AND t2.data_col2 = d.data_col2
+AND t2.data_col3 = d.data_col3
+AND t2.data_col4 = d.data_col4
+AND t2.data_col5 = d.data_col5;
