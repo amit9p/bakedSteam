@@ -1,23 +1,50 @@
 
-WITH t2_with_id AS (
-    SELECT *, ROW_NUMBER() OVER (PARTITION BY data_col1, data_col2, data_col3, data_col4, data_col5 ORDER BY audit_col1) AS row_id
-    FROM t2
-),
-data_diff AS (
-    SELECT data_col1, data_col2, data_col3, data_col4, data_col5
-    FROM t2_with_id
-    EXCEPT
-    SELECT data_col1, data_col2, data_col3, data_col4, data_col5
-    FROM t1
-),
-filtered_rows AS (
-    SELECT t2.*
-    FROM t2_with_id t2
-    JOIN data_diff d
-    ON t2.data_col1 = d.data_col1
-    AND t2.data_col2 = d.data_col2
-    AND t2.data_col3 = d.data_col3
-    AND t2.data_col4 = d.data_col4
-    AND t2.data_col5 = d.data_col5
-)
-SELECT * FROM filtered_rows;
+from pyspark.sql import Row
+import pytest
+
+def test_mismatched_ids(spark):
+    """
+    Ensures that if 'recoveries_df' or 'customer_df' does NOT have a matching record,
+    we still handle NULL columns gracefully.
+    """
+
+    account_data = [
+        Row(account_id="A100", is_account_paid_in_full=0,
+            post_charge_off_account_settled_in_full_notification=0,
+            pre_charge_off_account_settled_in_full_notification=0,
+            posted_balance=777, last_reported_1099_amount=754),
+
+        Row(account_id="A200", is_account_paid_in_full=0,
+            post_charge_off_account_settled_in_full_notification=0,
+            pre_charge_off_account_settled_in_full_notification=0,
+            posted_balance=666, last_reported_1099_amount=654),
+    ]
+
+    rec_data = [
+        Row(account_id="A300", asset_sales_notification=0),
+        Row(account_id="A400", asset_sales_notification=1),
+    ]
+
+    cust_data = [
+        Row(account_id="A500", bankruptcy_status="Closed", bankruptcy_chapter="7"),
+        Row(account_id="A600", bankruptcy_status="Open", bankruptcy_chapter="13"),
+    ]
+
+    account_df = spark.createDataFrame(account_data)
+    rec_df = spark.createDataFrame(rec_data)
+    cust_df = spark.createDataFrame(cust_data)
+
+    result_df = calculate_current_balance(account_df, rec_df, cust_df)
+
+    # ✅ Define the expected DataFrame for full assertion
+    expected_data = [
+        Row(account_id="A100", current_balance_amount=23),  # 777 - 754
+        Row(account_id="A200", current_balance_amount=12),  # 666 - 654
+    ]
+
+    expected_df = spark.createDataFrame(expected_data)
+
+    # ✅ Assert Full DataFrame Equality
+    assert result_df.exceptAll(expected_df).isEmpty() and expected_df.exceptAll(result_df).isEmpty(), "DataFrames do not match!"
+
+    print("Test passed: Full DataFrame assertion successful!")
