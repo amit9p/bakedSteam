@@ -1,4 +1,8 @@
 
+
+> "The data itself contains values like 'Open' and 'Discharged' with the first letter capitalized. Since we're matching against the exact data values, there's no need to convert to lowercase. However, if there's a chance of inconsistent casing in future data, we can use .lower() on both sides to ensure case-insensitive comparison."
+
+
 in the box (^[a-zA-Z]( *[a-zA-Z])*$) is 
 
 
