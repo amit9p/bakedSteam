@@ -1,4 +1,7 @@
 
+Data quality checks ensure that data is accurate, consistent, reliable, and usable throughout its lifecycle in a data lake and data pipelines. Poor data quality can lead to incorrect analytics, faulty machine learning models, and poor business decisions.
+
+
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
