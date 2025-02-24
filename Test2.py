@@ -1,25 +1,17 @@
 
+.when(bankruptcy_status_open | bankruptcy_status_discharged & 
+      to_date(bankruptcy_file_date, "MMddyyyy") < to_date(charge_off_date, "MMddyyyy"), lit("pre-CO Account Status"))
 
-^\d{10}$
-^[a-zA-Z0-9]{9}$
+This condition applies to both OPEN and DISCHARGED bankruptcy statuses.
 
-^[B0-6DL]{24}$
-
-
-
-^\d{2}$
-
-^\d{4}$
-^[a-zA-Z0-9]{16}$
+If an account satisfies both conditions (e.g., status = discharged but file_date < charge_off_date), it might unintentionally assign pre-CO when another rule should apply.
 
 
-import json
+Solution:
 
-file_path = "input.json"  # Replace with your file path
+Break them into explicit conditions:
 
-try:
-    with open(file_path, "r") as file:
-        json.load(file)
-    print("Valid JSON ✅")
-except json.JSONDecodeError as e:
-    print(f"Invalid JSON ❌: {e}")
+.when(bankruptcy_status_open & to_date(bankruptcy_file_date, "MMddyyyy") < to_date(charge_off_date, "MMddyyyy"), lit("pre-CO"))
+.when(bankruptcy_status_discharged & to_date(bankruptcy_file_date, "MMddyyyy") < to_date(charge_off_date, "MMddyyyy"), lit("pre-CO"))
+
+This ensures that each status is evaluated separately and avoids unintended assignment.
