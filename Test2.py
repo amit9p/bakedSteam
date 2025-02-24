@@ -1,4 +1,7 @@
 
+^[a-zA-Z0-9]{16}$
+
+
 import json
 
 file_path = "input.json"  # Replace with your file path
