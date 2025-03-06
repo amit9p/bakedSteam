@@ -1,3 +1,13 @@
+
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.1.6  # Use the latest version
+    hooks:
+      - id: ruff
+      - id: ruff-format
+
+
+
 pip install flake8 black pylint
 
 flake8 .
