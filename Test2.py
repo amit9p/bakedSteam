@@ -1,4 +1,15 @@
 
+
+make file
+
+
+pre-commit:
+    pre-commit run --all-files
+
+
+make pre-commit
+
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.1.6  # Use the latest version
