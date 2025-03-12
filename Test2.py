@@ -1,4 +1,50 @@
 
+def parse_arguments():
+    parser = argparse.ArgumentParser(
+        description="1. Path to the input JSON file with information to create ruleset, dataset, job, and rules\n"
+                    "2. Environment to operate on: nonprod or prod\n"
+                    "3. The set of rules which the job is created with\n"
+                    "4. Field names to be processed (one or more)"
+    )
+
+    parser.add_argument("--input_json", type=str, required=True, help="Path to the input JSON file")
+    parser.add_argument("--env", type=str, required=True, choices=['nonprod', 'prod'], help="Environment to operate on")
+    parser.add_argument("--rule_type", type=str, required=True, help="The set of rules which the job is created with")
+    parser.add_argument("--field_name", type=str, nargs='+', required=True, help="One or more field names to be processed")
+
+    return parser.parse_args()
+
+
+
+
+def main():
+    # Parse arguments
+    args = parse_arguments()
+
+    # Extract individual arguments
+    input_json_path = args.input_json
+    env = args.env
+    rule_type = args.rule_type
+    field_names = args.field_name  # This is a list of field names
+
+    # Print or use field names in further processing
+    print("Input JSON:", input_json_path)
+    print("Environment:", env)
+    print("Rule Type:", rule_type)
+    print("Field Names:", field_names)  # This will print all provided field names as a list
+
+    # Example: Processing each field
+    for field in field_names:
+        print(f"Processing field: {field}")
+
+# Run main function
+if __name__ == "__main__":
+    main()
+
+
+
+
+
 import pytest
 import json
 import requests
