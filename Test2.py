@@ -1,4 +1,23 @@
 
+def test_create_rules_failure():
+    """Test rule creation failure scenario."""
+    headers = {"Authorization": f"Bearer {MOCK_ACCESS_TOKEN}"}
+    base_url = MOCK_ENV_URLS["nonprod"]
+
+    with patch("requests.post") as mock_post:
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"failedRulesList": [{"ruleName": "Rule_A"}]}  # 'errorCode' missing
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
+
+        create_rules("1234", MOCK_RULES, headers, base_url)
+
+        # Ensure it prints correct error handling message without KeyError
+        assert "Failed to create the following rules:" in capsys.readouterr().out
+
+
+
+
 
 import pytest
 import requests
