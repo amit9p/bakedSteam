@@ -1,4 +1,7 @@
 
+with patch("ecbr_calculations.edq.edq_rule_engine.parse_arguments") as mock_args:
+    ...
+
 
 for rule in failed_rules:
     print(f"Rule Name: {rule['ruleName']}")
