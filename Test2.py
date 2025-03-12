@@ -1,4 +1,34 @@
 
+from pathlib import Path
+
+# Get the current script directory
+current_dir = Path(__file__).resolve().parent
+
+# Move up one level to reach 'edq' directory
+edq_dir = current_dir.parent
+
+# Construct the 'rules' directory path using '..'
+rules_dir = edq_dir / "edq" / "rules"
+
+print("Rules Directory:", rules_dir)
+
+# Example of constructing JSON file paths dynamically
+def get_json_file_path(field_name):
+    """Returns the full path of a JSON file in the 'rules' directory."""
+    file_path = rules_dir / f"{field_name}.json"
+    return file_path if file_path.exists() else None
+
+# Example Usage
+json_filename = "portfolio_type"
+full_path = get_json_file_path(json_filename)
+
+if full_path:
+    print("Full path to JSON file:", full_path)
+else:
+    print(f"File {json_filename}.json not found in rules directory")
+
+
+
 import os
 from pathlib import Path
 
