@@ -1,4 +1,32 @@
 
+import os
+from pathlib import Path
+
+# Get the current working directory (where edq_rule_engine.py is located)
+current_dir = Path(__file__).resolve().parent  # Path of edq_rule_engine.py
+
+# Move up one level to reach 'edq' directory
+edq_dir = current_dir.parent
+
+# Construct full path to the 'rules' folder
+rules_dir = edq_dir / "rules"
+
+def get_json_file_path(filename):
+    """Constructs the full path for a given JSON file in the 'rules' directory."""
+    file_path = rules_dir / filename
+    if file_path.exists():
+        return str(file_path)
+    else:
+        raise FileNotFoundError(f"File not found: {file_path}")
+
+# Example Usage
+json_filename = "first_name.json"
+full_path = get_json_file_path(json_filename)
+
+print("Full path to JSON file:", full_path)
+
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="1. Path to the input JSON file with information to create ruleset, dataset, job, and rules\n"
