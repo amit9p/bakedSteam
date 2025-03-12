@@ -1,4 +1,28 @@
 
+
+for rule in failed_rules:
+    print(f"Rule Name: {rule['ruleName']}")
+    print(f"Error Code: {rule.get('errorCode', 'N/A')}")
+
+
+def test_create_rules_failure():
+    """Test rule creation failure scenario."""
+    headers = {"Authorization": f"Bearer {MOCK_ACCESS_TOKEN}"}
+    base_url = MOCK_ENV_URLS["nonprod"]
+
+    with patch("requests.post") as mock_post:
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "failedRulesList": [{"ruleName": "Rule_A", "errorCode": "Some_Error"}]  # Ensure 'errorCode' exists
+        }
+        mock_response.raise_for_status = MagicMock()
+        mock_post.return_value = mock_response
+
+        create_rules("1234", MOCK_RULES, headers, base_url)
+
+
+
+
 def test_create_rules_failure():
     """Test rule creation failure scenario."""
     headers = {"Authorization": f"Bearer {MOCK_ACCESS_TOKEN}"}
