@@ -1,5 +1,7 @@
 
+
 import pytest
+import sys
 from unittest.mock import patch
 from ecbr_calculations.edq.edq_rule_engine import main  
 
@@ -16,9 +18,11 @@ def test_main_missing_keys_debug():
                 try:
                     main()
                 except SystemExit:
-                    pass  # Catch sys.exit() if main() exits the process
+                    print("\n🚀 main() called sys.exit(), exiting safely!")
+                except Exception as e:
+                    print(f"\n🔥 Unexpected error: {e}")
 
         # Debugging: Print all mock calls to verify expected output
-        print("\nCaptured mock print calls:")
+        print("\n📌 Captured print calls:")
         for call in mock_print.call_args_list:
             print(call)
