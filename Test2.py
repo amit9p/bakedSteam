@@ -1,5 +1,8 @@
 
 
+export PYTHONPATH=$(pwd)
+python -m ecbr_calculations.edq.scripts.edq_rule_engine --env nonprod --rule_type non_suppressed --field_name first_name portfolio_type
+
 
 python -m ecbr_calculations.edq.scripts.edq_rule_engine --env nonprod --rule_type non_suppressed --field_name first_name portfolio_type
 
