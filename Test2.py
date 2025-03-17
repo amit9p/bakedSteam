@@ -1,6 +1,10 @@
 
 
 
+python -m ecbr_calculations.edq.scripts.edq_rule_engine --env nonprod --rule_type non_suppressed --field_name first_name portfolio_type
+
+
+
 -- Step 1: Identify missing records based on all data columns except audit columns (B, C)
 WITH missing_records AS (
     SELECT * FROM Table_B
