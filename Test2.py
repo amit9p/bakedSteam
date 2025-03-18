@@ -1,4 +1,45 @@
 
+def test_create_rules():
+    """
+    Make sure the URL below matches exactly what your code calls:
+    POST https://api-it.cloud.capitalone.com/internal-operations/data-management/data-quality-configuration/job-configuration-rules/bulk.create
+    """
+    import requests_mock
+
+    with requests_mock.Mocker() as m:
+        # <-- Match precisely the "bulk.create" endpoint
+        fake_endpoint = (
+            "https://api-it.cloud.capitalone.com/"
+            "internal-operations/data-management/"
+            "data-quality-configuration/job-configuration-rules/bulk.create"
+        )
+
+        # Mock the response your code expects
+        mock_response_body = {
+            "successfulRuleList": [
+                {"ruleId": "100", "ruleName": "TestRule1"}
+            ],
+            "failedRuleList": [
+                {"ruleName": "FailedRule", "errorCode": "ERR123"}
+            ]
+        }
+        m.post(fake_endpoint, json=mock_response_body, status_code=200)
+
+        # Adjust these to match what your code actually passes in
+        job_id    = "job123"
+        rule_list = [{"ruleName": "TestRule1"}, {"ruleName": "FailedRule"}]
+        headers   = {"Authorization": "Bearer test_token"}
+        base_url  = "https://api-it.cloud.capitalone.com"  # no trailing slash if that's what code uses
+
+        from edq_rule_engine import create_rules
+
+        # Now it should find the correct mock, not raise a NoMockAddress
+        try:
+            create_rules(job_id, rule_list, headers, base_url)
+        except Exception as exc:
+            pytest.fail(f"create_rules raised an unexpected Exception: {exc}")
+
+#####
 
 import json
 import pytest
