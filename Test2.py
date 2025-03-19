@@ -1,4 +1,21 @@
 
+
+^[A-Za-z]+(?:[\s-][A-Za-z]+)*$
+
+^[A-Za-z]+(?:[\s-][A-Za-z]+)*$
+
+Explanation:
+
+^ → Start of string
+
+[A-Za-z]+ → Ensures the first part contains at least one letter
+
+(?:[\s-][A-Za-z]+)* → Allows multiple words separated by spaces or hyphens
+
+$ → End of string
+
+
+
 ^[JS3-9]?$
 
 Explanation:
