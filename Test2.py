@@ -1,4 +1,18 @@
 
+^[JS3-9]?$
+
+Explanation:
+
+^ and $ anchor the match to the start/end of the string.
+
+[JS3-9]? means “optionally one character” from J, S, or 3 through 9.
+
+If present, it must be in that set.
+
+If absent, you get the blank (empty) match.
+
+
+
 import pytest
 import requests_mock
 from edq_rule_engine import create_rules
