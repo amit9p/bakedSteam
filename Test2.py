@@ -1,4 +1,11 @@
 
+
+CLIENT_ID=your-client-id
+CLIENT_SECRET=your-client-secret
+CERT_PATH=/path/to/your/certificate
+
+
+
 ^[A-Za-z0-9]{9}$
 
 
