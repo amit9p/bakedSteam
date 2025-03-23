@@ -1,4 +1,6 @@
 
+filtered_df = df_fs.filter(df_fs.job_execution_id == my_job_id)
+
 
 # Replace with your actual job_execution_id
 my_job_id = "your_job_execution_id_value"
