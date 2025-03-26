@@ -1,4 +1,59 @@
 
+
+import boto3
+
+def list_s3_objects(
+    access_key: str,
+    secret_key: str,
+    region: str,
+    bucket_name: str,
+    prefix: str
+):
+    """
+    Lists all objects under a specified S3 bucket folder.
+
+    :param access_key: AWS access key ID
+    :param secret_key: AWS secret access key
+    :param region: AWS region (e.g., 'us-east-1')
+    :param bucket_name: Name of the S3 bucket
+    :param prefix: Folder path (e.g. 'myfolder/') 
+                   or '' for entire bucket
+    """
+
+    # Create a low-level service client by name using the given credentials
+    s3_client = boto3.client(
+        "s3",
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name=region
+    )
+
+    # Use a paginator to handle large listings automatically
+    paginator = s3_client.get_paginator("list_objects_v2")
+
+    # Paginate through all objects that start with the prefix
+    for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
+        # Each page can contain up to 1000 keys
+        contents = page.get("Contents", [])
+        for obj in contents:
+            # Print the object key (path) in the bucket
+            print(obj["Key"])
+
+if __name__ == "__main__":
+    # Example usage
+    list_s3_objects(
+        access_key="<ACCESS_KEY>",
+        secret_key="<SECRET_KEY>",
+        region="<REGION>",           # e.g., 'us-east-1'
+        bucket_name="<BUCKET_NAME>",
+        prefix="myfolder/"           # or '' for entire bucket
+    )
+
+
+
+
+
+#################
 import pytest
 import requests
 import requests_mock
