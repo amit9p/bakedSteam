@@ -1,44 +1,19 @@
 
+Here's a basic regex that can help you identify if a string looks like a US address:
 
-import boto3
+^\d+\s+([A-Za-z0-9\s]+),\s*([A-Za-z\s]+),\s*(AL|AK|AZ|AR|CA|CO|CT|DE|FL|GA|HI|ID|IL|IN|IA|KS|KY|LA|ME|MD|MA|MI|MN|MS|MO|MT|NE|NV|NH|NJ|NM|NY|NC|ND|OH|OK|OR|PA|RI|SC|SD|TN|TX|UT|VT|VA|WA|WV|WI|WY)\s+\d{5}(-\d{4})?$
 
-def list_s3_objects_with_session(
-    access_key: str,
-    secret_key: str,
-    session_token: str,
-    region: str,
-    bucket_name: str,
-    prefix: str
-):
-    """
-    Lists all objects under a specified S3 bucket folder,
-    using temporary credentials (session token).
-    """
 
-    # Create the S3 client with the session token
-    s3_client = boto3.client(
-        "s3",
-        aws_access_key_id=access_key,
-        aws_secret_access_key=secret_key,
-        aws_session_token=session_token,  # include session token
-        region_name=region
-    )
+---
 
-    # Use a paginator to handle large listings automatically
-    paginator = s3_client.get_paginator("list_objects_v2")
+✅ Explanation:
 
-    # Paginate through all objects that start with the prefix
-    for page in paginator.paginate(Bucket=bucket_name, Prefix=prefix):
-        contents = page.get("Contents", [])
-        for obj in contents:
-            print(obj["Key"])
+^\d+ → Starts with a house/building number
 
-if __name__ == "__main__":
-    list_s3_objects_with_session(
-        access_key="<ACCESS_KEY>",
-        secret_key="<SECRET_KEY>",
-        session_token="<SESSION_TOKEN>",
-        region="<REGION>",         # e.g., "us-east-1"
-        bucket_name="<BUCKET_NAME>",
-        prefix="myfolder/"         # or "" for entire bucket
-    )
+([A-Za-z0-9\s]+) → Street name
+
+([A-Za-z\s]+) → City name
+
+(AL|AK|...|WY) → US State Code (mandatory)
+
+\d{5}(-\d{4})? → ZIP code (5-digit or ZIP+4)
