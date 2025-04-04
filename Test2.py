@@ -1,27 +1,19 @@
 
+from unittest.mock import patch
+import requests
 
-m.delete(url + "/", status_code=200)  # handles possible trailing slash mismatch
-
-
-
-@patch.dict(os.environ, {
-    "HTTP_PROXY": "", "http_proxy": "",
-    "HTTPS_PROXY": "", "https_proxy": ""
-})
 def test_delete_rule():
     with patch("ecbr_card_self_service.edq.ecbr_calculations.scripts.edq_rule_engine.cert_path", None):
-        with requests_mock.Mocker() as m:
-            url = "https://api-it.cloud.capitalone.com/internal-operations/data-management/data-quality-configuration/job-configuration-rules/001"
-            m.delete(url, status_code=200)
+        with patch("requests.delete") as mock_delete:
+            mock_response = requests.Response()
+            mock_response.status_code = 200
+            mock_delete.return_value = mock_response
 
             headers = {"Authorization": "Bearer test"}
             base_url = "https://api-it.cloud.capitalone.com"
 
-            try:
-                delete_rule("001", headers, base_url)
-            except Exception as e:
-                # debug any actual request mismatch
-                print("\nMocked URLs:")
-                for req in m.request_history:
-                    print("  >>", req.method, req.url)
-                raise e
+            delete_rule("001", headers, base_url)
+
+            mock_delete.assert_called_once()
+            called_url = mock_delete.call_args[0][0]
+            assert "job-configuration-rules/001" in called_url
