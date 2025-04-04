@@ -1,5 +1,9 @@
 
 
+m.delete(url + "/", status_code=200)  # handles possible trailing slash mismatch
+
+
+
 @patch.dict(os.environ, {
     "HTTP_PROXY": "", "http_proxy": "",
     "HTTPS_PROXY": "", "https_proxy": ""
