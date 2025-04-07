@@ -1,4 +1,8 @@
 
+^(?:(Apt|Apartment|Suite|Ste|Unit|Rm|Room|Bldg|Building|FL|Floor)\s*#?\s*\w+.*)?$
+
+
+
 from unittest.mock import patch
 import requests
 
