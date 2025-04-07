@@ -1,6 +1,18 @@
 
 ^(?:(Apt|Apartment|Suite|Ste|Unit|Rm|Room|Bldg|Building|FL|Floor)\s*#?\s*\w+.*)?$
 
+    ^...$ → Ensures it matches the entire line
+
+(?:...) → Non-capturing group
+
+Apt|Suite|Unit|... → Acceptable address types
+
+\s*#?\s* → Optional whitespace and optional “#”
+
+\w+.* → At least one character or number and rest of the line (e.g., 4B, 5, Room 202)
+
+? → The whole thing is optional since some people leave Address Line 2 blank
+
 
 
 from unittest.mock import patch
