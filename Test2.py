@@ -1,36 +1,32 @@
 
 from pyspark.sql import SparkSession
-
-# Sample list of account IDs to filter
-account_ids = ['A1001', 'A1003', 'A1005']
-
-# Assuming df is your DataFrame and it has a column named 'account_id'
-filtered_df = df.filter(df['account_id'].isin(account_ids))
-
-# Show the result
-filtered_df.show()
-
-
-№######
+import requests
 import json
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
 
-# Start Spark session
+# Step 1: Call the API
+headers = {
+    "Content-Type": "application/json",
+    "Accept": "application/json;v=1",
+    "Authorization": "Bearer your_token_here"
+}
+url = base_url + result_api_url + "?jobId=" + job_id + "&datasetConfigurationId=" + datasetConfigurationId
+response = requests.get(url, headers=headers, verify=False)
+
+# Step 2: Convert API response to JSON
+json_data = json.loads(response.text)
+
+# Step 3: Start Spark session
 spark = SparkSession.builder.appName("ParseJSON").getOrCreate()
 
-# If reading from file
-with open("/mnt/data/file-Jk1NVM8oNoiiygAPFDvxcT", "r") as file:
-    json_text = file.read()
+# Step 4: Parallelize and create DataFrame
+rdd = spark.sparkContext.parallelize([json_data])
+df = spark.read.json(rdd)
 
-# Parse as JSON list
-json_data = json.loads(json_text)
+# Step 5: Print schema
+df.printSchema()
 
-# Create Spark DataFrame
-df = spark.read.json(spark.sparkContext.parallelize(json_data))
+# Optional: Show a sample
+df.show(truncate=False)
 
-# Filter where result == "FAIL"
-failed_df = df.filter(col("result") == "FAIL")
-
-# Select relevant columns
-failed_df.select("executionTimestamp", "ruleId", "fieldName", "result").show(truncate=False)
+# If you want to extract specific fields (e.g. "jobId", "status"), use:
+# df.select("jobId", "status").show()
