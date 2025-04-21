@@ -1,4 +1,31 @@
 
+print(">>>", failing_sample, type(failing_sample))
+
+
+for rule in rules:
+    if rule.get("result") == "FAIL":
+        field_name = rule.get("fieldName")
+
+        failing_samples = rule.get("failingRuleSampleData", [])
+        if isinstance(failing_samples, str):
+            # If it's still a string, parse it again
+            failing_samples = json.loads(failing_samples)
+
+        for failing_sample in failing_samples:
+            data_list = failing_sample.get("data", [])
+
+            for d in data_list:
+                if d.get("fieldName") == "account_id":
+                    account_id = d.get("value")
+
+                    if field_name not in field_account_dict:
+                        field_account_dict[field_name] = []
+                    field_account_dict[field_name].append(account_id)
+
+
+#####
+
+
 field_account_dict = {}
 
 entry = data[0]  # assuming data is a list with one main entry
