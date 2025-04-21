@@ -1,4 +1,8 @@
 
+.config("spark.jars", "https://artifactory.cloud.capitalone.com/artifactory/libs-release-local/com/amazonaws/aws-java-sdk/1.11.102/aws-java-sdk-1.11.102.jar,https://artifactory.cloud.capitalone.com/artifactory/libs-release-local/org/apache/hadoop/hadoop-aws/3.3.0/hadoop-aws-3.3.0.jar")
+
+
+
 import requests
 import json
 
