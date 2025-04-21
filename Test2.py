@@ -2,44 +2,52 @@
 import requests
 import json
 
-# Setup API request
-headers = {
-    "Content-Type": "application/json",
-    "Accept": "application/json;v=1",
-    "Authorization": "Bearer " + str(oauthToken)
-}
-url = base_url + result_api_url + "?jobId=" + job_id + "&datasetConfigurationId=" + datasetConfigurationId
+def process_failed_rules(base_url, result_api_url, job_id, datasetConfigurationId, oauthToken):
+    url = base_url + result_api_url + "?jobId=" + job_id + "&datasetConfigurationId=" + datasetConfigurationId
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json;v=1",
+        "Authorization": "Bearer " + str(oauthToken)
+    }
 
-# Make API call
-api_call_response = requests.get(url, headers=headers, verify=False)
-data = json.loads(api_call_response.text)
+    response = requests.get(url, headers=headers, verify=False)
+    data = json.loads(response.text)
 
-# Initialize final output dict
-field_account_dict = {}
+    field_account_dict = {}
 
-# Work on the first response entry
-entry = data[0]
-rules = entry.get("ruleResults", [])
+    entry = data[0]
+    rules = entry.get("ruleResults", [])
 
-for rule in rules:
-    if rule.get("result") == "FAIL":
-        field_name = rule.get("fieldName")  # e.g. "ssn", "state_code", etc.
+    for rule in rules:
+        if rule.get("result") == "FAIL":
+            field_name = rule.get("fieldName")
+            failing_samples = rule.get("failingRuleSampleData", {})
+            data_blocks = failing_samples.get("data", [])
 
-        # Safely get the failing sample structure
-        failing_samples = rule.get("failingRuleSampleData", {})
+            for data_list in data_blocks:
+                for d in data_list:
+                    if d.get("fieldName") == "account_id":
+                        account_id = d.get("value")
 
-        # Extract data blocks (should be a list of lists of dicts)
-        data_blocks = failing_samples.get("data", [])
+                        if field_name not in field_account_dict:
+                            field_account_dict[field_name] = []
 
-        for data_list in data_blocks:
-            for d in data_list:
-                if d.get("fieldName") == "account_id":
-                    account_id = d.get("value")
+                        field_account_dict[field_name].append(account_id)
 
-                    if field_name not in field_account_dict:
-                        field_account_dict[field_name] = []
+    return field_account_dict
 
-                    field_account_dict[field_name].append(account_id)
 
-# Output result
-print(field_account_dict)
+def main():
+    base_url = "https://api.example.com/"
+    result_api_url = "data-management/data-quality-results/rules-result"
+    job_id = "your_job_id_here"
+    datasetConfigurationId = "your_dataset_config_id_here"
+    oauthToken = "your_oauth_token_here"
+
+    result = process_failed_rules(base_url, result_api_url, job_id, datasetConfigurationId, oauthToken)
+    print("Failed Rules Account IDs by Field:")
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()
