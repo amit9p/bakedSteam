@@ -2,6 +2,35 @@
 print(">>>", failing_sample, type(failing_sample))
 
 
+
+field_name = rule.get("fieldName")
+print("field_name")
+failing_samples = rule.get("failingRuleSampleData", {})
+
+# Just access the 'data' list of lists
+data_blocks = failing_samples.get("data", [])
+
+for data_list in data_blocks:  # each item here is a list of dicts
+    for d in data_list:
+        if d.get("fieldName") == "account_id":
+            account_id = d.get("value")
+
+            if field_name not in field_account_dict:
+                field_account_dict[field_name] = []
+
+            field_account_dict[field_name].append(account_id)
+
+
+#÷÷÷÷÷÷
+
+
+
+
+
+
+
+
+
 for rule in rules:
     if rule.get("result") == "FAIL":
         field_name = rule.get("fieldName")
