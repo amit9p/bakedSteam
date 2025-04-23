@@ -1,18 +1,19 @@
 
-def read_with_credentials(spark, access_key, secret_key, session_token, s3_path):
-    hadoop_conf = spark._jsc.hadoopConfiguration()
-    hadoop_conf.set("fs.s3a.access.key", access_key)
-    hadoop_conf.set("fs.s3a.secret.key", secret_key)
-    hadoop_conf.set("fs.s3a.session.token", session_token)
-    return spark.read.parquet(s3_path)
+from pyspark.sql import functions as F
 
-# Example
-spark = SparkSession.builder.appName("SingleSpark").getOrCreate()
+# Step 1: Get the latest timestamp
+latest_ts = df.select(F.max("created_timestamp_utc_timestamp")).collect()[0][0]
 
-df1 = read_with_credentials(spark, access_key1, secret_key1, session_token1, "s3a://bucket1/path")
-df2 = read_with_credentials(spark, access_key2, secret_key2, session_token2, "s3a://bucket2/path")
+# Step 2: Filter the DataFrame to only rows with the latest timestamp
+latest_df = df.filter(F.col("created_timestamp_utc_timestamp") == latest_ts)
 
-df1.show()
-df2.show()
+# Step 3: Group by field_name and collect unique primary_keys
+result_df = (
+    latest_df.select("field_name", "primary_key")
+    .distinct()
+    .groupBy("field_name")
+    .agg(F.collect_set("primary_key").alias("unique_primary_keys"))
+)
 
-spark.stop()
+# Show the result
+result_df.show(truncate=False)
