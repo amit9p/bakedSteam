@@ -1,5 +1,25 @@
 
 import os
+import json
+
+# Get current directory (where script is located)
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Build full path to the JSON file
+json_file_path = os.path.join(current_dir, "final_output.json")
+
+# Read JSON file
+with open(json_file_path, "r") as f:
+    data = json.load(f)
+
+# Now 'data' is a Python list/dict from the JSON
+print(data)
+
+
+
+
+
+import os
 import shutil
 
 # Step 1: Write the JSON as a single file into a temporary folder
