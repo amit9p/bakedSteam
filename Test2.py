@@ -1,11 +1,11 @@
 
-for field, account_ids in result_api.items():
-    print(f"\n--- Records for field: {field} ---")
-    
-    # Remove duplicates from account_ids
-    unique_ids = list(set(account_ids))
-    
-    base_df.select("account_id", field) \
-        .filter(base_df["account_id"].isin(unique_ids)) \
-        .distinct() \
-        .show(truncate=False)
+import os
+
+# Get the directory where the current script is located
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# Define output path
+output_path = os.path.join(current_dir, "output_json")
+
+# Write DataFrame as a single JSON file
+result_df.coalesce(1).write.mode("overwrite").json(output_path)
