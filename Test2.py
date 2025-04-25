@@ -2,6 +2,22 @@
 import os
 import json
 
+current_dir = os.path.dirname(os.path.abspath(__file__))
+json_file_path = os.path.join(current_dir, "final_output.json")
+
+# Read each line and load it separately
+with open(json_file_path, "r") as f:
+    data = [json.loads(line) for line in f]
+
+print(data)
+
+
+
+
+
+import os
+import json
+
 # Get current directory (where script is located)
 current_dir = os.path.dirname(os.path.abspath(__file__))
 
