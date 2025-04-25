@@ -1,11 +1,20 @@
 
 import os
+import shutil
 
-# Get the directory where the current script is located
+# Step 1: Write the JSON as a single file into a temporary folder
 current_dir = os.path.dirname(os.path.abspath(__file__))
+temp_output_path = os.path.join(current_dir, "temp_output_json")
 
-# Define output path
-output_path = os.path.join(current_dir, "output_json")
+result_df.coalesce(1).write.mode("overwrite").json(temp_output_path)
 
-# Write DataFrame as a single JSON file
-result_df.coalesce(1).write.mode("overwrite").json(output_path)
+# Step 2: Move the single JSON file out and clean up
+# Find the part file
+for file_name in os.listdir(temp_output_path):
+    if file_name.startswith("part-") and file_name.endswith(".json"):
+        source_file = os.path.join(temp_output_path, file_name)
+        final_output_file = os.path.join(current_dir, "final_output.json")
+        shutil.move(source_file, final_output_file)
+
+# Step 3: Delete the temp output folder
+shutil.rmtree(temp_output_path)
