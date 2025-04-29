@@ -1,3 +1,36 @@
+
+import re
+
+# Regex from your JSON (double slashes escaped properly)
+zip_regex = r"^\d{5}(-\d{4})?$"
+
+# Compile regex
+pattern = re.compile(zip_regex)
+
+# Sample data
+valid_zips = ["12345", "12345-6789"]
+invalid_zips = ["1234", "123456", "1234-567", "12345-678", "abcd5", "12345-67890"]
+
+# Validation function
+def is_valid_zip(zip_code):
+    return bool(pattern.match(zip_code))
+
+# Test and print results
+print("Valid ZIP Codes:")
+for z in valid_zips:
+    print(f"{z}: {is_valid_zip(z)}")
+
+print("\nInvalid ZIP Codes:")
+for z in invalid_zips:
+    print(f"{z}: {is_valid_zip(z)}")
+
+
+
+
+
+
+
+
 pattern = r"^\d{4}-\d{2}-\d{2}$"
 
 
