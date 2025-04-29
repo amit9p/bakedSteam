@@ -1,4 +1,24 @@
 
+import os
+
+# Get absolute path to project root (assuming this runs from inside project)
+project_root = os.path.dirname(os.path.abspath(__file__))
+ivy_path = os.path.join(project_root, "..", "ivysettings.xml")  # adjust as needed
+
+# Resolve to absolute path
+ivy_path = os.path.abspath(ivy_path)
+
+# Use it in your Spark config
+spark = SparkSession.builder \
+    .config("spark.jars.ivySettings", ivy_path) \
+    ...
+
+
+
+
+
+
+
 import subprocess
 import argparse
 
