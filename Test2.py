@@ -1,4 +1,9 @@
 
+^[A-Z0-9\s\-]{3,10}$
+
+
+
+
 import re
 
 # Regex from your JSON (double slashes escaped properly)
