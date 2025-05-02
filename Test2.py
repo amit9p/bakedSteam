@@ -1,140 +1,36 @@
 
-^[A-Z0-9\s\-]{3,10}$
+from pyspark.sql import SparkSession
 
+spark = SparkSession.builder.appName("FieldReallocation").getOrCreate()
 
+# Load datasets
+account_df = spark.read.csv("input/account_dataset.csv", header=True, inferSchema=True)
+recoveries_df = spark.read.csv("input/recoveries_dataset.csv", header=True, inferSchema=True)
+misc_df = spark.read.csv("input/misc_dataset.csv", header=True, inferSchema=True)
+ecbr_generated_df = spark.read.csv("input/eCBR_generated_fields_dataset.csv", header=True, inferSchema=True)
 
+# Step 1: Remove 'is_account_reactivated' from account
+account_df_updated = account_df.drop('is_account_reactivated')
 
-import re
+# Step 2: Add 'is_account_reactivated' to recoveries
+if 'is_account_reactivated' in account_df.columns:
+    is_account_reactivated_col = account_df.select('is_account_reactivated')
+    recoveries_df_updated = recoveries_df.withColumn('is_account_reactivated', is_account_reactivated_col['is_account_reactivated'])
+else:
+    recoveries_df_updated = recoveries_df
 
-# Regex from your JSON (double slashes escaped properly)
-zip_regex = r"^\d{5}(-\d{4})?$"
+# Step 3: Remove 'has_financial_liability' from misc
+misc_df_updated = misc_df.drop('has_financial_liability')
 
-# Compile regex
-pattern = re.compile(zip_regex)
+# Step 4: Add 'has_financial_liability' to ECBRGeneratedFields
+if 'has_financial_liability' in misc_df.columns:
+    has_financial_liability_col = misc_df.select('has_financial_liability')
+    ecbr_generated_df_updated = ecbr_generated_df.withColumn('has_financial_liability', has_financial_liability_col['has_financial_liability'])
+else:
+    ecbr_generated_df_updated = ecbr_generated_df
 
-# Sample data
-valid_zips = ["12345", "12345-6789"]
-invalid_zips = ["1234", "123456", "1234-567", "12345-678", "abcd5", "12345-67890"]
-
-# Validation function
-def is_valid_zip(zip_code):
-    return bool(pattern.match(zip_code))
-
-# Test and print results
-print("Valid ZIP Codes:")
-for z in valid_zips:
-    print(f"{z}: {is_valid_zip(z)}")
-
-print("\nInvalid ZIP Codes:")
-for z in invalid_zips:
-    print(f"{z}: {is_valid_zip(z)}")
-
-
-
-
-
-
-
-
-pattern = r"^\d{4}-\d{2}-\d{2}$"
-
-
-
-import os
-
-# Get absolute path to project root (assuming this runs from inside project)
-project_root = os.path.dirname(os.path.abspath(__file__))
-ivy_path = os.path.join(project_root, "..", "ivysettings.xml")  # adjust as needed
-
-# Resolve to absolute path
-ivy_path = os.path.abspath(ivy_path)
-
-# Use it in your Spark config
-spark = SparkSession.builder \
-    .config("spark.jars.ivySettings", ivy_path) \
-    ...
-
-
-
-
-
-
-
-import subprocess
-import argparse
-
-def main():
-    parser = argparse.ArgumentParser()
-
-    # Common arguments you expect
-    parser.add_argument("--env", required=True)
-    parser.add_argument("--region", required=True)
-
-    # Arguments specific to each script
-    parser.add_argument("--bucket_one", required=True)
-    parser.add_argument("--prefix_one", required=True)
-
-    parser.add_argument("--bucket_two", required=True)
-    parser.add_argument("--prefix_two", required=True)
-
-    args = parser.parse_args()
-
-    # Build command for read_s3_one.py
-    read_s3_one_cmd = [
-        "python", "read_s3_one.py",
-        "--env", args.env,
-        "--region", args.region,
-        "--bucket", args.bucket_one,
-        "--prefix", args.prefix_one
-    ]
-
-    # Build command for read_s3_two.py
-    read_s3_two_cmd = [
-        "python", "read_s3_two.py",
-        "--env", args.env,
-        "--region", args.region,
-        "--bucket", args.bucket_two,
-        "--prefix", args.prefix_two
-    ]
-
-    # Execute first script
-    subprocess.check_call(read_s3_one_cmd)
-
-    # Execute second script
-    subprocess.check_call(read_s3_two_cmd)
-
-if __name__ == "__main__":
-    main()
-
-python main_subprocess_runner.py \
-  --env dev \
-  --region us-east-1 \
-  --bucket_one my-first-bucket \
-  --prefix_one folder1/ \
-  --bucket_two my-second-bucket \
-  --prefix_two folder2/
-
-
-
-import argparse
-
-def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--env", required=True)
-    parser.add_argument("--region", required=True)
-    parser.add_argument("--bucket", required=True)
-    parser.add_argument("--prefix", required=True)
-    args = parser.parse_args()
-
-    print("Running read_s3_one with:")
-    print(f"ENV: {args.env}, REGION: {args.region}, BUCKET: {args.bucket}, PREFIX: {args.prefix}")
-
-if __name__ == "__main__":
-    main()
-
-
-
-
-
-
-
+# Save updated DataFrames (optional)
+account_df_updated.write.csv("output/account_dataset_updated", header=True, mode='overwrite')
+recoveries_df_updated.write.csv("output/recoveries_dataset_updated", header=True, mode='overwrite')
+misc_df_updated.write.csv("output/misc_dataset_updated", header=True, mode='overwrite')
+ecbr_generated_df_updated.write.csv("output/ecbr_generated_fields_updated", header=True, mode='overwrite')
