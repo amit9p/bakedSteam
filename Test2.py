@@ -4,23 +4,31 @@ from pyspark.sql import DataFrame
 
 def calculate_credit_limit_spark(ebcr_df: DataFrame, account_df: DataFrame) -> DataFrame:
     try:
-        # Step 1: Left join on account_id
+        # Step 1: Derive portfolio_type_df from ebcr_df
+        portfolio_type_df = portfolio_type(ebcr_df)
+
+        # Step 2: Join portfolio_type_df with account_df on account_id
         joined_df = (
-            ebcr_df.alias("ebcr")
-            .join(account_df.alias("acc"), on=col("ebcr.account_id") == col("acc.account_id"), how="left")
+            portfolio_type_df.alias("pt")
+            .join(account_df.alias("acc"),
+                  on=col("pt.account_id") == col("acc.account_id"),
+                  how="left")
         )
 
-        # Step 2: Calculate credit_limit using business rules
+        # Step 3: Apply business rules to calculate credit_limit
         result_df = (
             joined_df.withColumn(
-                "credit_limit",
-                when(col("portfolio_type") == "O", 0)
-                .when(col("portfolio_type") == "R", round(col("available_spending_amount")))
+                BaseSegment.credit_limit.str,
+                when(col("pt.portfolio_type") == "O", 0)
+                .when(col("pt.portfolio_type") == "R", round(col("acc.available_spending_amount")))
                 .otherwise(None)
             )
         )
 
-        return result_df.select("account_id", "portfolio_type", "available_spending_amount", "credit_limit")
+        return result_df.select(
+            BaseSegment.account_id.str,
+            BaseSegment.credit_limit.str
+        )
 
     except Exception as e:
         print("Error in calculate_credit_limit_spark:", str(e))
