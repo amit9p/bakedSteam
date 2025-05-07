@@ -1,82 +1,57 @@
 
-final_credit_limit = (
-    when(
-        check_if_any_are_null(col(BaseSegment.portfolio_type.str)),
-        lit(None)
-    )
-    .when(col(BaseSegment.portfolio_type.str) == PORTFOLIO_TYPE_O, lit(CREDIT_LIMIT_ZERO))
-    .when(col(BaseSegment.portfolio_type.str) == PORTFOLIO_TYPE_R, rounded_assigned_limit)
-    .otherwise(lit(None))
-)
-
-
-
-
-
-
-check_if_any_are_null(col(BaseSegment.portfolio_type.str))
-
-
-check_if_any_are_null([col(BaseSegment.portfolio_type.str)], lit(None))
-
-
-
-
-joined_df = portfolio_type_df.join(
-    account_df,
-    on=portfolio_type_df[BaseSegment.account_id.str] == account_df[CCAccount.account_id.str],
-    how="left"
-)
-
-
-
-
-
-from chispa import assert_df_equality
-from typespark import create_partially_filled_dataset
-
+from pyspark.sql.functions import col, when, lit, round as spark_round
 from ecbr_card_self_service.schemas.base_segment import BaseSegment
 from ecbr_card_self_service.schemas.cc_account import CCAccount
-from ecbr_card_self_service.ecbr_calculations.fields.base.credit_limit_field import calculate_credit_limit_spark
-from ecbr_card_self_service.ecbr_calculations.fields.base.portfolio_type import (
-    PORTFOLIO_TYPE_O, PORTFOLIO_TYPE_R, SEGMENT_ID_SMALL_BUSINESS
-)
+from ecbr_card_self_service.schemas.ecbr_generated_fields import ECBRGeneratedFields
+from ecbr_card_self_service.ecbr_calculations.fields.base.portfolio_type import portfolio_type
+from ecbr_card_self_service.ecbr_calculations.utils.null_utility import check_if_any_are_null
 
-def test_calculate_credit_limit_spark(spark):
-    # Input for ebcr_df → will be passed into portfolio_type()
-    ebcr_df = create_partially_filled_dataset(
-        spark,
-        CCAccount,
-        data=[
-            {CCAccount.account_id: "1", CCAccount.segment_id: SEGMENT_ID_SMALL_BUSINESS},
-            {CCAccount.account_id: "2", CCAccount.segment_id: "other_segment"},
-            {CCAccount.account_id: "3", CCAccount.segment_id: None}
-        ]
-    )
+# Constants (assumed to be defined in the same module)
+PORTFOLIO_TYPE_O = "O"
+PORTFOLIO_TYPE_R = "R"
+CREDIT_LIMIT_ZERO = 0
 
-    # Input for account_df
-    account_df = create_partially_filled_dataset(
-        spark,
-        CCAccount,
-        data=[
-            {CCAccount.account_id: "1", CCAccount.available_spending_amount: 123.45},
-            {CCAccount.account_id: "2", CCAccount.available_spending_amount: 456.78},
-            {CCAccount.account_id: "3", CCAccount.available_spending_amount: 789.12}
-        ]
-    )
+def calculate_credit_limit_spark(ebcr_df: DataFrame, account_df: DataFrame) -> DataFrame:
+    try:
+        # Step 1: Get portfolio type from ebcr
+        portfolio_type_df = portfolio_type(ebcr_df)
 
-    # Expected result
-    expected_df = create_partially_filled_dataset(
-        spark,
-        BaseSegment,
-        data=[
-            {BaseSegment.account_id: "1", BaseSegment.credit_limit: 0},
-            {BaseSegment.account_id: "2", BaseSegment.credit_limit: 457},
-            {BaseSegment.account_id: "3", BaseSegment.credit_limit: 789}
-        ]
-    ).select(BaseSegment.account_id, BaseSegment.credit_limit)
+        # Step 2: Join with account df on account_id using aliases
+        joined_df = (
+            portfolio_type_df.alias("pt")
+            .join(account_df.alias("acc"),
+                  on=col("pt." + BaseSegment.account_id.str) == col("acc." + CCAccount.account_id.str),
+                  how="left")
+        )
 
-    # Actual result
-    result_df = calculate_credit_limit_spark(ebcr_df, account_df)
+        # Step 3: Round the spending limit
+        rounded_assigned_limit = spark_round(
+            col(f"acc.{CCAccount.available_spending_amount.str}").cast("double")
+        ).cast("int")
 
-    assert_df_equality(result_df, expected_df, ignore_nullable=True)
+        # Step 4: Apply business logic for credit limit
+        result_df = joined_df.withColumn(
+            BaseSegment.credit_limit.str,
+            when(
+                check_if_any_are_null(col("pt." + BaseSegment.portfolio_type.str)),
+                lit(None)
+            )
+            .when(
+                col("pt." + BaseSegment.portfolio_type.str) == PORTFOLIO_TYPE_O,
+                lit(CREDIT_LIMIT_ZERO)
+            )
+            .when(
+                col("pt." + BaseSegment.portfolio_type.str) == PORTFOLIO_TYPE_R,
+                rounded_assigned_limit
+            )
+            .otherwise(lit(None))
+        )
+
+        return result_df.select(
+            col("pt." + BaseSegment.account_id.str),
+            col(BaseSegment.credit_limit.str)
+        )
+
+    except Exception as e:
+        print("Error in calculate_credit_limit_spark:", str(e))
+        raise
