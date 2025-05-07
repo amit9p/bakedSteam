@@ -1,4 +1,19 @@
 
+final_credit_limit = (
+    when(
+        check_if_any_are_null(col(BaseSegment.portfolio_type.str)),
+        lit(None)
+    )
+    .when(col(BaseSegment.portfolio_type.str) == PORTFOLIO_TYPE_O, lit(CREDIT_LIMIT_ZERO))
+    .when(col(BaseSegment.portfolio_type.str) == PORTFOLIO_TYPE_R, rounded_assigned_limit)
+    .otherwise(lit(None))
+)
+
+
+
+
+
+
 check_if_any_are_null(col(BaseSegment.portfolio_type.str))
 
 
