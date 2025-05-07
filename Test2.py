@@ -1,4 +1,7 @@
 
+check_if_any_are_null(col(BaseSegment.portfolio_type.str))
+
+
 check_if_any_are_null([col(BaseSegment.portfolio_type.str)], lit(None))
 
 
