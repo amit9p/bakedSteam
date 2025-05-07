@@ -1,4 +1,13 @@
 
+
+
+
+print("Datasets loaded in processed_inputs:", list(context.processed_inputs.keys()))
+
+
+behave tests/ecbr_calculations/features/ -n "Process calculate_credit_limit_spark from parquet file" -f pretty
+
+
 result_df_sorted = result_df.orderBy(BaseSegment.account_id.str)
 expected_df_sorted = expected_df.orderBy(BaseSegment.account_id.str)
 
