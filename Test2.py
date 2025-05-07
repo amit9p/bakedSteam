@@ -1,4 +1,9 @@
 
+check_if_any_are_null([col(BaseSegment.portfolio_type.str)], lit(None))
+
+
+
+
 joined_df = portfolio_type_df.join(
     account_df,
     on=portfolio_type_df[BaseSegment.account_id.str] == account_df[CCAccount.account_id.str],
