@@ -1,4 +1,15 @@
 
+result_df_sorted = result_df.orderBy(BaseSegment.account_id.str)
+expected_df_sorted = expected_df.orderBy(BaseSegment.account_id.str)
+
+assert_df_equality(expected_df_sorted, result_df_sorted, ignore_nullable=True)
+
+
+
+
+
+
+
 from pyspark.sql.functions import col, when, lit, round as spark_round
 from ecbr_card_self_service.schemas.base_segment import BaseSegment
 from ecbr_card_self_service.schemas.cc_account import CCAccount
