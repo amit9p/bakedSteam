@@ -1,4 +1,11 @@
 
+current approach is good and safer, especially because:
+
+It handles both string and numeric inputs with decimal values.
+
+.cast("double").cast("int") ensures Spark does a proper numeric conversion first, then safely rounds/truncates to integer.
+
+
 {BaseSegment.account_id: "1", BaseSegment.credit_limit: None},
 
 
