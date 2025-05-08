@@ -1,4 +1,8 @@
 
+{BaseSegment.account_id: "1", BaseSegment.credit_limit: None},
+
+
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, when, lit, round as spark_round
 from ecbr_card_self_service.schemas.base_segment import BaseSegment
