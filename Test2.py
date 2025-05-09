@@ -1,4 +1,10 @@
 
+Excited to share a special moment with you all — we’ve welcomed a new member to our family!
+[Baby’s name if you want to include it] arrived recently, and we’re filled with love, joy, and sleepless nights already.
+Here’s a little glimpse of our happiness!
+
+
+
 current approach is good and safer, especially because:
 
 It handles both string and numeric inputs with decimal values.
