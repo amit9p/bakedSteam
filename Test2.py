@@ -1,4 +1,16 @@
 
+check_if_any_are_null(CCAccount.charge_off_date) at the start doesn't make sense because we're not checking a list of columns, and it's likely returning True/False incorrectly. This may set everything to None unnecessarily.
+
+Fix suggestion: You can remove that first when() entirely and simplify:
+
+result_df = df.withColumn(
+    sbfeABSegment.date_closed.str,
+    when(CCAccount.account_close_date.isNull(), CCAccount.charge_off_date)
+    .otherwise(CCAccount.account_close_date)
+)
+
+
+
 Excited to share a special moment with you all — we’ve welcomed a new member to our family!
 [Baby’s name if you want to include it] arrived recently, and we’re filled with love, joy, and sleepless nights already.
 Here’s a little glimpse of our happiness!
