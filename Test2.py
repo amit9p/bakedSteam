@@ -1,4 +1,10 @@
 
+Thanks for the clarification. Yes, makes sense to remove lit(None) since Spark defaults to None. Looks good to proceed with that cleanup.
+
+
+
+
+
 Based on the requirement in Image 1, we don't need to check if charge_off_date is null. The spec only states to use account_close_date if available, and if not, fall back to charge_off_date. Could you please remove the when(check_if_any_are_null(CCAccount.charge_off_date), lit(None))
 
 
