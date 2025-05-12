@@ -1,4 +1,9 @@
 
+Based on the requirement in Image 1, we don't need to check if charge_off_date is null. The spec only states to use account_close_date if available, and if not, fall back to charge_off_date. Could you please remove the when(check_if_any_are_null(CCAccount.charge_off_date), lit(None))
+
+
+
+
 check_if_any_are_null(CCAccount.charge_off_date) at the start doesn't make sense because we're not checking a list of columns, and it's likely returning True/False incorrectly. This may set everything to None unnecessarily.
 
 Fix suggestion: You can remove that first when() entirely and simplify:
