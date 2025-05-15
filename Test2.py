@@ -1,41 +1,90 @@
 
 
-1. "int for amount related fields I guess!"
+def get_current_credit_limit(input_df: DataFrame) -> DataFrame:
+    """
+    Returns account_id and current_credit_limit (rounded to whole dollar)
+    from the spending_limit field in ecbr_df.
+    """
+    result_df = input_df.withColumn(
+        ABSegment.current_credit_limit.str,
+        when(
+            col(CCAccount.available_spending_amount.str).isNull(),
+            -999999999
+        ).otherwise(
+            round(col(CCAccount.available_spending_amount.str))
+        )
+    )
 
-Handled:
-Yes. In your schema (available_spending_amount), the field is expected to be IntegerType.
-In the final test case you’re now using:
-
-CCAccount.available_spending_amount: 501  # integer
-
-So you’re passing integer values, which aligns with schema and avoids Jenkins PySparkTypeError.
-
-
----
-
-2. "error output values should be handled"
-
-This usually means: ensure your function gracefully handles edge cases like:
-
-None values
-
-Missing or incorrect fields
-
-
-Partially Handled:
-Your code already works for:
-
-CCAccount.available_spending_amount: None
-
-and returns None for the output as well. That’s correct behavior for now.
-
-Optional Enhancement (if needed): You can explicitly add .when(col(...).isNull(), None) logic if you want stricter error handling or logging.
+    return result_df.select(
+        ABSegment.account_id,
+        ABSegment.current_credit_limit
+    )
 
 
----
+def test_get_current_credit_limit(spark: SparkSession):
+    input_df = create_partially_filled_dataset(
+        spark,
+        CCAccount,
+        data=[
+            {CCAccount.account_id.str: "A1", CCAccount.available_spending_amount.str: 501},
+            {CCAccount.account_id.str: "A2", CCAccount.available_spending_amount.str: None}
+        ]
+    )
 
-✅ Final Answer:
+    expected_df = create_partially_filled_dataset(
+        spark,
+        ABSegment,
+        data=[
+            {ABSegment.account_id.str: "A1", ABSegment.current_credit_limit.str: 501},
+            {ABSegment.account_id.str: "A2", ABSegment.current_credit_limit.str: -999999999}
+        ]
+    ).select(ABSegment.account_id, ABSegment.current_credit_limit)
 
-Integer enforcement: Yes, you're handling it now.
+    result_df = get_current_credit_limit(input_df)
 
-Error/null handling: Also handled as per test coverage, but can be enhanced if stricter logic or logging is needed.
+    assert_df_equality(result_df, expected_df, ignore_row_order=True, ignore_nullable=True)
+
+
+
+def get_original_credit_limit(input_df: DataFrame) -> DataFrame:
+    """
+    Returns account_id and original_credit_limit (same as current_credit_limit),
+    rounded to whole dollar as per AB Field 20 definition.
+    """
+    current_credit_df = get_current_credit_limit(input_df)
+
+    result_df = current_credit_df.withColumn(
+        ABSegment.original_credit_limit.str,
+        col(ABSegment.current_credit_limit.str)
+    )
+
+    return result_df.select(
+        ABSegment.account_id,
+        ABSegment.original_credit_limit
+    )
+
+
+
+def test_get_original_credit_limit(spark: SparkSession):
+    input_df = create_partially_filled_dataset(
+        spark,
+        CCAccount,
+        data=[
+            {CCAccount.account_id.str: "A1", CCAccount.available_spending_amount.str: 999},
+            {CCAccount.account_id.str: "A2", CCAccount.available_spending_amount.str: None}
+        ]
+    )
+
+    expected_df = create_partially_filled_dataset(
+        spark,
+        ABSegment,
+        data=[
+            {ABSegment.account_id.str: "A1", ABSegment.original_credit_limit.str: 999},
+            {ABSegment.account_id.str: "A2", ABSegment.original_credit_limit.str: -999999999}
+        ]
+    ).select(ABSegment.account_id, ABSegment.original_credit_limit)
+
+    result_df = get_original_credit_limit(input_df)
+
+    assert_df_equality(result_df, expected_df, ignore_row_order=True, ignore_nullable=True)
+
