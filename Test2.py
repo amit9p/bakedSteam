@@ -8,7 +8,7 @@ from ecb_card_self_service.ecbr_calculations.small_business.small_business_charg
 from tests.common_utils import create_partially_filled_dataset, assert_df_equality
 
 
-def test_get_current_credit_limit():
+def test_get_current_credit_limit(spark):
     input_df = create_partially_filled_dataset(
         spark,
         CCAccount,
@@ -32,7 +32,7 @@ def test_get_current_credit_limit():
     assert_df_equality(result_df, expected_df, ignore_row_order=True, ignore_nullable=True)
 
 
-def test_get_original_credit_limit():
+def test_get_original_credit_limit(spark):
     input_df = create_partially_filled_dataset(
         spark,
         CCAccount,
