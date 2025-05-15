@@ -1,6 +1,4 @@
 
-
-
 import pytest
 from pyspark.sql import SparkSession
 from ecbr_card_self_service.schemas.sbfe.ab_segment import ABSegment
@@ -14,7 +12,7 @@ def test_get_current_credit_limit(spark: SparkSession):
         spark,
         CCAccount,
         data=[
-            {CCAccount.account_id: "A1", CCAccount.available_spending_amount: 500.6},
+            {CCAccount.account_id: "A1", CCAccount.available_spending_amount: 501},
             {CCAccount.account_id: "A2", CCAccount.available_spending_amount: None},
         ]
     )
@@ -38,7 +36,7 @@ def test_get_original_credit_limit(spark: SparkSession):
         spark,
         CCAccount,
         data=[
-            {CCAccount.account_id: "A1", CCAccount.available_spending_amount: 999.49},
+            {CCAccount.account_id: "A1", CCAccount.available_spending_amount: 999},
             {CCAccount.account_id: "A2", CCAccount.available_spending_amount: None},
         ]
     )
