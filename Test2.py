@@ -1,4 +1,55 @@
 
+import pytest
+from pyspark.sql import SparkSession
+from pyspark.sql.types import StructType, StructField, StringType, DoubleType
+from ecbr_card_self_service.schemas.sbfe.ab_segment import ABSegment
+from ecbr_card_self_service.schemas.cc_account import CCAccount
+from ab.passthrough import get_current_credit_limit, get_original_credit_limit
+
+@pytest.fixture(scope="module")
+def spark():
+    return SparkSession.builder.master("local[*]").appName("test").getOrCreate()
+
+@pytest.fixture
+def sample_df(spark):
+    schema = StructType([
+        StructField(ABSegment.account_id.str, StringType(), True),
+        StructField(CCAccount.available_spending_amount.str, DoubleType(), True)
+    ])
+
+    data = [
+        ("A001", 1000.75),
+        ("A002", 2499.49),
+        ("A003", 0.0),
+        ("A004", None)
+    ]
+
+    return spark.createDataFrame(data, schema)
+
+def test_get_current_credit_limit(sample_df):
+    result_df = get_current_credit_limit(sample_df)
+
+    result = {row[ABSegment.account_id.str]: row[ABSegment.current_credit_limit.str] for row in result_df.collect()}
+
+    assert result["A001"] == 1001
+    assert result["A002"] == 2499
+    assert result["A003"] == 0
+    assert result["A004"] is None
+
+def test_get_original_credit_limit(sample_df):
+    result_df = get_original_credit_limit(sample_df)
+
+    result = {row[ABSegment.account_id.str]: row[ABSegment.original_credit_limit.str] for row in result_df.collect()}
+
+    assert result["A001"] == 1001
+    assert result["A002"] == 2499
+    assert result["A003"] == 0
+    assert result["A004"] is None
+
+
+
+
+
 
 def get_original_credit_limit(input_df: DataFrame) -> DataFrame:
     """
