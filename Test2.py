@@ -1,4 +1,15 @@
 
+You're trying to mock edq_lib using:
+
+sys.modules["edq_lib"] = MagicMock()
+
+But this should be placed before the import of the module being tested (runEDQ), or else the import will fail before the mock is set up.
+
+So move this line to the very top of test_runEDQ.py, before importing runEDQ.
+
+
+
+
 
 def test_get_current_credit_limit(spark: SparkSession):
     ccaccount_data = create_partially_filled_dataset(
