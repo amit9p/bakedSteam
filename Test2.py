@@ -1,71 +1,54 @@
-
-The requirement states this field should be hardcoded as an 8-character blank-filled string.
-Current implementation returns a null date due to casting None. Suggest replacing with lit("        ") to align with spec.
+constant_zero_payment = "000000000000"
 
 
+def get_payment_amount_scheduled(ccaccount_df: DataFrame) -> DataFrame:
+    """
+    :param ccaccount_df: Input DataFrame with account_id
+    :return: Output DataFrame with account_id and payment_amount_scheduled (hardcoded 12-digit zero string)
+    """
+    result_df = ccaccount_df.withColumn(
+        ABSegment.payment_amount_scheduled.str,
+        lit(constant_zero_payment)
+    )
 
+    return result_df.select(
+        ABSegment.account_id,
+        ABSegment.payment_amount_scheduled
+    )
 
-The code casts the field as a date, but the requirement clearly says it should be a blank-filled string (left-justified, length 8).
-
-
-
-
-You're trying to mock edq_lib using:
-
-sys.modules["edq_lib"] = MagicMock()
-
-But this should be placed before the import of the module being tested (runEDQ), or else the import will fail before the mock is set up.
-
-So move this line to the very top of test_runEDQ.py, before importing runEDQ.
-
-
-
-
-
-def test_get_current_credit_limit(spark: SparkSession):
+def test_get_payment_amount_scheduled(spark: SparkSession):
     ccaccount_data = create_partially_filled_dataset(
         spark,
         CCAccount,
-        data=[
-            {CCAccount.account_id: "A1", CCAccount.available_spending_amount: 501},
-            {CCAccount.account_id: "A2", CCAccount.available_spending_amount: None},
+        [
+            {CCAccount.account_id: "1"},
+            {CCAccount.account_id: "004004004"},
         ],
     )
 
-    result_df = get_current_credit_limit(ccaccount_data)
+    result_df = get_payment_amount_scheduled(ccaccount_data)
 
     expected_data = create_partially_filled_dataset(
         spark,
         ABSegment,
-        data=[
-            {ABSegment.account_id: "A1", ABSegment.current_credit_limit: 501},
-            {ABSegment.account_id: "A2", ABSegment.current_credit_limit: -999999999},
+        [
+            {
+                ABSegment.account_id: "1",
+                ABSegment.payment_amount_scheduled: constant_zero_payment,
+            },
+            {
+                ABSegment.account_id: "004004004",
+                ABSegment.payment_amount_scheduled: constant_zero_payment,
+            },
         ],
-    ).select(ABSegment.account_id, ABSegment.current_credit_limit)
-
-    assert_df_equality(result_df, expected_data, ignore_row_order=True, ignore_nullable=True)
-
-
-
-def test_get_original_credit_limit(spark: SparkSession):
-    ccaccount_data = create_partially_filled_dataset(
-        spark,
-        CCAccount,
-        data=[
-            {CCAccount.account_id: "A1", CCAccount.available_spending_amount: 999},
-            {CCAccount.account_id: "A2", CCAccount.available_spending_amount: None},
-        ],
+    ).select(
+        ABSegment.account_id,
+        ABSegment.payment_amount_scheduled
     )
 
-    result_df = get_original_credit_limit(ccaccount_data)
-
-    expected_data = create_partially_filled_dataset(
-        spark,
-        ABSegment,
-        data=[
-            {ABSegment.account_id: "A1", ABSegment.original_credit_limit: 999},
-            {ABSegment.account_id: "A2", ABSegment.original_credit_limit: -999999999},
-        ],
-    ).select(ABSegment.account_id, ABSegment.original_credit_limit)
-
-    assert_df_equality(result_df, expected_data, ignore_row_order=True, ignore_nullable=True)
+    assert_df_equality(
+        result_df,
+        expected_data,
+        ignore_row_order=True,
+        ignore_nullable=True,
+    )
