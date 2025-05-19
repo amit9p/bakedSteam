@@ -1,4 +1,10 @@
 
+The requirement states this field should be hardcoded as an 8-character blank-filled string.
+Current implementation returns a null date due to casting None. Suggest replacing with lit("        ") to align with spec.
+
+
+
+
 The code casts the field as a date, but the requirement clearly says it should be a blank-filled string (left-justified, length 8).
 
 
