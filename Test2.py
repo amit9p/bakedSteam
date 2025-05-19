@@ -1,3 +1,12 @@
+from pyspark.sql.types import StringType
+from typespark import Column, Schema
+
+class ABSegment(Schema):
+    ...
+    payment_amount_scheduled: Column[StringType]  # <-- Add this line
+
+
+
 constant_zero_payment = "000000000000"
 
 
