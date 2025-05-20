@@ -1,3 +1,19 @@
+
+Metro2 expects fixed-width flat files
+
+If you write "0" instead of "000000000000", it will:
+
+Misalign the field
+
+Shift other fields
+
+Break the file structure
+
+Fail validation by credit bureaus
+
+
+
+
 from pyspark.sql.types import StringType
 from typespark import Column, Schema
 
