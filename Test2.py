@@ -1,4 +1,12 @@
 
+from pyspark.sql.types import DateType
+from typespark import Column
+
+class ABSegment(Schema):
+    ...
+    balloon_payment_due_date: Column[DateType]
+
+
 def get_balloon_payment_due_date(ccaccount_df: DataFrame) -> DataFrame:
     """
     :param ccaccount_df: Input DataFrame
