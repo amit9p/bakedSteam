@@ -1,4 +1,13 @@
 
+
+import aiohttp
+
+async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
+    async with session.get(url) as response:
+        # your logic
+
+
+
 from pyspark.sql.types import DateType
 from typespark import Column
 
