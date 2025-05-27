@@ -1,4 +1,7 @@
 
+export HTTP_PROXY=http://username:password@chipproxy.kdc.capitalone.com:8099
+export HTTPS_PROXY=http://username:password@chipproxy.kdc.capitalone.com:8099
+
 
 import aiohttp
 
