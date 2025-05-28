@@ -1,4 +1,16 @@
 
+
+spark-submit \
+  --master "local[*]" \
+  --driver-memory 4g \
+  --conf spark.sql.shuffle.partitions=16 \
+  --conf spark.serializer=org.apache.spark.serializer.KryoSerializer \
+  --conf spark.sql.adaptive.enabled=true \
+  --jars your_jar_files.jar \
+  your_script.py
+
+
+
 df = spark.read.json("input.json").repartition(8)
 
 spark = SparkSession.builder \
