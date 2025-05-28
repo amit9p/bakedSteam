@@ -1,4 +1,9 @@
 
+--conf spark.default.parallelism=16 \
+--conf spark.sql.files.maxPartitionBytes=134217728 \  # 128MB
+
+--conf spark.sql.autoBroadcastJoinThreshold=10485760  # 10MB
+
 
 spark-submit \
   --master "local[*]" \
