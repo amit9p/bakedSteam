@@ -1,4 +1,11 @@
 
+
+.config("spark.sql.shuffle.partitions", "8") \
+.config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
+
+
+
+
 export HTTP_PROXY=http://username:password@chipproxy.kdc.capitalone.com:8099
 export HTTPS_PROXY=http://username:password@chipproxy.kdc.capitalone.com:8099
 
