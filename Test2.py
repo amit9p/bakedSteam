@@ -1,4 +1,29 @@
 
+df = spark.read.json("input.json").repartition(8)
+
+spark = SparkSession.builder \
+  .appName("MyJob") \
+  .master("local[8]") \
+  .config("spark.sql.shuffle.partitions", "16") \
+  .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
+  .getOrCreate()
+
+
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder \
+    .appName("MyApp") \
+    .master("local[*]") \
+    .config("spark.sql.shuffle.partitions", "16") \
+    .config("spark.executor.memory", "2g") \
+    .getOrCreate()
+
+
+spark.conf.set("spark.sql.shuffle.partitions", "16")
+spark.conf.set("spark.sql.adaptive.enabled", "true")
+
+print(spark.sparkContext.getConf().getAll())
+
 
 .config("spark.sql.shuffle.partitions", "8") \
 .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
