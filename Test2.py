@@ -1,114 +1,91 @@
 
---conf spark.default.parallelism=16 \
---conf spark.sql.files.maxPartitionBytes=134217728 \  # 128MB
-
---conf spark.sql.autoBroadcastJoinThreshold=10485760  # 10MB
-
-
-spark-submit \
-  --master "local[*]" \
-  --driver-memory 4g \
-  --conf spark.sql.shuffle.partitions=16 \
-  --conf spark.serializer=org.apache.spark.serializer.KryoSerializer \
-  --conf spark.sql.adaptive.enabled=true \
-  --jars your_jar_files.jar \
-  your_script.py
-
-
-
-df = spark.read.json("input.json").repartition(8)
-
-spark = SparkSession.builder \
-  .appName("MyJob") \
-  .master("local[8]") \
-  .config("spark.sql.shuffle.partitions", "16") \
-  .config("spark.serializer", "org.apache.spark.serializer.KryoSerializer") \
-  .getOrCreate()
-
-
-from pyspark.sql import SparkSession
-
-spark = SparkSession.builder \
-    .appName("MyApp") \
-    .master("local[*]") \
-    .config("spark.sql.shuffle.partitions", "16") \
-    .config("spark.executor.memory", "2g") \
-    .getOrCreate()
-
-
-spark.conf.set("spark.sql.shuffle.partitions", "16")
-spark.conf.set("spark.sql.adaptive.enabled", "true")
-
-print(spark.sparkContext.getConf().getAll())
-
-
-.config("spark.sql.shuffle.partitions", "8") \
-.config("spark.serializer", "org.apache.spark.serializer.KryoSerializer")
-
-
-
-
-export HTTP_PROXY=http://username:password@chipproxy.kdc.capitalone.com:8099
-export HTTPS_PROXY=http://username:password@chipproxy.kdc.capitalone.com:8099
-
-
-import aiohttp
-
-async with aiohttp.ClientSession(connector=aiohttp.TCPConnector(ssl=False)) as session:
-    async with session.get(url) as response:
-        # your logic
-
-
-
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, when, lit
 from pyspark.sql.types import DateType
-from typespark import Column
+from ecbr_card_self_service.schemas.sbfe.cc_account import CCAccount
+from ecbr_card_self_service.schemas.sbfe.ab_segment import ABSegment
 
-class ABSegment(Schema):
-    ...
-    balloon_payment_due_date: Column[DateType]
-
-
-def get_balloon_payment_due_date(ccaccount_df: DataFrame) -> DataFrame:
+def date_account_was_originally_opened(ccaccount_df: DataFrame) -> DataFrame:
     """
-    :param ccaccount_df: Input DataFrame
-    :return: Output DataFrame with account_id and balloon_payment_due_date set to null
+    Returns a DataFrame with account_id and date_account_was_originally_opened.
+    Uses column names from CCAccount and ABSegment classes to avoid hardcoding.
+    If account_open_date is missing/invalid, defaults to None.
     """
-    result_df = ccaccount_df.withColumn(
-        ABSegment.balloon_payment_due_date.str,
-        lit(None).cast(DateType())
+    return ccaccount_df.withColumn(
+        ABSegment.date_account_was_originally_opened.str,
+        when(
+            col(CCAccount.account_open_date.str).isNotNull(),
+            col(CCAccount.account_open_date.str)
+        ).otherwise(lit(None).cast(DateType()))
+    ).select(
+        CCAccount.account_id,
+        ABSegment.date_account_was_originally_opened
     )
 
-    return result_df.select(
-        ABSegment.account_id,
-        ABSegment.balloon_payment_due_date
-    )
 
 
+import pytest
+from pyspark.sql import SparkSession, Row
+from pyspark.sql.types import StructType, StructField, StringType, DateType
+from datetime import date
 
-def test_get_balloon_payment_due_date(spark: SparkSession):
-    ccaccount_data = create_partially_filled_dataset(
-        spark,
-        CCAccount,
-        data=[
-            {CCAccount.account_id: "1"},
-            {CCAccount.account_id: "X004"}
-        ],
-    )
+# Import your schema classes and method
+from ecbr_card_self_service.schemas.sbfe.cc_account import CCAccount
+from ecbr_card_self_service.schemas.sbfe.ab_segment import ABSegment
+from your_module import date_account_was_originally_opened  # Update 'your_module' accordingly
 
-    result_df = get_balloon_payment_due_date(ccaccount_data)
+@pytest.fixture(scope="module")
+def spark():
+    return SparkSession.builder.master("local[1]").appName("pytest").getOrCreate()
 
-    expected_data = create_partially_filled_dataset(
-        spark,
-        ABSegment,
-        data=[
-            {ABSegment.account_id: "1", ABSegment.balloon_payment_due_date: None},
-            {ABSegment.account_id: "X004", ABSegment.balloon_payment_due_date: None},
-        ],
-    ).select(ABSegment.account_id, ABSegment.balloon_payment_due_date)
+def test_date_account_was_originally_opened_valid_and_null(spark):
+    # Sample input data
+    data = [
+        {CCAccount.account_id.str: "A1", CCAccount.account_open_date.str: date(2021, 1, 10)},
+        {CCAccount.account_id.str: "A2", CCAccount.account_open_date.str: None}
+    ]
+    schema = StructType([
+        StructField(CCAccount.account_id.str, StringType(), True),
+        StructField(CCAccount.account_open_date.str, DateType(), True)
+    ])
+    ccaccount_df = spark.createDataFrame([Row(**row) for row in data], schema=schema)
 
-    assert_df_equality(
-        result_df,
-        expected_data,
-        ignore_row_order=True,
-        ignore_nullable=True,
-    )
+    # Call the function
+    result_df = date_account_was_originally_opened(ccaccount_df)
+    result = {row[ABSegment.account_id.str]: row[ABSegment.date_account_was_originally_opened.str] for row in result_df.collect()}
+
+    # Check results
+    assert result["A1"] == date(2021, 1, 10)
+    assert result["A2"] is None
+
+
+def test_all_null_dates(spark):
+    data = [
+        {CCAccount.account_id.str: "A1", CCAccount.account_open_date.str: None},
+        {CCAccount.account_id.str: "A2", CCAccount.account_open_date.str: None},
+    ]
+    schema = StructType([
+        StructField(CCAccount.account_id.str, StringType(), True),
+        StructField(CCAccount.account_open_date.str, DateType(), True)
+    ])
+    ccaccount_df = spark.createDataFrame([Row(**row) for row in data], schema=schema)
+    result_df = date_account_was_originally_opened(ccaccount_df)
+    assert all(row[ABSegment.date_account_was_originally_opened.str] is None for row in result_df.collect())
+
+def test_empty_df(spark):
+    schema = StructType([
+        StructField(CCAccount.account_id.str, StringType(), True),
+        StructField(CCAccount.account_open_date.str, DateType(), True)
+    ])
+    ccaccount_df = spark.createDataFrame([], schema=schema)
+    result_df = date_account_was_originally_opened(ccaccount_df)
+    assert result_df.count() == 0
+
+def test_missing_column(spark):
+    schema = StructType([
+        StructField(CCAccount.account_id.str, StringType(), True)
+        # Missing account_open_date
+    ])
+    ccaccount_df = spark.createDataFrame([Row(**{CCAccount.account_id.str: "A1"})], schema=schema)
+    with pytest.raises(Exception):
+        date_account_was_originally_opened(ccaccount_df)
