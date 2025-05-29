@@ -1,5 +1,25 @@
 
 
+from pyspark.sql import SparkSession
+
+# Start Spark session
+spark = SparkSession.builder.appName("ParquetToCSV").getOrCreate()
+
+# Path to your Parquet file
+parquet_path = "/path/to/input.parquet"
+# Path to output CSV directory
+csv_output_path = "/path/to/output_csv_dir"
+
+# Read Parquet file
+df = spark.read.parquet(parquet_path)
+
+# Write as CSV (without index, with header)
+df.write.mode("overwrite").option("header", "true").csv(csv_output_path)
+
+spark.stop()
+
+
+
 from datetime import date
 from chispa import assert_df_equality
 
