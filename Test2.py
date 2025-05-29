@@ -89,3 +89,89 @@ def test_missing_column(spark):
     ccaccount_df = spark.createDataFrame([Row(**{CCAccount.account_id.str: "A1"})], schema=schema)
     with pytest.raises(Exception):
         date_account_was_originally_opened(ccaccount_df)
+
+
+
+___________________
+
+from datetime import datetime, date
+from chispa import assert_df_equality
+from pyspark.sql import SparkSession
+from ecbr_card_self_service.schemas.sbfe.ab_segment import ABSegment
+from ecbr_card_self_service.schemas.sbfe.cc_account import CCAccount
+from ecbr_card_self_service.ecbr_calculations.fields.ab.date_account_was_originally_opened import (
+    date_account_was_originally_opened,
+)
+from typespark import create_partially_filled_dataset
+
+def test_date_account_was_originally_opened(spark: SparkSession):
+    # Input DataFrame simulating various edge cases
+    ccaccount_data = create_partially_filled_dataset(
+        spark,
+        CCAccount,
+        data=[
+            # Valid date
+            {
+                CCAccount.account_id.str: "1",
+                CCAccount.account_open_date.str: date(2021, 1, 10),
+            },
+            # None date
+            {
+                CCAccount.account_id.str: "2",
+                CCAccount.account_open_date.str: None,
+            },
+            # All valid dates
+            {
+                CCAccount.account_id.str: "3",
+                CCAccount.account_open_date.str: date(2022, 5, 17),
+            },
+            # Edge case: earliest date
+            {
+                CCAccount.account_id.str: "4",
+                CCAccount.account_open_date.str: date(1900, 1, 1),
+            },
+            # Edge case: all nulls
+            {
+                CCAccount.account_id.str: "5",
+                CCAccount.account_open_date.str: None,
+            },
+        ],
+    )
+
+    # Expected DataFrame
+    expected_data = create_partially_filled_dataset(
+        spark,
+        ABSegment,
+        data=[
+            {
+                ABSegment.account_id.str: "1",
+                ABSegment.date_account_was_originally_opened.str: date(2021, 1, 10),
+            },
+            {
+                ABSegment.account_id.str: "2",
+                ABSegment.date_account_was_originally_opened.str: None,
+            },
+            {
+                ABSegment.account_id.str: "3",
+                ABSegment.date_account_was_originally_opened.str: date(2022, 5, 17),
+            },
+            {
+                ABSegment.account_id.str: "4",
+                ABSegment.date_account_was_originally_opened.str: date(1900, 1, 1),
+            },
+            {
+                ABSegment.account_id.str: "5",
+                ABSegment.date_account_was_originally_opened.str: None,
+            },
+        ],
+    ).select(
+        ABSegment.account_id,
+        ABSegment.date_account_was_originally_opened,
+    )
+
+    # Call function
+    result_df = date_account_was_originally_opened(ccaccount_data)
+
+    # Assert DataFrames match
+    assert_df_equality(expected_data, result_df, ignore_nullable=True)
+
