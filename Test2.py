@@ -15,14 +15,14 @@ from ecbr_card_self_service.schemas.sbfe.ab_segment import ABSegment
 from ecbr_card_self_service.tests.helpers.dataset_utils import create_partially_filled_dataset
 
 def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
-    # ✅ Input DataFrames with correct schema classes
+    # ✅ Input DataFrames
     account_df = create_partially_filled_dataset(
         spark,
         CCAccount,
         data=[
-            {"account_id": "1", "posted_balance": 100},
-            {"account_id": "2", "posted_balance": 200},
-            {"account_id": "3", "posted_balance": 300},
+            {CCAccount.account_id: "1", CCAccount.posted_balance: 100},
+            {CCAccount.account_id: "2", CCAccount.posted_balance: 200},
+            {CCAccount.account_id: "3", CCAccount.posted_balance: 300},
         ]
     )
 
@@ -30,9 +30,9 @@ def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
         spark,
         CustomerInformation,
         data=[
-            {"account_id": "1"},
-            {"account_id": "2"},
-            {"account_id": "3"},
+            {CustomerInformation.account_id: "1"},
+            {CustomerInformation.account_id: "2"},
+            {CustomerInformation.account_id: "3"},
         ]
     )
 
@@ -40,19 +40,19 @@ def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
         spark,
         Recoveries,
         data=[
-            {"account_id": "1"},
-            {"account_id": "2"},
-            {"account_id": "3"},
+            {Recoveries.account_id: "1"},
+            {Recoveries.account_id: "2"},
+            {Recoveries.account_id: "3"},
         ]
     )
 
     misc_df = create_partially_filled_dataset(
         spark,
-        CCAccount,  # Or correct misc schema if available
+        CCAccount,  # Replace with correct misc schema if needed
         data=[
-            {"account_id": "1"},
-            {"account_id": "2"},
-            {"account_id": "3"},
+            {CCAccount.account_id: "1"},
+            {CCAccount.account_id: "2"},
+            {CCAccount.account_id: "3"},
         ]
     )
 
@@ -60,20 +60,20 @@ def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
         spark,
         ECBRGeneratedFields,
         data=[
-            {"account_id": "1", "account_status": "97"},
-            {"account_id": "2", "account_status": "64"},
-            {"account_id": "3", "account_status": "11"},
+            {ECBRGeneratedFields.account_id: "1", ECBRGeneratedFields.account_status: "97"},
+            {ECBRGeneratedFields.account_id: "2", ECBRGeneratedFields.account_status: "64"},
+            {ECBRGeneratedFields.account_id: "3", ECBRGeneratedFields.account_status: "11"},
         ]
     )
 
-    # ✅ Mocked output of Field 23 (original_charge_off_amount)
+    # ✅ Mocked Field 23 (original_charge_off_amount) output
     mocked_field23_df = create_partially_filled_dataset(
         spark,
         BaseSegment,
         data=[
-            {"account_id": "1", "original_charge_off_amount": 100},
-            {"account_id": "2", "original_charge_off_amount": 200},
-            {"account_id": "3", "original_charge_off_amount": 0},
+            {BaseSegment.account_id: "1", BaseSegment.original_charge_off_amount: 100},
+            {BaseSegment.account_id: "2", BaseSegment.original_charge_off_amount: 200},
+            {BaseSegment.account_id: "3", BaseSegment.original_charge_off_amount: 0},
         ]
     )
 
@@ -82,19 +82,19 @@ def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
         spark,
         ABSegment,
         data=[
-            {"account_id": "1", "amount_charged_off_by_creditor": 100},
-            {"account_id": "2", "amount_charged_off_by_creditor": 200},
-            {"account_id": "3", "amount_charged_off_by_creditor": 0},
+            {ABSegment.account_id: "1", ABSegment.amount_charged_off_by_creditor: 100},
+            {ABSegment.account_id: "2", ABSegment.amount_charged_off_by_creditor: 200},
+            {ABSegment.account_id: "3", ABSegment.amount_charged_off_by_creditor: 0},
         ]
     )
 
-    # ✅ Patch original_charge_off_amount to return mocked Field 23 output
+    # ✅ Patch Field 23 method
     with patch(
         "ecbr_card_self_service.ecbr_calculations.fields.base.original_charge_off_amount.original_charge_off_amount"
     ) as mock_func:
         mock_func.return_value = mocked_field23_df
 
-        # Run the actual function
+        # Execute
         result_df = amount_charged_off_by_creditor(
             account_df,
             customer_df,
@@ -103,5 +103,5 @@ def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
             ecbr_generated_fields_df
         )
 
-        # ✅ Assertion
+        # ✅ Validate
         assert_df_equality(result_df, expected_df, ignore_nullable=True, ignore_column_order=True)
