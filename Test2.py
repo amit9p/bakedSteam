@@ -1,62 +1,64 @@
 
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+from edq.generated_fields.segment import BaseSegment
+from original_charge_off_amount import original_charge_off_amount
 
-from pyspark.sql import SparkSession
-
-# Start Spark session
-spark = SparkSession.builder.appName("ParquetToCSV").getOrCreate()
-
-# Path to your Parquet file
-parquet_path = "/path/to/input.parquet"
-# Path to output CSV directory
-csv_output_path = "/path/to/output_csv_dir"
-
-# Read Parquet file
-df = spark.read.parquet(parquet_path)
-
-# Write as CSV (without index, with header)
-df.write.mode("overwrite").option("header", "true").csv(csv_output_path)
-
-spark.stop()
-
-
-
-from datetime import date
-from chispa import assert_df_equality
-
-from ecbr_card_self_service.schemas.sbfe.ab_segment import ABSegment
-from ecbr_card_self_service.schemas.sbfe.cc_account import CCAccount
-from ecbr_card_self_service.ecbr_calculations.fields.ab.date_account_was_originally_opened import (
-    date_account_was_originally_opened,
-)
-from typespark import create_partially_filled_dataset
-
-def test_date_account_was_originally_opened(spark):
-    # Input data: use string keys, not .str anywhere in these dicts!
-    ccaccount_data = create_partially_filled_dataset(
-        spark,
-        CCAccount,
-        data=[
-            {"account_id": "1", "account_open_date": date(2021, 1, 10)},
-            {"account_id": "2", "account_open_date": None},
-            {"account_id": "3", "account_open_date": date(2022, 5, 17)},
-            {"account_id": "4", "account_open_date": date(1900, 1, 1)},
-            {"account_id": "5", "account_open_date": None},
-        ],
+def amount_charged_off_by_creditor(
+    account_df: DataFrame,
+    customer_df: DataFrame,
+    recoveries_df: DataFrame,
+    misc_df: DataFrame,
+    ecbr_generated_fields_df: DataFrame
+) -> DataFrame:
+    """
+    This method calculates Field 73 by reusing the Field 23 logic.
+    It returns a DataFrame with account_id and amount_charged_off_by_creditor.
+    """
+    field23_df = original_charge_off_amount(
+        account_df,
+        customer_df,
+        recoveries_df,
+        misc_df,
+        ecbr_generated_fields_df
     )
 
-    expected_data = create_partially_filled_dataset(
-        spark,
-        ABSegment,
-        data=[
-            {"account_id": "1", "date_account_was_originally_opened": date(2021, 1, 10)},
-            {"account_id": "2", "date_account_was_originally_opened": None},
-            {"account_id": "3", "date_account_was_originally_opened": date(2022, 5, 17)},
-            {"account_id": "4", "date_account_was_originally_opened": date(1900, 1, 1)},
-            {"account_id": "5", "date_account_was_originally_opened": None},
-        ],
-    ).select(
-        ABSegment.account_id, ABSegment.date_account_was_originally_opened
+    return field23_df.select(
+        BaseSegment.account_id.str,
+        BaseSegment.original_charge_off_amount.str.alias("amount_charged_off_by_creditor")
     )
 
-    result_df = date_account_was_originally_opened(ccaccount_data)
-    assert_df_equality(expected_data, result_df, ignore_nullable=True)
+
+import pytest
+from pyspark.sql import Row
+from pyspark.sql.functions import col
+from amount_charged_off_by_creditor import amount_charged_off_by_creditor
+
+def test_amount_charged_off_by_creditor(spark):
+    # Sample input DataFrames
+    account_df = spark.createDataFrame([
+        Row(account_id="A1", posted_balance=100),
+        Row(account_id="A2", posted_balance=200),
+    ])
+
+    customer_df = spark.createDataFrame([Row(account_id="A1"), Row(account_id="A2")])
+    recoveries_df = spark.createDataFrame([Row(account_id="A1"), Row(account_id="A2")])
+    misc_df = spark.createDataFrame([Row(account_id="A1"), Row(account_id="A2")])
+    ecbr_generated_fields_df = spark.createDataFrame([
+        Row(account_id="A1", account_status="97"),
+        Row(account_id="A2", account_status="64")
+    ])
+
+    # Expected DataFrame
+    expected_df = spark.createDataFrame([
+        Row(account_id="A1", amount_charged_off_by_creditor=100),
+        Row(account_id="A2", amount_charged_off_by_creditor=200),
+    ])
+
+    # Call function
+    result_df = amount_charged_off_by_creditor(
+        account_df, customer_df, recoveries_df, misc_df, ecbr_generated_fields_df
+    )
+
+    # Assert
+    assert result_df.collect() == expected_df.collect()
