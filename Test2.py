@@ -49,7 +49,7 @@ def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
 
     misc_df = create_partially_filled_dataset(
         spark,
-        CCAccount,  # Use correct schema if your project has a dedicated one for misc
+        CCAccount,
         data=[
             {CCAccount.account_id: "1"},
             {CCAccount.account_id: "2"},
@@ -67,7 +67,7 @@ def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
         ]
     )
 
-    # ✅ Strict mock: Field 23 output with NO extra/ambiguous columns
+    # ✅ Strict mock: only required columns to avoid ambiguity
     mocked_field23_df = create_partially_filled_dataset(
         spark,
         BaseSegment,
@@ -81,7 +81,7 @@ def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
         BaseSegment.original_charge_off_amount
     )
 
-    # ✅ Expected output for Field 73
+    # ✅ Expected output
     expected_df = create_partially_filled_dataset(
         spark,
         ABSegment,
@@ -92,12 +92,13 @@ def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
         ]
     )
 
-    # ✅ Patch Field 23 logic to return mocked DF
+    # ✅ Patch Field 23 logic
     with patch(
         "ecbr_card_self_service.ecbr_calculations.fields.base.original_charge_off_amount.original_charge_off_amount"
     ) as mock_func:
         mock_func.return_value = mocked_field23_df
 
+        # Run function
         result_df = amount_charged_off_by_creditor(
             account_df,
             customer_df,
@@ -106,4 +107,5 @@ def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
             ecbr_generated_fields_df
         )
 
+        # ✅ Validate result
         assert_df_equality(result_df, expected_df, ignore_nullable=True, ignore_column_order=True)
