@@ -1,4 +1,10 @@
 
+from ecbr_card_self_service.tests.helpers.dataset_utils import create_partially_filled_dataset  # adjust path if needed
+
+def test_amount_charged_off_by_creditor_with_mocked_field23(spark):
+
+
+
 import pytest
 from chispa import assert_df_equality
 from unittest.mock import patch
