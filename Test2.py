@@ -1,55 +1,57 @@
 
-import pytest
-from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType
-from your_module_path import amount_charged_off_by_creditor  # adjust this import
 
-@pytest.fixture(scope="session")
-def spark():
-    return SparkSession.builder.master("local[*]").appName("test").getOrCreate()
+import pytest
+from pyspark.sql import Row
+from chispa import assert_df_equality
+from amount_charged_off_by_creditor import amount_charged_off_by_creditor
 
 def test_amount_charged_off_by_creditor(spark):
-    # Sample schema and data for input DataFrames
-    schema = StructType([
-        StructField("account_id", StringType(), True),
-        StructField("original_charge_off_amount", IntegerType(), True),
-        StructField("account_status", StringType(), True),
-        StructField("posted_balance", IntegerType(), True)
+    # Input DataFrames
+    ccaccount_df = spark.createDataFrame([
+        Row(account_id="A1", posted_balance=150),
+        Row(account_id="A2", posted_balance=0),
+        Row(account_id="A3", posted_balance=300)
     ])
 
-    data = [
-        ("acc1", 1000, "97", 200),
-        ("acc2", 0, "13", 0),
-    ]
+    customer_df = spark.createDataFrame([
+        Row(account_id="A1"),
+        Row(account_id="A2"),
+        Row(account_id="A3")
+    ])
 
-    # Create all 5 input DataFrames with minimal schema
-    ccaccount_df = spark.createDataFrame(data, schema)
-    customer_df = spark.createDataFrame([], schema)
-    recoveries_df = spark.createDataFrame([], schema)
-    misc_df = spark.createDataFrame([], schema)
-    ecb_generated_fields_df = spark.createDataFrame([], schema)
+    recoveries_df = spark.createDataFrame([
+        Row(account_id="A1"),
+        Row(account_id="A2"),
+        Row(account_id="A3")
+    ])
 
-    # Call the method
+    misc_df = spark.createDataFrame([
+        Row(account_id="A1"),
+        Row(account_id="A2"),
+        Row(account_id="A3")
+    ])
+
+    ecbr_generated_fields_df = spark.createDataFrame([
+        Row(account_id="A1", account_status="97"),
+        Row(account_id="A2", account_status="11"),
+        Row(account_id="A3", account_status="64")
+    ])
+
+    # Expected output
+    expected_df = spark.createDataFrame([
+        Row(account_id="A1", amount_charged_off_by_creditor=150),
+        Row(account_id="A2", amount_charged_off_by_creditor=0),
+        Row(account_id="A3", amount_charged_off_by_creditor=300)
+    ])
+
+    # Function under test
     result_df = amount_charged_off_by_creditor(
         ccaccount_df,
         customer_df,
         recoveries_df,
         misc_df,
-        ecb_generated_fields_df
+        ecbr_generated_fields_df
     )
 
-    # Expected result
-    expected_data = [
-        ("acc1", "200"),  # from posted_balance
-        ("acc2", "0")     # from constant zero
-    ]
-
-    expected_schema = StructType([
-        StructField("account_id", StringType(), True),
-        StructField("amount_charged_off_by_creditor", StringType(), True)
-    ])
-
-    expected_df = spark.createDataFrame(expected_data, expected_schema)
-
     # Assertion
-    assert result_df.collect() == expected_df.collect()
+    assert_df_equality(result_df, expected_df, ignore_nullable=True, ignore_column_order=True)
