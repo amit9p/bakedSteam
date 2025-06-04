@@ -1,5 +1,40 @@
 
 
+from datetime import datetime
+
+customerInformation = create_partially_filled_dataset(
+    spark,
+    CustomerInformation,
+    data=[
+        {
+            CustomerInformation.account_id: "10",
+            CustomerInformation.bankruptcy_chapter: "11",
+            CustomerInformation.bankruptcy_first_filed_date: datetime(2023, 1, 1).date(),
+            CustomerInformation.is_account_holder_deceased: False,
+            CustomerInformation.has_financial_liability: False,
+        },
+        {
+            CustomerInformation.account_id: "20",
+            CustomerInformation.bankruptcy_chapter: "11",
+            CustomerInformation.bankruptcy_first_filed_date: datetime(2023, 1, 1).date(),
+            CustomerInformation.is_account_holder_deceased: False,
+            CustomerInformation.has_financial_liability: False,
+        },
+        {
+            CustomerInformation.account_id: "30",
+            CustomerInformation.bankruptcy_chapter: "11",
+            CustomerInformation.bankruptcy_first_filed_date: datetime(2023, 1, 1).date(),
+            CustomerInformation.is_account_holder_deceased: False,
+            CustomerInformation.has_financial_liability: False,
+        },
+        {
+            CustomerInformation.account_id: "40",
+            CustomerInformation.bankruptcy_chapter: "11",
+        }
+    ]
+)
+
+
 CCAccount.charge_off_date: datetime(2023, 12, 31).date(),
 
 from pyspark.sql.types import StructType, StructField, StringType, LongType
