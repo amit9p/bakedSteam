@@ -1,5 +1,41 @@
 
 
+from pyspark.sql.functions import when, col, lit
+from ecbr_card_self_service.ecbr_calculations.constants import DEFAULT_ERROR_INTEGER
+
+def amount_charged_off_by_creditor(
+    ccaccount_df: DataFrame,
+    customer_df: DataFrame,
+    recoveries_df: DataFrame,
+    misc_df: DataFrame,
+    ecbr_generated_fields_df: DataFrame,
+) -> DataFrame:
+    """
+    This method calculates Field 73 by reusing the Base Field 23 logic.
+    It returns a DataFrame with account_id and amount_charged_off_by_creditor.
+    """
+    original_charge_off_amount_df = original_charge_off_amount(
+        ccaccount_df,
+        customer_df,
+        recoveries_df,
+        misc_df,
+        ecbr_generated_fields_df
+    )
+
+    return original_charge_off_amount_df.withColumn(
+        ABSegment.amount_charged_off_by_creditor.str,
+        when(
+            col(BaseSegment.original_charge_off_amount.str).isNull(),
+            lit(DEFAULT_ERROR_INTEGER)
+        ).otherwise(col(BaseSegment.original_charge_off_amount.str))
+    ).select(
+        ABSegment.account_id.str,
+        ABSegment.amount_charged_off_by_creditor.str
+    )
+
+
+
+
 from datetime import datetime
 
 CustomerInformation.bankruptcy_first_filed_date: datetime(2022, 1, 1).date()
