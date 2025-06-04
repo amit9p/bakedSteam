@@ -1,5 +1,7 @@
 
 
+CCAccount.charge_off_date: datetime(2023, 12, 31).date(),
+
 from pyspark.sql.types import StructType, StructField, StringType, LongType
 from pyspark.sql import Row
 
