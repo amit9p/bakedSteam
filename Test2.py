@@ -2,6 +2,16 @@
 
 from datetime import datetime
 
+CustomerInformation.bankruptcy_first_filed_date: datetime(2022, 1, 1).date()
+CustomerInformation.bankruptcy_first_filed_date: datetime(2022, 1, 1).date()
+CustomerInformation.bankruptcy_first_filed_date: datetime(2022, 1, 2).date()
+CustomerInformation.bankruptcy_first_filed_date: datetime(2022, 1, 3).date()
+CustomerInformation.bankruptcy_first_filed_date: datetime(2022, 1, 18).date()
+
+
+
+from datetime import datetime
+
 customerInformation = create_partially_filled_dataset(
     spark,
     CustomerInformation,
