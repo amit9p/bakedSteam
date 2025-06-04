@@ -1,5 +1,39 @@
 
 
+from pyspark.sql.types import StructType, StructField, StringType, LongType
+from pyspark.sql import Row
+
+schema = StructType([
+    StructField("account_id", StringType(), True),
+    StructField("amount_charged_off_by_creditor", LongType(), True)
+])
+
+expected_df = spark.createDataFrame([
+    Row(account_id="1", amount_charged_off_by_creditor=0),
+    Row(account_id="10", amount_charged_off_by_creditor=0),
+    Row(account_id="11", amount_charged_off_by_creditor=100),
+    Row(account_id="12", amount_charged_off_by_creditor=0),
+    Row(account_id="13", amount_charged_off_by_creditor=None),
+    Row(account_id="14", amount_charged_off_by_creditor=0),
+    Row(account_id="15", amount_charged_off_by_creditor=None),
+    Row(account_id="16", amount_charged_off_by_creditor=0),
+    Row(account_id="17", amount_charged_off_by_creditor=None),
+    Row(account_id="18", amount_charged_off_by_creditor=0),
+    Row(account_id="19", amount_charged_off_by_creditor=None),
+    Row(account_id="2", amount_charged_off_by_creditor=100),
+    Row(account_id="22", amount_charged_off_by_creditor=0),
+    Row(account_id="23", amount_charged_off_by_creditor=None),
+    Row(account_id="24", amount_charged_off_by_creditor=0),
+    Row(account_id="25", amount_charged_off_by_creditor=0),
+    Row(account_id="26", amount_charged_off_by_creditor=None),
+    Row(account_id="3", amount_charged_off_by_creditor=0),
+    Row(account_id="4", amount_charged_off_by_creditor=0),
+    Row(account_id="5", amount_charged_off_by_creditor=0),
+], schema=schema)
+
+
+________
+
 from pyspark.sql import Row
 
 expected_df = spark.createDataFrame([
