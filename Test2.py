@@ -1,4 +1,9 @@
 
+Thanks, Tyler! Yes, you're reading it right — the helper takes a Column input and returns a Column expression that's applied at the DataFrame level (e.g., using withColumn). So it processes the full dataset at once, not individual rows. Let me know if you'd prefer we wrap it differently, but functionally it's aligned.
+
+
+
+
 from pyspark.sql.column import Column
 from pyspark.sql.functions import when, lit
 from ecbr_card_self_service.ecbr_calculations.constants import DEFAULT_ERROR_INTEGER
