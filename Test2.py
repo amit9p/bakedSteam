@@ -1,8 +1,9 @@
 
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import when, col
+from pyspark.sql.column import Column
+from pyspark.sql.functions import when, lit
+from ecbr_card_self_service.ecbr_calculations.constants import DEFAULT_ERROR_INTEGER
 
-# Mapping as a constant (you can move this to a config/constants file)
+# Mapping constant
 PAST_DUE_STATUS_MAPPING = {
     "PastDue1To30Days": 11,
     "PastDue31To60Days": 71,
@@ -18,31 +19,28 @@ PAST_DUE_STATUS_MAPPING = {
     "PastDueOver331Days": 84
 }
 
-def get_pre_co_account_status(ccaccount_df: DataFrame) -> DataFrame:
+def get_pre_co_account_status(past_due_status_reason_col: Column) -> Column:
     """
-    Assigns Pre-CO Account Status using past_due_status_reason.
-    Returns a DataFrame with account_id and pre_charge_off_account_status.
+    Returns a Column expression that evaluates Pre-CO Account Status based on past_due_status_reason_col.
     """
     expr = None
     for reason, status in PAST_DUE_STATUS_MAPPING.items():
-        condition = col("past_due_status_reason") == reason
-        expr = when(condition, status) if expr is None else expr.when(condition, status)
+        condition = past_due_status_reason_col == reason
+        expr = when(condition, lit(status)) if expr is None else expr.when(condition, lit(status))
 
-    expr = expr.otherwise("ERROR")
-
-    return ccaccount_df.select(
-        "account_id",
-        expr.alias("pre_charge_off_account_status")
-    )
+    return expr.otherwise(lit(DEFAULT_ERROR_INTEGER))
 
 
 import pytest
 from pyspark.sql import SparkSession
-from your_module import get_pre_co_account_status
+from pyspark.sql.functions import col
+from your_module import get_pre_co_account_status  # Replace with actual module
+from ecbr_card_self_service.schemas.cc_account import CCAccount
+from ecbr_card_self_service.ecbr_calculations.constants import DEFAULT_ERROR_INTEGER
 
 @pytest.fixture(scope="module")
 def spark():
-    return SparkSession.builder.master("local[1]").appName("pytest").getOrCreate()
+    return SparkSession.builder.master("local").appName("test").getOrCreate()
 
 def test_get_pre_co_account_status(spark):
     input_data = [
@@ -54,19 +52,25 @@ def test_get_pre_co_account_status(spark):
         ("A6", "UnknownCode")
     ]
 
-    df = spark.createDataFrame(input_data, ["account_id", "past_due_status_reason"])
+    df = spark.createDataFrame(input_data, [CCAccount.account_id.str, CCAccount.past_due_status_reason.str])
 
-    result_df = get_pre_co_account_status(df)
+    result_df = df.withColumn(
+        CCAccount.pre_charge_off_account_status.str,
+        get_pre_co_account_status(col(CCAccount.past_due_status_reason.str))
+    ).select(
+        CCAccount.account_id.str,
+        CCAccount.pre_charge_off_account_status.str
+    )
 
     expected_data = [
         ("A1", 11),
         ("A2", 71),
         ("A3", 84),
         ("A4", 84),
-        ("A5", "ERROR"),
-        ("A6", "ERROR")
+        ("A5", DEFAULT_ERROR_INTEGER),
+        ("A6", DEFAULT_ERROR_INTEGER)
     ]
 
-    expected_df = spark.createDataFrame(expected_data, ["account_id", "pre_charge_off_account_status"])
+    expected_df = spark.createDataFrame(expected_data, [CCAccount.account_id.str, CCAccount.pre_charge_off_account_status.str])
 
     assert result_df.collect() == expected_df.collect()
