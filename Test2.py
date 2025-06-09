@@ -1,4 +1,20 @@
 
+pre_co_df = account_df.select(
+    BaseSegment.account_id.str,
+    get_pre_co_account_status(CCAccount.past_due_status_reason).alias(PRE_CO.pre_charge_off_account_status.str)
+)
+
+
+joined_df = (
+    account_df
+    .join(account_type_df, on=BaseSegment.account_id.str, how="left")
+    .join(pre_co_df, on=BaseSegment.account_id.str, how="left")  # 👈 Add this line
+    .join(customer_df, ...)
+    ...
+)
+
+
+
 Thanks, Tyler! Yes, you're reading it right — the helper takes a Column input and returns a Column expression that's applied at the DataFrame level (e.g., using withColumn). So it processes the full dataset at once, not individual rows. Let me know if you'd prefer we wrap it differently, but functionally it's aligned.
 
 
