@@ -1,4 +1,34 @@
 
+from pyspark.sql import SparkSession
+
+# Initialize Spark
+spark = SparkSession.builder.appName("CleanCSV").getOrCreate()
+
+# Input and output paths
+input_path = "path/to/account_dataset.csv"
+output_path = "path/to/account_dataset_cleaned.csv"
+
+# Column to remove
+column_to_remove = "pre_charge_off_account_status"
+
+# Load CSV
+df = spark.read.option("header", True).csv(input_path)
+
+# Drop the column if it exists
+if column_to_remove in df.columns:
+    df = df.drop(column_to_remove)
+    df.write.mode("overwrite").option("header", True).csv(output_path)
+    print(f"Column '{column_to_remove}' removed and saved to {output_path}")
+else:
+    print(f"Column '{column_to_remove}' not found in file.")
+
+
+__________
+
+
+
+
+
 pre_co_df = account_df.select(
     BaseSegment.account_id.str,
     get_pre_co_account_status(CCAccount.past_due_status_reason).alias(PRE_CO.pre_charge_off_account_status.str)
