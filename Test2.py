@@ -1,4 +1,18 @@
 
+expected_data = create_partially_filled_dataset(
+    spark,
+    PreCo,
+    data=[
+        {CCAccount.account_id: "A1", PreCo.pre_charge_off_account_status: "11"},
+        {CCAccount.account_id: "A2", PreCo.pre_charge_off_account_status: "71"},
+        {CCAccount.account_id: "A3", PreCo.pre_charge_off_account_status: "84"},
+        {CCAccount.account_id: "A4", PreCo.pre_charge_off_account_status: "84"},
+        {CCAccount.account_id: "A5", PreCo.pre_charge_off_account_status: DEFAULT_ERROR_STRING},
+        {CCAccount.account_id: "A6", PreCo.pre_charge_off_account_status: DEFAULT_ERROR_STRING},
+    ]
+)
+
+
 from datetime import datetime
 from chispa import assert_df_equality
 from pyspark.sql import SparkSession
