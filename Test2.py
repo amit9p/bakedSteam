@@ -1,4 +1,65 @@
 
+from datetime import datetime
+from chispa import assert_df_equality
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col
+
+from ecbr_card_self_service.ecbr_calculations.constants import DEFAULT_ERROR_STRING
+from ecbr_card_self_service.ecbr_calculations.fields.base.pre_co_account_status import get_pre_co_account_status
+from ecbr_card_self_service.schemas.cc_account import CCAccount
+from ecbr_card_self_service.schemas.pre_co_account_status import PreCo
+from typedspark import create_partially_filled_dataset
+
+
+def test_get_pre_co_account_status(spark: SparkSession):
+    # Input
+    input_data = create_partially_filled_dataset(
+        spark,
+        CCAccount,
+        data=[
+            {"account_id": "A1", "past_due_status_reason": "PastDue1To30Days"},
+            {"account_id": "A2", "past_due_status_reason": "PastDue31To60Days"},
+            {"account_id": "A3", "past_due_status_reason": "PastDue181To210Days"},
+            {"account_id": "A4", "past_due_status_reason": "PastDueOver331Days"},
+            {"account_id": "A5", "past_due_status_reason": None},
+            {"account_id": "A6", "past_due_status_reason": "UnknownCode"},
+        ],
+    )
+
+    # Expected
+    expected_data = create_partially_filled_dataset(
+        spark,
+        PreCo,
+        data=[
+            {"account_id": "A1", "pre_charge_off_account_status": 11},
+            {"account_id": "A2", "pre_charge_off_account_status": 71},
+            {"account_id": "A3", "pre_charge_off_account_status": 84},
+            {"account_id": "A4", "pre_charge_off_account_status": 84},
+            {"account_id": "A5", "pre_charge_off_account_status": DEFAULT_ERROR_STRING},
+            {"account_id": "A6", "pre_charge_off_account_status": DEFAULT_ERROR_STRING},
+        ],
+    )
+
+    # Actual
+    result_df = input_data.withColumn(
+        PreCo.pre_charge_off_account_status.str,
+        get_pre_co_account_status(col(CCAccount.past_due_status_reason.str)),
+    ).select(PreCo.account_id.str, PreCo.pre_charge_off_account_status.str)
+
+    # Assertion
+    assert_df_equality(expected_data, result_df, ignore_nullable=True)
+
+
+
+
+_______
+
+
+
+
+
+
+
 from pyspark.sql import SparkSession
 
 # Initialize Spark
