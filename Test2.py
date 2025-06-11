@@ -1,3 +1,20 @@
+Slide 4: Leverage Script – Creating Rules
+
+"This slide shows how we can automate rule creation in EDQ using scripts."
+
+"We begin by creating an EDQ job. This job acts as a container that links the dataset and defines when and how rules are executed."
+
+"Once the job is created, we define individual rules. For example, in the screenshot you can see a Not Null rule being created on the pay_history_date column, with a passing threshold configured."
+
+"Each rule can include details like passing range, alert configuration, and custom error messages to capture business logic accurately."
+
+"To avoid manual setup for each dataset, we use Python scripts and EDQ APIs to automate job and rule creation. This saves significant effort—especially when we deal with multiple datasets or frequent changes."
+
+
+
+
+
+
 
 Slide 1: What is EDQ?
 
