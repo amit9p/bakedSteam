@@ -1,3 +1,17 @@
+
+Job creation configures when and how data quality rules are executed
+
+Rule definition sets up checks for data accuracy, completeness, and integrity
+
+Notifications alert users about rule failures or job issues
+
+Results view provides visibility into job execution and rule outcomes
+
+
+
+
+
+
 expected_data = create_partially_filled_dataset(
     spark,
     PreCo,
