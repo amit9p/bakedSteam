@@ -1,4 +1,8 @@
 
+⚠️ Minor: In the CHARGE_OFF status check, .upper() or .trim() isn’t applied. If upstream data may have casing or spacing variations, we may want to normalize it like done for ZERO_BALANCE statuses.
+
+
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import lit
 from ecbr_card_self_service.schemas.ti_segment import TISegment
