@@ -1,4 +1,22 @@
 
+
+---
+
+But for this line:
+
+.when(
+    col(BaseSegment.account_status.str).isin(ACCOUNT_STATUS_CHARGE_OFF),
+    col(CCAccount.posted_balance.str)
+)
+
+❌ No .upper() or .lower() is applied. That means:
+
+If input status = '97' or '64' (as string) → it will match ✔️
+
+But if it comes as '97 ' (with space) or '64'.lower() (just in case) → it may fail silently ❌
+
+
+
 ⚠️ Minor: In the CHARGE_OFF status check, .upper() or .trim() isn’t applied. If upstream data may have casing or spacing variations, we may want to normalize it like done for ZERO_BALANCE statuses.
 
 
