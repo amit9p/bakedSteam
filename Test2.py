@@ -1,112 +1,35 @@
 
 
----
+from pyspark.sql import SparkSession
 
-But for this line:
+# Initialize Spark
+spark = SparkSession.builder.appName("CleanCSV").getOrCreate()
 
-.when(
-    col(BaseSegment.account_status.str).isin(ACCOUNT_STATUS_CHARGE_OFF),
-    col(CCAccount.posted_balance.str)
-)
+# Input paths
+account_dataset = "/Users/yourpath/account_dataset.csv"
+customer_dataset = "/Users/yourpath/customer_dataset.csv"
 
-❌ No .upper() or .lower() is applied. That means:
+# Output paths
+account_output = "/Users/yourpath/output_account.csv"
+customer_output = "/Users/yourpath/output_customer.csv"
 
-If input status = '97' or '64' (as string) → it will match ✔️
+# Load datasets
+account_df = spark.read.option("header", True).csv(account_dataset)
+customer_df = spark.read.option("header", True).csv(customer_dataset)
 
-But if it comes as '97 ' (with space) or '64'.lower() (just in case) → it may fail silently ❌
+# Field to move
+field_to_move = "credit_report_subject_social_security_number"
 
+# Extract and drop the field
+field_col = account_df.select(field_to_move)
+account_df = account_df.drop(field_to_move)
 
-
-⚠️ Minor: In the CHARGE_OFF status check, .upper() or .trim() isn’t applied. If upstream data may have casing or spacing variations, we may want to normalize it like done for ZERO_BALANCE statuses.
-
-
-
-from pyspark.sql import DataFrame
+# Add to customer_df
 from pyspark.sql.functions import lit
-from ecbr_card_self_service.schemas.ti_segment import TISegment
 
-# Constant for Federal Tax ID/SSN Identifier as per TI Field 06 specification
-FEDERAL_TAX_IDENTIFIER_CODE = "001"
+# This assumes the order of rows is consistent between datasets
+customer_df = customer_df.withColumn(field_to_move, field_col[field_to_move])
 
-def get_federal_tax_identifier(ccaccount_df: DataFrame) -> DataFrame:
-    """
-    Returns a DataFrame with account_id and a hardcoded federal_tax_id_ssn = '001'.
-    This corresponds to the TI Field 06 definition which should always be '001'.
-    """
-    return ccaccount_df.select(
-        ccaccount_df.account_id.alias(TISegment.account_id.str),
-        lit(FEDERAL_TAX_IDENTIFIER_CODE).alias(TISegment.federal_tax_id_ssn.str)
-    )
-
-
-
-
-def test_get_federal_tax_identifier(spark):
-    input_df = create_partially_filled_dataset(
-        spark,
-        CustomerInformation,
-        data=[
-            {"account_id": "1"},
-            {"account_id": "2"}
-        ]
-    )
-
-    expected_df = create_partially_filled_dataset(
-        spark,
-        TISegment,
-        data=[
-            {"account_id": "1", "federal_tax_id_ssn": "001"},
-            {"account_id": "2", "federal_tax_id_ssn": "001"}
-        ]
-    ).select(
-        TISegment.account_id,
-        TISegment.federal_tax_id_ssn
-    )
-
-    result_df = passthrough.get_federal_tax_identifier(input_df)
-
-    assert_df_equal(
-        result_df,
-        expected_df,
-        ignore_row_order=True,
-        ignore_nullable=True
-    )
-
-______________
-
-
-
-
-
-
-
-Current Code Pattern (Repeated Conditionals)
-
-Your logic has many repeated when(...) blocks like:
-
-when(manual_delete_code_exists, lit(ACCOUNT_STATUS_DA))
-when(is_terminal_notification_true, lit(ACCOUNT_STATUS_DA))
-when(is_aged_debt_notification_true, lit(ACCOUNT_STATUS_DA))
-
-They are clean and correct, but since many of them lead to the same output (e.g., DA), you could group related flags into one block to reduce repetition.
-
-
----
-
-✅ Suggested Grouped Style (Optional Refactor)
-
-when(
-    manual_delete_code_exists |
-    is_terminal_notification_true |
-    (is_deceased_notification_true_acct_type_8a) |
-    is_aged_debt_notification_true,
-    lit(ACCOUNT_STATUS_DA)
-)
-
-This:
-
-Keeps the logic tight
-
-Reduces vertical length
-
-Improves readability if the logic grows
+# Write outputs as single files
+account_df.coalesce(1).write.mode("overwrite").option("header", True).csv(account_output)
+customer_df.coalesce(1).write.mode("overwrite").option("header", True).csv(customer_output)
