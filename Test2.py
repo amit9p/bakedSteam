@@ -1,29 +1,71 @@
 
 from datetime import datetime
+from edq.ecbr_card_self_service.ecbr_calculations.fields.base.date_closed import date_closed
+from edq.ecbr_card_self_service.constants import DEFAULT_ERROR_DATE, DATE_FORMAT
+from edq.ecbr_card_self_service.tests.helpers.test_utils import create_partially_filled_dataset
+from edq.ecbr_card_self_service.schemas.base_segment import BaseSegment
+from edq.ecbr_card_self_service.schemas.cc_account import CCAccount
 from chispa.dataframe_comparer import assert_df_equality
-from pyspark.sql import SparkSession, Row
-from ecbr_card_self_service.constants import DEFAULT_ERROR_DATE
-from ecbr_card_self_service.schemas.base_segment import BaseSegment
-from ecbr_card_self_service.fields.base.date_closed import date_closed
 
-def test_date_closed(spark: SparkSession):
-    data = spark.createDataFrame([
-        Row(account_id="1", account_close_date=datetime(2024, 12, 9).date(), charge_off_date=datetime(2024, 12, 10).date()),
-        Row(account_id="2", account_close_date=None, charge_off_date=datetime(2024, 12, 8).date()),
-        Row(account_id="3", account_close_date="", charge_off_date=datetime(2024, 12, 7).date()),
-        Row(account_id="4", account_close_date=None, charge_off_date=datetime(2024, 12, 6).date())
-    ])
 
-    expected_data = spark.createDataFrame([
-        Row(account_id="1", date_closed=datetime(2024, 12, 9).date()),   # valid close date
-        Row(account_id="2", date_closed=DEFAULT_ERROR_DATE),             # null → error date
-        Row(account_id="3", date_closed=None),                           # blank → null
-        Row(account_id="4", date_closed=DEFAULT_ERROR_DATE)              # null → error date
-    ])
+def test_date_closed(spark):
+    # ✅ Input data using utility
+    data = create_partially_filled_dataset(
+        spark,
+        CCAccount,
+        data=[
+            {
+                CCAccount.account_id: "1",
+                CCAccount.account_close_date: datetime(2024, 12, 9).date(),
+                CCAccount.charge_off_date: datetime.strptime("2024-12-10", DATE_FORMAT).date(),
+            },
+            {
+                CCAccount.account_id: "2",
+                CCAccount.account_close_date: None,
+                CCAccount.charge_off_date: datetime.strptime("2024-12-08", DATE_FORMAT).date(),
+            },
+            {
+                CCAccount.account_id: "3",
+                CCAccount.account_close_date: "",
+                CCAccount.charge_off_date: datetime.strptime("2024-12-07", DATE_FORMAT).date(),
+            },
+            {
+                CCAccount.account_id: "4",
+                CCAccount.account_close_date: None,
+                CCAccount.charge_off_date: datetime.strptime("2024-12-06", DATE_FORMAT).date(),
+            },
+        ],
+    )
 
+    # ✅ Expected result
+    expected = create_partially_filled_dataset(
+        spark,
+        BaseSegment,
+        data=[
+            {
+                BaseSegment.account_id: "1",
+                BaseSegment.date_closed: datetime(2024, 12, 9).date(),
+            },
+            {
+                BaseSegment.account_id: "2",
+                BaseSegment.date_closed: DEFAULT_ERROR_DATE,
+            },
+            {
+                BaseSegment.account_id: "3",
+                BaseSegment.date_closed: None,
+            },
+            {
+                BaseSegment.account_id: "4",
+                BaseSegment.date_closed: DEFAULT_ERROR_DATE,
+            },
+        ],
+    )
+
+    # ✅ Run transformation
     result_df = date_closed(data)
 
-    assert_df_equality(result_df.select("account_id", "date_closed"), expected_data, ignore_row_order=True)
+    # ✅ Assert
+    assert_df_equality(result_df, expected, ignore_row_order=True)
 
 
 ______
