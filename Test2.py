@@ -1,4 +1,33 @@
 
+WITH cte1 AS (
+    SELECT 'cte1' AS source, field_a, NULL AS field_b, NULL AS field_c, NULL AS field_d
+    FROM table1
+),
+cte2 AS (
+    SELECT 'cte2' AS source, NULL, field_b, NULL, NULL
+    FROM table2
+),
+cte3 AS (
+    SELECT 'cte3' AS source, NULL, NULL, field_c, NULL
+    FROM table3
+),
+cte4 AS (
+    SELECT 'cte4' AS source, NULL, NULL, NULL, field_d
+    FROM table4
+)
+
+SELECT * FROM cte1
+UNION ALL
+SELECT * FROM cte2
+UNION ALL
+SELECT * FROM cte3
+UNION ALL
+SELECT * FROM cte4;
+
+
+
+
+
 when(reactivation_notification_yes, value=lit(DEFAULT_ERROR_DATE).cast("date"))
 
 
