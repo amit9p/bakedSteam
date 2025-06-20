@@ -1,4 +1,44 @@
 
+
+WITH
+cte1 AS (
+  SELECT 1 AS id, 'John' AS name
+),
+cte2 AS (
+  SELECT 'john@example.com' AS email, 30 AS age
+),
+cte3 AS (
+  SELECT 'New York' AS location
+),
+cte4 AS (
+  SELECT 50000 AS salary, 'Engineering' AS dept
+)
+
+SELECT
+  id, name, NULL AS email, NULL AS age, NULL AS location, NULL AS salary, NULL AS dept
+FROM cte1
+
+UNION ALL
+
+SELECT
+  NULL, NULL, email, age, NULL, NULL, NULL
+FROM cte2
+
+UNION ALL
+
+SELECT
+  NULL, NULL, NULL, NULL, location, NULL, NULL
+FROM cte3
+
+UNION ALL
+
+SELECT
+  NULL, NULL, NULL, NULL, NULL, salary, dept
+FROM cte4;
+
+
+
+____
 WITH cte1 AS (
     SELECT 'cte1' AS source, field_a, NULL AS field_b, NULL AS field_c, NULL AS field_d
     FROM table1
