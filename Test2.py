@@ -1,4 +1,24 @@
 
+result_df = df.withColumn(
+    BaseSegment.date_closed.str,
+    when(
+        check_if_any_are_null(
+            col(CCAccount.account_close_date.str),
+            col(CCAccount.charge_off_date.str)
+        ),
+        lit(DEFAULT_ERROR_DATE)
+    ).when(
+        col(CCAccount.account_close_date.str).isNull() |
+        (trim(col(CCAccount.account_close_date.str)) == ""),
+        col(CCAccount.charge_off_date.str)
+    ).otherwise(
+        col(CCAccount.account_close_date.str)
+    )
+)
+
+
+
+
 from datetime import datetime
 from chispa import assert_df_equality
 from pyspark.sql import SparkSession
