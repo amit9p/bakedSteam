@@ -1,4 +1,35 @@
 
+when(reactivation_notification_yes, value=lit(DEFAULT_ERROR_DATE).cast("date"))
+
+
+
+WITH cte1 AS (
+    SELECT id, field_a FROM table1
+),
+cte2 AS (
+    SELECT id, field_b FROM table2
+),
+cte3 AS (
+    SELECT id, field_c FROM table3
+),
+cte4 AS (
+    SELECT id, field_d FROM table4
+)
+
+SELECT 
+    COALESCE(cte1.id, cte2.id, cte3.id, cte4.id) AS id,
+    field_a,
+    field_b,
+    field_c,
+    field_d
+FROM cte1
+FULL OUTER JOIN cte2 ON cte1.id = cte2.id
+FULL OUTER JOIN cte3 ON COALESCE(cte1.id, cte2.id) = cte3.id
+FULL OUTER JOIN cte4 ON COALESCE(cte1.id, cte2.id, cte3.id) = cte4.id;
+
+
+
+
 from datetime import datetime
 from chispa import assert_df_equality
 from pyspark.sql import SparkSession
