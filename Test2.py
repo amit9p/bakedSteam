@@ -1,4 +1,22 @@
 
+# Add to CCAccount
+CCAccount.account_id = "10"
+CCAccount.date_of_first_delinquency = datetime.strptime("2024-01-13", default_date_format)
+CCAccount.account_open_date = datetime.strptime("2024-01-13", default_date_format)
+CCAccount.is_account_reactivated = ""  # or null
+# Make bankruptcy date null in CustomerInformation for this ID
+
+# Add to CustomerInformation
+CustomerInformation.account_id = "10"
+CustomerInformation.bankruptcy_first_filed_date = None
+
+# Add to expected_data
+BaseSegment.account_id = "10"
+BaseSegment.date_of_first_delinquency = datetime.strptime("1900-01-01", default_date_format)
+
+
+
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, when, trim, to_date, lower, lit
 
