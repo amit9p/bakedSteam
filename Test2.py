@@ -1,4 +1,13 @@
 
+
+assert_df_equality(
+    result_df.orderBy("account_id"),
+    expected_data.orderBy("account_id"),
+    ignore_row_order=True
+)
+
+
+
 BaseSegment.date_of_first_delinquency: [
     None,  # id 1
     datetime(2024, 1, 13).date(),  # id 2
