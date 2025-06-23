@@ -1,4 +1,13 @@
 
+.when(
+    CustomerInformation.bankruptcy_first_filed_date.isNotNull() &
+    CCAccount.date_of_first_delinquency.isNull() &
+    CCAccount.account_open_date.isNull(),
+    lit(DEFAULT_ERROR_DATE)
+)
+
+
+
 BaseSegment.date_of_first_delinquency: [
     None,  # id 1
     datetime(2024, 1, 13).date(),  # id 2
