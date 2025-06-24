@@ -1,4 +1,19 @@
 
+WITH cte1 AS (
+  SELECT 'Apple' AS fruit
+),
+cte2 AS (
+  SELECT 'Red' AS color
+)
+
+SELECT *
+FROM cte1
+CROSS JOIN cte2;
+
+fruit | color
+--------------
+Apple | Red
+
 
 bankruptcy_file_date_is_null_or_blank = (
     CustomerInformation.bankruptcy_first_filed_date.isNull() |
