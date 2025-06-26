@@ -1,56 +1,21 @@
 
+
 from pyspark.sql import SparkSession
+from pyspark.sql.functions import when, lit, col
 
 # Create Spark session
-spark = SparkSession.builder.appName("ReadCSV").getOrCreate()
+spark = SparkSession.builder.appName("UpdateDateClosed").getOrCreate()
 
 # Read CSV file
-df = spark.read.option("header", True).csv("path/to/your/file.csv")
+df = spark.read.option("header", True).csv("/Users/vmq634/.../your_input_file.csv")
 
-# Show the data
-df.show()
-
-
-^(19[0-9]{2}|20[0-9]{2}|2100)-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$
-
-
-
-
-WITH cte1 AS (
-  SELECT 'Apple' AS fruit
-),
-cte2 AS (
-  SELECT 'Red' AS color
+# Update some values in date_closed
+df_updated = df.withColumn(
+    "date_closed",
+    when(col("consumer_account_number") == "12345", lit("1900-01-01"))  # Example condition
+    .when(col("consumer_account_number") == "67890", lit("1899-12-31"))  # Another example
+    .otherwise(col("date_closed"))  # Keep original
 )
 
-SELECT *
-FROM cte1
-CROSS JOIN cte2;
-
-fruit | color
---------------
-Apple | Red
-
-
-bankruptcy_file_date_is_null_or_blank = (
-    CustomerInformation.bankruptcy_first_filed_date.isNull() |
-    (trim(CustomerInformation.bankruptcy_first_filed_date) == "")
-)
-
-start_date_of_delinquency_is_null_or_blank = (
-    CCAccount.date_of_first_delinquency.isNull() |
-    (trim(CCAccount.date_of_first_delinquency) == "")
-)
-
-account_open_date_is_null_or_blank = (
-    CCAccount.account_open_date.isNull() |
-    (trim(CCAccount.account_open_date) == "")
-)
-
-
-.when(
-    bankruptcy_file_date_is_null_or_blank &
-    start_date_of_delinquency_is_null_or_blank &
-    account_open_date_is_null_or_blank,
-    lit(DEFAULT_ERROR_DATE)
-)
+# Write to new CSV
+df_updated.write.mode("overwrite").option("header", True).csv("/Users/vmq634/.../updated_output.csv")
