@@ -1,4 +1,16 @@
 
+from pyspark.sql import SparkSession
+
+# Create Spark session
+spark = SparkSession.builder.appName("ReadCSV").getOrCreate()
+
+# Read CSV file
+df = spark.read.option("header", True).csv("path/to/your/file.csv")
+
+# Show the data
+df.show()
+
+
 ^(19[0-9]{2}|20[0-9]{2}|2100)-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$
 
 
