@@ -1,5 +1,13 @@
 
 
+A credit limit represents the maximum amount of credit extended to a customer — it's always a non-negative integer (zero or positive). If you see a negative value, it likely indicates:
+
+A data issue
+
+An incorrect calculation
+
+----
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import when, lit, col
 
