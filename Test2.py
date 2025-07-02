@@ -63,6 +63,19 @@ def test_calculate_basis_for_account_closure(spark: SparkSession, scenario):
 
 _______
 
+# ecbr_calculations/fields/constants.py
+
+# Special Comment Codes
+SPECIAL_COMMENT_CODE_M = "M"
+
+# Compliance Condition Codes that result in Basis = "V"
+COMPLIANCE_CODES_FOR_V = {"XE", "XA", "XD", "XJ"}
+
+# Output Values
+BASIS_CLOSURE_X = "X"
+BASIS_CLOSURE_V = "V"
+
+
 
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, when
