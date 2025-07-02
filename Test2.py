@@ -1,29 +1,37 @@
 
-
-A credit limit represents the maximum amount of credit extended to a customer — it's always a non-negative integer (zero or positive). If you see a negative value, it likely indicates:
-
-A data issue
-
-An incorrect calculation
-
-----
-
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import when, lit, col
-
-# Create Spark session
-spark = SparkSession.builder.appName("UpdateDateClosed").getOrCreate()
-
-# Read CSV file
-df = spark.read.option("header", True).csv("/Users/vmq634/.../your_input_file.csv")
-
-# Update some values in date_closed
-df_updated = df.withColumn(
-    "date_closed",
-    when(col("consumer_account_number") == "12345", lit("1900-01-01"))  # Example condition
-    .when(col("consumer_account_number") == "67890", lit("1899-12-31"))  # Another example
-    .otherwise(col("date_closed"))  # Keep original
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, when
+from ecbr_calculations.fields.constants import (
+    SPECIAL_COMMENT_CODE_M,
+    COMPLIANCE_CODES_FOR_V,
+    BASIS_CLOSURE_X,
+    BASIS_CLOSURE_V
 )
 
-# Write to new CSV
-df_updated.write.mode("overwrite").option("header", True).csv("/Users/vmq634/.../updated_output.csv")
+def calculate_basis_for_account_closure(
+    account_df: DataFrame,
+    recoveries_df: DataFrame,
+    customer_df: DataFrame,
+    case_df: DataFrame,
+    ecbr_generated_fields_df: DataFrame
+) -> DataFrame:
+    from ecbr_calculations.fields.special_comment_code import calculate_special_comment_code
+    from ecbr_calculations.fields.compliance_condition_code import calculate_compliance_condition_code
+
+    special_comment_df = calculate_special_comment_code(account_df, recoveries_df, customer_df)
+    compliance_code_df = calculate_compliance_condition_code(account_df, case_df, ecbr_generated_fields_df)
+
+    joined_df = special_comment_df.join(
+        compliance_code_df,
+        on="account_id",
+        how="outer"
+    )
+
+    result_df = joined_df.withColumn(
+        "basis_for_account_closure",
+        when(col("special_comment_code") == SPECIAL_COMMENT_CODE_M, BASIS_CLOSURE_X)
+        .when(col("compliance_condition_code").isin(*COMPLIANCE_CODES_FOR_V), BASIS_CLOSURE_V)
+        .otherwise(None)
+    ).select("account_id", "basis_for_account_closure")
+
+    return result_df
