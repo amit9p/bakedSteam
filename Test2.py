@@ -1,4 +1,14 @@
 
+.select(
+    ABSegment.account_id,
+    ABSegment.basis_for_account_closure.cast("string").alias("basis_for_account_closure")
+)
+
+assert_df_equality(result_df, expected_df, ignore_row_order=True, ignore_nullable=True)
+
+
+
+________
 import pytest
 from pyspark.sql import Row, SparkSession
 from chispa import assert_df_equality
