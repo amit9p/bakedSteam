@@ -1,107 +1,20 @@
 
+from pyspark.sql.types import StructType, StructField, StringType
 
-from pyspark.sql.types import StringType, StructField
+# 1) Define the schema, marking delinquency_status as non-nullable
+forced_schema = StructType([
+    StructField("account_id",          StringType(), True),   # still nullable if you want
+    StructField("delinquency_status",  StringType(), False)   # now non-nullable
+])
 
-# rebuild only the delinquency_status column as nullable
-fixed = expected_df.select(
-    "account_id",
-    expected_df["delinquency_status"].cast(StringType())
-)
-# assign the same schema as result_df
-fixed = spark.createDataFrame(fixed.rdd, schema=result_df.schema)
-
-assert_df_equality(
-    result_df,
-    fixed,
-    ignore_row_order=True,
-    ignore_column_order=True
+# 2) Recreate your expected_df with that schema
+expected_df_nonnull = spark.createDataFrame(
+    expected_df.rdd,      # your original RDD of rows
+    schema=forced_schema  # the schema you want
 )
 
-
-# ecbr_calculations/fields/constants.py
-DELQ_STATUS_NULL    = None
-DELQ_STATUS_001     = "001"
-DELQ_STATUS_002     = "002"
-DELQ_STATUS_003     = "003"
-DELQ_STATUS_004     = "004"
-DELQ_STATUS_005     = "005"
-DELQ_STATUS_006     = "006"
-DELQ_STATUS_DEFAULT = "007"
-
-
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import col, when
-
-from ecbr_card_self_service.ecbr_calculations.fields.base_payment_rating import calculate_payment_rating
-from ecbr_calculations.fields.constants import (
-    DELQ_STATUS_NULL,
-    DELQ_STATUS_001,
-    DELQ_STATUS_002,
-    DELQ_STATUS_003,
-    DELQ_STATUS_004,
-    DELQ_STATUS_005,
-    DELQ_STATUS_006,
-    DELQ_STATUS_DEFAULT,
-)
-
-def calculate_delinquency_status(
-    account_df: DataFrame,
-    customer_df: DataFrame,
-    recoveries_df: DataFrame,
-    generated_fields_df: DataFrame,
-    fraud_df: DataFrame,
-    caps_df: DataFrame
-) -> DataFrame:
-    payment_rating_df = calculate_payment_rating(
-        account_df, customer_df, recoveries_df,
-        generated_fields_df, fraud_df, caps_df
-    )
-
-    return payment_rating_df.select(
-        col("account_id"),
-        when(col("payment_rating").isNull(), DELQ_STATUS_NULL)
-        .when(col("payment_rating") == 0, DELQ_STATUS_001)
-        .when(col("payment_rating") == 1, DELQ_STATUS_002)
-        .when(col("payment_rating") == 2, DELQ_STATUS_003)
-        .when(col("payment_rating") == 3, DELQ_STATUS_004)
-        .when(col("payment_rating") == 4, DELQ_STATUS_005)
-        .when(col("payment_rating") == 5, DELQ_STATUS_006)
-        .otherwise(DELQ_STATUS_DEFAULT)
-        .alias("delinquency_status")
-    )
-
-
-----
-
-
-
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import col, when
-
-from ecbr_card_self_service.ecbr_calculations.fields.base_payment_rating import calculate_payment_rating
-
-def calculate_delinquency_status(
-    account_df: DataFrame,
-    customer_df: DataFrame,
-    recoveries_df: DataFrame,
-    generated_fields_df: DataFrame,
-    fraud_df: DataFrame,
-    caps_df: DataFrame
-) -> DataFrame:
-    # 1) get your intermediate DF with payment_rating
-    payment_rating_df = calculate_payment_rating(
-        account_df, customer_df, recoveries_df,
-        generated_fields_df, fraud_df, caps_df
-    )
-
-    # 2) map payment_rating → 3-digit delinquency_status
-    result_df = payment_rating_df.select(
-        col("account_id"),
-        when(col("payment_rating").isNull(), None)    .when(col("payment_rating") == 0,  "001")
-        .when(col("payment_rating") == 1,  "002")     .when(col("payment_rating") == 2,  "003")
-        .when(col("payment_rating") == 3,  "004")     .when(col("payment_rating") == 4,  "005")
-        .when(col("payment_rating") == 5,  "006")     .otherwise(                  "007")
-        .alias("delinquency_status")
-    )
-
-    return result_df
+# 3) Verify
+expected_df_nonnull.printSchema()
+# root
+#  |-- account_id: string (nullable = true)
+#  |-- delinquency_status: string (nullable = false)
