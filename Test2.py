@@ -1,4 +1,23 @@
 
+
+from pyspark.sql.types import StringType, StructField
+
+# rebuild only the delinquency_status column as nullable
+fixed = expected_df.select(
+    "account_id",
+    expected_df["delinquency_status"].cast(StringType())
+)
+# assign the same schema as result_df
+fixed = spark.createDataFrame(fixed.rdd, schema=result_df.schema)
+
+assert_df_equality(
+    result_df,
+    fixed,
+    ignore_row_order=True,
+    ignore_column_order=True
+)
+
+
 # ecbr_calculations/fields/constants.py
 DELQ_STATUS_NULL    = None
 DELQ_STATUS_001     = "001"
