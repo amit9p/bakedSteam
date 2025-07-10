@@ -1,4 +1,92 @@
 
+import pytest
+from unittest.mock import patch
+
+from pyspark.sql.functions import lit
+from ecbr_card_self_service.schemas.base_segment import ABSegment
+from ecbr_card_self_service.ecbr_calculations.small_business.small_business_charged_off.fields.ab.delinquency_status import (
+    calculate_delinquency_status,
+)
+import ecbr_card_self_service.ecbr_calculations.utils.constants as C
+from your_test_utils import create_partially_filled_dataset, assert_df_equality
+
+def make_stub_payment_df(spark, cases):
+    # cases: List[Tuple[account_id: str, payment_rating: Optional[str]]]
+    rows = [
+        { ABSegment.account_id: acct,
+          ABSegment.payment_rating: rating }
+        for acct,rating in cases
+    ]
+    return (
+      create_partially_filled_dataset(spark, ABSegment, data=rows)
+      # we only need those two columns
+      .select(ABSegment.account_id, ABSegment.payment_rating)
+    )
+
+@patch(
+  "ecbr_card_self_service.ecbr_calculations.fields.base.payment_rating.calculate_payment_rating"
+)
+def test_delinquency_status_just_uses_payment_rating(mock_pay, spark):
+    stub_cases = [
+      ("A101",  None),
+      ("A102", "1"),
+      ("A103", "2"),
+      ("A104", "3"),
+      ("A105", "4"),
+      ("A106", "5"),
+      ("A107",  "L"),
+      ("A108",  C.DEFAULT_ERROR_STRING),
+    ]
+    # 1) build & patch
+    stub_df = make_stub_payment_df(spark, stub_cases)
+    mock_pay.return_value = stub_df
+
+    # 2) call under test (everything else can be an “empty” DF with the right schema)
+    empty = make_stub_payment_df(spark, [])
+    result = (
+      calculate_delinquency_status(
+        account_df=empty,
+        customer_df=empty,
+        recoveries_df=empty,
+        generated_fields_df=empty,
+        fraud_df=empty,
+        caps_df=empty,
+      )
+      .select(ABSegment.account_id, ABSegment.delinquency_status)
+    )
+
+    # 3) build expected by re‐mapping the stub’s “ratings” → SBFE codes
+    status_map = {
+      None:                    C.DELQ_STATUS_000,
+      "1":                     C.DELQ_STATUS_001,
+      "2":                     C.DELQ_STATUS_002,
+      "3":                     C.DELQ_STATUS_003,
+      "4":                     C.DELQ_STATUS_004,
+      "5":                     C.DELQ_STATUS_005,
+      "L":                     C.DELQ_STATUS_006,
+      C.DEFAULT_ERROR_STRING:  C.DEFAULT_ERROR_STRING,
+    }
+    expected_rows = [
+      {
+        ABSegment.account_id: acct,
+        ABSegment.delinquency_status: status_map[rating],
+      }
+      for acct,rating in stub_cases
+    ]
+    expected = (
+      create_partially_filled_dataset(spark, ABSegment, data=expected_rows)
+      .select(ABSegment.account_id, ABSegment.delinquency_status)
+    )
+
+    # 4) assert they match
+    assert_df_equality(
+      result, expected,
+      ignore_row_order=True,
+      ignore_nullable=True
+    )
+
+
+-----'x
 expected_rows = [
   {
     ABSegment.account_id:    acct,
