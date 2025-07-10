@@ -1,4 +1,50 @@
 
+# 1) the ratings you actually stub out:
+stub_cases = [
+    ("A101", None),
+    ("A102",  "002"),
+    ("A103",  "003"),
+    ("A104",  "004"),
+    ("A105",  "005"),
+    ("A106",  "006"),
+    ("A107",  "007"),
+    ("A108",  "XYZ"),     # this one isn’t in the 001–007 set, so it becomes C1-ERROR
+]
+
+# 2) stub it in
+stub_df = make_stub_payment_df(spark, stub_cases)
+mock_calc_pay.return_value = stub_df
+
+# 3) build the expected rows _with exactly_ those values
+expected_rows = [
+    {
+      ABSegment.account_id: acct,
+      ABSegment.delinquency_status:
+          C.DELQ_STATUS_NULL
+            if rating is None
+          else rating
+            if rating in {
+               C.DELQ_STATUS_001,
+               C.DELQ_STATUS_002,
+               C.DELQ_STATUS_003,
+               C.DELQ_STATUS_004,
+               C.DELQ_STATUS_005,
+               C.DELQ_STATUS_006,
+               C.DELQ_STATUS_007,
+             }
+          else C.DEFAULT_ERROR_STRING
+    }
+    for acct, rating in stub_cases
+]
+expected_df = create_partially_filled_dataset(
+    spark, ABSegment, data=expected_rows
+).select(ABSegment.account_id, ABSegment.delinquency_status)
+
+‐-------
+
+
+
+
 @patch(
   "ecbr_card_self_service.ecbr_calculations.small_business"
   ".small_business_charged_off.fields.ab.delinquency_status"
