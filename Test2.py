@@ -1,4 +1,13 @@
 
+@patch(
+  "ecbr_card_self_service.ecbr_calculations.small_business"
+  ".small_business_charged_off.fields.ab.delinquency_status"
+  ".calculate_payment_rating"
+)
+def test_delinquency_with_stub(mock_calc, spark):
+    …
+
+
 # tests/test_delinquency_status.py
 from unittest.mock import patch
 
