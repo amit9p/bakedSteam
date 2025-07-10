@@ -1,4 +1,23 @@
 
+expected_rows = [
+  {
+    ABSegment.account_id:    acct,
+    ABSegment.delinquency_status:
+      # SBFE uses "000" for NULL
+      C.DELQ_STATUS_000 if rating is None
+      # otherwise whatever the stub gave us (001–007 or C1-ERROR)
+      else rating
+  }
+  for acct, rating in stub_cases
+]
+
+expected_df = (
+  create_partially_filled_dataset(spark, ABSegment, data=expected_rows)
+  .select(ABSegment.account_id, ABSegment.delinquency_status)
+)
+
+
+
 # 1) the ratings you actually stub out:
 stub_cases = [
     ("A101", None),
