@@ -1,73 +1,117 @@
 
-import sys
-import types
-import io
-import os
-import yaml
-import pytest
+# tests/edq/test_runEDQ.py
+import sys, types, yaml, pytest
+from pathlib import Path
 
-from pyspark.sql import SparkSession
+# ─── 1) PRE‐INJECT ALL EXTERNAL MODULES ────────────────────────────────────────
 
-# 1) Before importing any of your code, install a fake edq_lib into sys.modules
+# 1a) stub out edq_lib.engine
 fake_engine = types.SimpleNamespace()
-fake_edq_lib = types.SimpleNamespace(engine=fake_engine)
-sys.modules['edq_lib'] = fake_edq_lib
+sys.modules['edq_lib'] = types.SimpleNamespace(engine=fake_engine)
 
+# 1b) stub out boto3.Session so no real AWS SDK is required
+fake_boto3 = types.ModuleType('boto3')
+class FakeBoto3Session:
+    def __init__(self, profile_name=None): pass
+    def get_credentials(self):
+        # must have .access_key, .secret_key, .token and get_frozen_credentials()
+        creds = types.SimpleNamespace(
+            access_key="AKIAFAKE",
+            secret_key="SECRETFAKE",
+            token=None,
+            get_frozen_credentials=lambda: types.SimpleNamespace(
+                access_key="AKIAFAKE",
+                secret_key="SECRETFAKE",
+                token=None
+            )
+        )
+        return creds
+fake_boto3.Session = FakeBoto3Session
+sys.modules['boto3'] = fake_boto3
 
-def test_runEDQ_local(monkeypatch, tmp_path):
-    # 2) Create a tiny CSV that our "LOCAL" branch will read
-    csv = tmp_path / "data.csv"
-    csv.write_text("foo,bar\n1,2\n")
-    csv_path = str(csv)
+# 1c) stub out oneLake_mini.OneLakeSession
+fake_ol = types.ModuleType('oneLake_mini')
+def FakeOneLakeSession(**kwargs):
+    # returns an object with get_credentials() and get_dataset(id)
+    creds = types.SimpleNamespace(
+        access_key="FAKE",
+        secret_key="FAKE",
+        token=None,
+        get_frozen_credentials=lambda: types.SimpleNamespace(
+            access_key="FAKE",
+            secret_key="FAKE",
+            token=None
+        )
+    )
+    # dataset.get_S3fs() and dataset.location are only used to list partitions,
+    # but since LOCAL branch never calls them, we just stub minimally.
+    dataset = types.SimpleNamespace(get_S3fs=lambda: None, location="")
+    return types.SimpleNamespace(
+        get_credentials=lambda: creds,
+        get_dataset=lambda dsid: dataset
+    )
+fake_ol.OneLakeSession = FakeOneLakeSession
+sys.modules['oneLake_mini'] = fake_ol
 
-    # 3) Stub out yaml.safe_load so that config.yaml & secrets.yaml yield exactly what we want
-    real_safe_load = yaml.safe_load
+# ─── 2) NOW IMPORT YOUR CODE UNDER TEST ───────────────────────────────────────
 
-    def fake_safe_load(stream):
-        # stream.name exists on real file handles
-        name = getattr(stream, "name", "")
-        if name.endswith("config.yaml"):
+# At this point `import runEDQ` will see our fake `edq_lib`, `boto3` and `oneLake_mini`.
+from pyspark.sql import SparkSession
+from ecbr_card_self_service.edq.local_run.runEDQ import main
+
+# ─── 3) THE ACTUAL TEST ──────────────────────────────────────────────────────
+
+def test_runEDQ_local_only(monkeypatch, tmp_path):
+    # 3a) write a tiny CSV that the LOCAL branch will read
+    data_file = tmp_path / "tiny.csv"
+    data_file.write_text("x,y\n100,fox\n200,cat\n")
+
+    # 3b) stub yaml.safe_load to return just enough config/secrets
+    real_load = yaml.safe_load
+    def fake_safe_load(fp):
+        fn = getattr(fp, "name", "")
+        if fn.endswith("config.yaml"):
             return {
-                "JOB_ID": "myJob123",
+                "JOB_ID": "job-123",
                 "DATA_SOURCE": "LOCAL",
-                "LOCAL_DATA_PATH": csv_path,
+                "LOCAL_DATA_PATH": str(data_file),
             }
-        if name.endswith("secrets.yaml"):
+        if fn.endswith("secrets.yaml"):
             return {
-                "CLIENT_ID": "theClient",
-                "CLIENT_SECRET": "theSecret",
+                "CLIENT_ID": "cid-xyz",
+                "CLIENT_SECRET": "csecret-abc",
             }
-        # fallback (shouldn't really happen)
-        return real_safe_load(stream)
-
+        return real_load(fp)
     monkeypatch.setattr(yaml, "safe_load", fake_safe_load)
 
-    # 4) Patch our fake engine.execute_rules to capture its inputs
+    # 3c) patch our fake_engine.execute_rules to capture the call
     called = {}
     def fake_execute_rules(df, job_id, client_id, client_secret, environment):
         called["args"] = (job_id, client_id, client_secret, environment)
-        # return the shape your code expects
+        # return the shape runEDQ expects so it can finish cleanly
         return {
             "result_type": "ExecutionCompleted",
             "job_execution_result": {
                 "results": [],
-                "total_DF_rows": 0,
-                "row_level_results": []
+                "total_DF_rows": df.count(),
+                "row_level_results": df   # it .show()s at end
             }
         }
-
     fake_engine.execute_rules = fake_execute_rules
 
-    # 5) Now import the module under test (it will pick up our fake edq_lib & yaml.safe_load)
-    from ecbr_card_self_service.edq.local_run.runEDQ import main
+    # 3d) create a real SparkSession for the test
+    spark = (SparkSession.builder
+             .master("local[1]")
+             .appName("test_runEDQ")
+             .getOrCreate())
 
-    # 6) Run it!
+    # 3e) actually invoke your main() (it will read our tiny CSV, stub configs, call fake_engine...)
     main()
 
-    # 7) Assert that we invoked engine.execute_rules with the values from our fake config/secrets
+    # 3f) assert that we called execute_rules with exactly our fake values
     assert called["args"] == (
-        "myJob123",       # from config.yaml → JOB_ID
-        "theClient",      # from secrets.yaml → CLIENT_ID
-        "theSecret",      # from secrets.yaml → CLIENT_SECRET
-        "NonProd",        # hard-coded in your runEDQ call
+        "job-123",      # from config.yaml
+        "cid-xyz",      # from secrets.yaml
+        "csecret-abc",  # from secrets.yaml
+        "NonProd"       # hard-coded inside runEDQ.py
     )
