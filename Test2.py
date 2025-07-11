@@ -1,73 +1,73 @@
 
-import builtins
+import sys
+import types
 import io
+import os
+import yaml
 import pytest
-from unittest.mock import patch, MagicMock
+
 from pyspark.sql import SparkSession
-import runEDQ  # your module
 
-@pytest.fixture(scope="session")
-def spark():
-    # if you have pytest-spark, use its spark fixture;
-    # otherwise spin up a local SparkSession once for all tests:
-    return SparkSession.builder \
-        .master("local[1]") \
-        .appName("test-runEDQ") \
-        .getOrCreate()
+# 1) Before importing any of your code, install a fake edq_lib into sys.modules
+fake_engine = types.SimpleNamespace()
+fake_edq_lib = types.SimpleNamespace(engine=fake_engine)
+sys.modules['edq_lib'] = fake_edq_lib
 
 
-def make_dummy_df(spark):
-    # build a tiny two-column DataFrame matching your engine’s expectations:
-    return spark.createDataFrame(
-        [("x1", 42), ("x2", 99)],
-        ["colA", "colB"]
-    )
-
-
-def test_main_local_branch(monkeypatch, spark, tmp_path):
-    # 1) fake out the YAML loads
-    fake_config = {
-        "DATA_SOURCE":    "LOCAL",
-        "LOCAL_DATA_PATH": str(tmp_path / "data.csv"),
-        "JOB_ID":          "job-123",
-    }
-    fake_secrets = {
-        "CLIENT_ID":     "abc-id",
-        "CLIENT_SECRET": "shh-secret",
-    }
-    # write a dummy CSV file
+def test_runEDQ_local(monkeypatch, tmp_path):
+    # 2) Create a tiny CSV that our "LOCAL" branch will read
     csv = tmp_path / "data.csv"
-    csv.write_text("foo,bar\n1,2\n3,4\n")
+    csv.write_text("foo,bar\n1,2\n")
+    csv_path = str(csv)
 
-    monkeypatch.setattr(runEDQ, "config_path", "ignored")
-    monkeypatch.setattr(runEDQ, "secrets_path", "ignored")
-    monkeypatch.setattr(runEDQ.yaml, "safe_load", lambda f: fake_config if f.name == "ignored" else fake_secrets)
+    # 3) Stub out yaml.safe_load so that config.yaml & secrets.yaml yield exactly what we want
+    real_safe_load = yaml.safe_load
 
-    # 2) stub SparkSession.builder.getOrCreate()
-    real_builder = SparkSession.builder
-    class FakeBuilder:
-        def __init__(self): pass
-        def appName(self, _): return self
-        def config(self, *_, **__): return self
-        def getOrCreate(self): return spark
-    monkeypatch.setattr(SparkSession, "builder", FakeBuilder())
+    def fake_safe_load(stream):
+        # stream.name exists on real file handles
+        name = getattr(stream, "name", "")
+        if name.endswith("config.yaml"):
+            return {
+                "JOB_ID": "myJob123",
+                "DATA_SOURCE": "LOCAL",
+                "LOCAL_DATA_PATH": csv_path,
+            }
+        if name.endswith("secrets.yaml"):
+            return {
+                "CLIENT_ID": "theClient",
+                "CLIENT_SECRET": "theSecret",
+            }
+        # fallback (shouldn't really happen)
+        return real_safe_load(stream)
 
-    # 3) patch engine.execute_rules so it doesn’t run for real
-    fake_result = {"result_type":"ExecutionCompleted", "job_execution_result": {"results": [], "total_DF_rows": 2}}
-    mock_execute = MagicMock(return_value=fake_result)
-    monkeypatch.setattr(runEDQ.engine, "execute_rules", mock_execute)
+    monkeypatch.setattr(yaml, "safe_load", fake_safe_load)
 
-    # 4) now call main()
-    runEDQ.main()
+    # 4) Patch our fake engine.execute_rules to capture its inputs
+    called = {}
+    def fake_execute_rules(df, job_id, client_id, client_secret, environment):
+        called["args"] = (job_id, client_id, client_secret, environment)
+        # return the shape your code expects
+        return {
+            "result_type": "ExecutionCompleted",
+            "job_execution_result": {
+                "results": [],
+                "total_DF_rows": 0,
+                "row_level_results": []
+            }
+        }
 
-    # 5) verify we read the file you wrote, and engine was invoked
-    #    with the DataFrame you expect, plus your job/creds
-    mock_execute.assert_called_once()
-    called_df, called_job, called_cid, called_secret, called_env = mock_execute.call_args[0]
-    assert called_job == "job-123"
-    assert called_cid == "abc-id"
-    assert called_secret == "shh-secret"
-    assert called_env == "NonProd"
+    fake_engine.execute_rules = fake_execute_rules
 
-    # You can also check that `called_df.count() == 2` if you like:
-    assert called_df.count() == 2
+    # 5) Now import the module under test (it will pick up our fake edq_lib & yaml.safe_load)
+    from ecbr_card_self_service.edq.local_run.runEDQ import main
+
+    # 6) Run it!
+    main()
+
+    # 7) Assert that we invoked engine.execute_rules with the values from our fake config/secrets
+    assert called["args"] == (
+        "myJob123",       # from config.yaml → JOB_ID
+        "theClient",      # from secrets.yaml → CLIENT_ID
+        "theSecret",      # from secrets.yaml → CLIENT_SECRET
+        "NonProd",        # hard-coded in your runEDQ call
+    )
