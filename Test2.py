@@ -1,117 +1,144 @@
 
-# tests/edq/test_runEDQ.py
-import sys, types, yaml, pytest
-from pathlib import Path
+# tests/conftest.py
+import sys, types
 
-# ─── 1) PRE‐INJECT ALL EXTERNAL MODULES ────────────────────────────────────────
+# ─── fake edq_lib.engine ─────────────────────────────────────────────────────
+fake_engine = types.SimpleNamespace(execute_rules=lambda *args, **kwargs: None)
+sys.modules['edq_lib']       = types.ModuleType('edq_lib')
+sys.modules['edq_lib.engine']= fake_engine
 
-# 1a) stub out edq_lib.engine
-fake_engine = types.SimpleNamespace()
-sys.modules['edq_lib'] = types.SimpleNamespace(engine=fake_engine)
-
-# 1b) stub out boto3.Session so no real AWS SDK is required
+# ─── fake boto3.Session ──────────────────────────────────────────────────────
 fake_boto3 = types.ModuleType('boto3')
 class FakeBoto3Session:
     def __init__(self, profile_name=None): pass
     def get_credentials(self):
-        # must have .access_key, .secret_key, .token and get_frozen_credentials()
+        # return a simple object with access_key/secret_key/token
         creds = types.SimpleNamespace(
-            access_key="AKIAFAKE",
-            secret_key="SECRETFAKE",
+            access_key="FAKE_AK",
+            secret_key="FAKE_SK",
             token=None,
             get_frozen_credentials=lambda: types.SimpleNamespace(
-                access_key="AKIAFAKE",
-                secret_key="SECRETFAKE",
-                token=None
+                access_key="FAKE_AK", secret_key="FAKE_SK", token=None
             )
         )
         return creds
 fake_boto3.Session = FakeBoto3Session
 sys.modules['boto3'] = fake_boto3
 
-# 1c) stub out oneLake_mini.OneLakeSession
+# ─── fake oneLake_mini.OneLakeSession ────────────────────────────────────────
 fake_ol = types.ModuleType('oneLake_mini')
 def FakeOneLakeSession(**kwargs):
-    # returns an object with get_credentials() and get_dataset(id)
     creds = types.SimpleNamespace(
-        access_key="FAKE",
-        secret_key="FAKE",
+        access_key="FAKE_AK",
+        secret_key="FAKE_SK",
         token=None,
         get_frozen_credentials=lambda: types.SimpleNamespace(
-            access_key="FAKE",
-            secret_key="FAKE",
-            token=None
+            access_key="FAKE_AK", secret_key="FAKE_SK", token=None
         )
     )
-    # dataset.get_S3fs() and dataset.location are only used to list partitions,
-    # but since LOCAL branch never calls them, we just stub minimally.
-    dataset = types.SimpleNamespace(get_S3fs=lambda: None, location="")
+    # we only need get_credentials() and get_dataset()
+    ds = types.SimpleNamespace(get_S3fs=lambda: None, location="")
     return types.SimpleNamespace(
         get_credentials=lambda: creds,
-        get_dataset=lambda dsid: dataset
+        get_dataset=lambda dsid: ds
     )
 fake_ol.OneLakeSession = FakeOneLakeSession
 sys.modules['oneLake_mini'] = fake_ol
 
-# ─── 2) NOW IMPORT YOUR CODE UNDER TEST ───────────────────────────────────────
 
-# At this point `import runEDQ` will see our fake `edq_lib`, `boto3` and `oneLake_mini`.
+
+------
+import os
+import yaml
+import pandas as pd
+import pytest
 from pyspark.sql import SparkSession
+
+# import the very function we want to test
 from ecbr_card_self_service.edq.local_run.runEDQ import main
 
-# ─── 3) THE ACTUAL TEST ──────────────────────────────────────────────────────
+class DummyEngine(types.SimpleNamespace):
+    def __init__(self):
+        super().__init__()
+        self.called = None
 
-def test_runEDQ_local_only(monkeypatch, tmp_path):
-    # 3a) write a tiny CSV that the LOCAL branch will read
-    data_file = tmp_path / "tiny.csv"
-    data_file.write_text("x,y\n100,fox\n200,cat\n")
-
-    # 3b) stub yaml.safe_load to return just enough config/secrets
-    real_load = yaml.safe_load
-    def fake_safe_load(fp):
-        fn = getattr(fp, "name", "")
-        if fn.endswith("config.yaml"):
-            return {
-                "JOB_ID": "job-123",
-                "DATA_SOURCE": "LOCAL",
-                "LOCAL_DATA_PATH": str(data_file),
-            }
-        if fn.endswith("secrets.yaml"):
-            return {
-                "CLIENT_ID": "cid-xyz",
-                "CLIENT_SECRET": "csecret-abc",
-            }
-        return real_load(fp)
-    monkeypatch.setattr(yaml, "safe_load", fake_safe_load)
-
-    # 3c) patch our fake_engine.execute_rules to capture the call
-    called = {}
-    def fake_execute_rules(df, job_id, client_id, client_secret, environment):
-        called["args"] = (job_id, client_id, client_secret, environment)
-        # return the shape runEDQ expects so it can finish cleanly
+    def execute_rules(self, df, job_id, client_id, client_secret, environment):
+        # record the arguments we were called with
+        self.called = (df, job_id, client_id, client_secret, environment)
+        # return the shape your code expects
         return {
             "result_type": "ExecutionCompleted",
             "job_execution_result": {
                 "results": [],
-                "total_DF_rows": df.count(),
-                "row_level_results": df   # it .show()s at end
+                "total_DF_rows": 0,
+                "row_level_results": []
             }
         }
-    fake_engine.execute_rules = fake_execute_rules
 
-    # 3d) create a real SparkSession for the test
-    spark = (SparkSession.builder
-             .master("local[1]")
-             .appName("test_runEDQ")
-             .getOrCreate())
+class FakeReader:
+    def format(self, fmt): return self
+    def option(self, k, v): return self
+    def load(self, path): 
+        # for our test, path should match LOCAL_DATA_PATH
+        assert os.path.isfile(path)
+        return "FAKE_DF"
 
-    # 3e) actually invoke your main() (it will read our tiny CSV, stub configs, call fake_engine...)
+class FakeSpark:
+    def __init__(self):
+        self.read = FakeReader()
+
+class FakeBuilder:
+    def __init__(self): pass
+    def appName(self, name): return self
+    def config(self, k, v): return self
+    def getOrCreate(self): return FakeSpark()
+
+@pytest.fixture(autouse=True)
+def stub_engine(monkeypatch):
+    """
+    Automatically run before every test in this folder:
+     - swap out edq_lib.engine for our DummyEngine
+     - swap out SparkSession.builder
+    """
+    import edq_lib
+    dummy = DummyEngine()
+    edq_lib.engine = dummy
+    monkeypatch.setattr(SparkSession, "builder", FakeBuilder())
+    return dummy
+
+def test_runEDQ_local_only(tmp_path, stub_engine, monkeypatch):
+    # 1) create a tiny CSV for LOCAL_DATA_PATH
+    data_file = tmp_path / "data.csv"
+    pd.DataFrame({"x":[1,2,3], "y":["a","b","c"]}).to_csv(data_file, index=False)
+    
+    # 2) write config.yaml and secrets.yaml into tmp_path
+    config = {
+        "JOB_ID": "myJob",
+        "DATA_SOURCE": "LOCAL",
+        "LOCAL_DATA_PATH": str(data_file),
+        # those two aren’t used in LOCAL path but main() will still load them
+        "ONE_LAKE_CATALOG_ID": "unused",
+        "ONE_LAKE_LOAD_PARTITION_DATE": "unused"
+    }
+    secrets = {
+        "CLIENT_ID":     "cid123",
+        "CLIENT_SECRET": "csecret456"
+    }
+    (tmp_path/"config.yaml").write_text(yaml.safe_dump(config))
+    (tmp_path/"secrets.yaml").write_text(yaml.safe_dump(secrets))
+    
+    # 3) force runEDQ to look in tmp_path for its two YAML files
+    import ecbr_card_self_service.edq.local_run.runEDQ as mod
+    monkeypatch.setattr(mod, "project_root", str(tmp_path))
+
+    # 4) actually call main()
+    #    (it will read our config, read the CSV via FakeSpark, then call our stub_engine)
     main()
 
-    # 3f) assert that we called execute_rules with exactly our fake values
-    assert called["args"] == (
-        "job-123",      # from config.yaml
-        "cid-xyz",      # from secrets.yaml
-        "csecret-abc",  # from secrets.yaml
-        "NonProd"       # hard-coded inside runEDQ.py
-    )
+    # 5) assert that execute_rules was invoked exactly once
+    df_arg, job_id, client_id, client_secret, env = stub_engine.called
+    assert df_arg == "FAKE_DF"
+    assert job_id   == config["JOB_ID"]
+    assert client_id     == secrets["CLIENT_ID"]
+    assert client_secret == secrets["CLIENT_SECRET"]
+    assert env == "NonProd"
