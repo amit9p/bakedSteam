@@ -1,4 +1,37 @@
 
+def test_runEDQ_local_only(tmp_path, monkeypatch):
+    # 1) Create data.csv
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    csv = data_dir / "data.csv"
+    csv.write_text("x,y\n1,a\n")
+
+    # 2) Create config.yml & secrets.yml
+    config = {
+        "LOCAL_DATA_PATH": str(data_dir),
+        "DATA_SOURCE": "LOCAL",
+        "JOB_ID": "JID",
+    }
+    (tmp_path / "config.yaml").write_text(yaml.dump(config))
+    (tmp_path / "secrets.yaml").write_text(yaml.dump({
+        "CLIENT_ID": "CID",
+        "CLIENT_SECRET": "CSEC",
+    }))
+
+    # 3) Create an empty base_segment.csv so Spark can “show()” it
+    #    (it only needs a header to satisfy the schema scanner)
+    (tmp_path / "base_segment.csv").write_text("account_id,delinquency_status\n")
+
+    # 4) cd into tmp_path
+    monkeypatch.chdir(tmp_path)
+
+    # 5) Import *after* all our autouse stubs
+    from ecbr_card_self_service.edq.local_run.runEDQ import main
+
+    # 6) Should no longer raise
+    main()
+
+_______
 # tests/edq/conftest.py
 import sys
 import types
