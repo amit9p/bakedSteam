@@ -1,4 +1,111 @@
+# tests/edq/conftest.py
+import builtins
+import yaml
+import os
+import io
+import pytest
 
+_original_safe_load = yaml.safe_load
+
+@pytest.fixture(autouse=True)
+def fake_yaml_load(monkeypatch, tmp_path):
+    """
+    Intercept yaml.safe_load to swap out config.yaml contents for test values.
+    """
+    def _fake_safe_load(stream):
+        path = getattr(stream, "name", None)
+        if path and path.endswith("config.yaml"):
+            # only for config.yaml
+            return {
+                "JOB_ID": "JID",
+                "DATA_SOURCE": "LOCAL",
+                "LOCAL_DATA_PATH": str(tmp_path / "data" / "data.csv"),
+                # any other keys your code expects...
+            }
+        elif path and path.endswith("secrets.yaml"):
+            # for secrets.yaml, you can return either real or test creds
+            return {
+                "CLIENT_ID": "CID",
+                "CLIENT_SECRET": "CSEC",
+            }
+        else:
+            # fall back for anything else
+            return _original_safe_load(stream)
+
+    monkeypatch.setattr(yaml, "safe_load", _fake_safe_load)
+    yield
+    # No teardown needed; monkeypatch undo automatically
+
+
+<><><>
+# tests/edq/test_runEDQ_local_only.py
+import os
+import yaml
+from pathlib import Path
+import pytest
+
+def make_small_csv(tmp_path):
+    data_dir = tmp_path / "data"
+    data_dir.mkdir()
+    csv = data_dir / "data.csv"
+    # simple two-column CSV with header
+    csv.write_text("x,y\n1,a\n2,b\n")
+    return data_dir
+
+class DummyEngine:
+    def __init__(self):
+        self.called_args = None
+
+    def execute_rules(self, df, job_id, client_id, client_secret, environment):
+        # just record the args and return a minimal successful shape
+        self.called_args = (df, job_id, client_id, client_secret, environment)
+        return {
+            "result_type": "ExecutionCompleted",
+            "job_execution_result": {"results": [], "total_DF_rows": 0, "row_level_results": []},
+        }
+
+@pytest.fixture(autouse=True)
+def stub_engine(monkeypatch):
+    import edq_lib
+    dummy = DummyEngine()
+    monkeypatch.setattr(edq_lib, "engine", dummy)
+    return dummy
+
+def test_runEDQ_local_only(tmp_path, stub_engine, monkeypatch):
+    # 1) drop our tiny CSV
+    data_dir = make_small_csv(tmp_path)
+
+    # 2) write (empty) config & secrets files on disk
+    #    main() won’t actually read them because we fake yaml.safe_load,
+    #    but just in case something else expects them
+    (tmp_path / "config.yaml").write_text(yaml.dump({
+        "LOCAL_DATA_PATH": str(data_dir),
+        "DATA_SOURCE": "LOCAL",
+        "JOB_ID": "SHOULD_BE_IGNORED",
+    }))
+    (tmp_path / "secrets.yaml").write_text(yaml.dump({
+        "CLIENT_ID": "SHOULD_BE_IGNORED",
+        "CLIENT_SECRET": "SHOULD_BE_IGNORED",
+    }))
+
+    # 3) cd into tmp_path so that main()’s os.path.dirname(__file__) logic
+    #    or similar will find files here if it tries
+    monkeypatch.chdir(tmp_path)
+
+    # 4) now import & run your code under test
+    #    (import after monkeypatch so config.yaml loads are intercepted)
+    from ecbr_card_self_service.edq.local_run.runEDQ import main
+    main()   # should not raise
+
+    # 5) inspect what our dummy engine saw
+    df_arg, seen_job_id, seen_cid, seen_secret, seen_env = stub_engine.called_args
+
+    assert seen_job_id == "JID"
+    assert seen_cid == "CID"
+    assert seen_secret == "CSEC"
+    assert seen_env == "Local" or seen_env == "LOCAL"
+
+_$$$$$$$$$
 def test_runEDQ_local_only(tmp_path, monkeypatch):
     # 1) Create data.csv
     data_dir = tmp_path / "data"
