@@ -1,4 +1,87 @@
 
+# tests/edq/conftest.py
+import sys
+import types
+import pytest
+from pyspark.sql import SparkSession
+
+@pytest.fixture(autouse=True)
+def stub_all_dependencies(monkeypatch, tmp_path):
+    """
+    1) Stub edq_lib.engine.execute_rules
+    2) Stub boto3.Session
+    3) Stub oneLake_mini.OneLakeSession
+    4) Override SparkSession.builder but capture the *real* builder
+       so that we can actually spawn a local session under getOrCreate().
+    """
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 1) edq_lib.engine
+    fake_engine = types.SimpleNamespace()
+    def fake_execute_rules(df, job_id, client_id, client_secret, environment):
+        fake_engine.called = (job_id, client_id, client_secret, environment)
+        return {
+            "result_type": "ExecutionCompleted",
+            "job_execution_result": {
+                "results": [],
+                "total_DF_rows": df.count(),
+                "row_level_results": df,
+            }
+        }
+    fake_engine.execute_rules = fake_execute_rules
+
+    fake_edq = types.ModuleType("edq_lib")
+    fake_edq.engine = fake_engine
+    monkeypatch.setitem(sys.modules, "edq_lib", fake_edq)
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 2) boto3.Session
+    fake_boto3 = types.ModuleType("boto3")
+    class FakeCreds:
+        access_key = "AK"
+        secret_key = "SK"
+        token = None
+    class FakeSession:
+        def __init__(self, profile_name=None): pass
+        def get_credentials(self):
+            return types.SimpleNamespace(get_frozen_credentials=lambda: FakeCreds())
+    fake_boto3.Session = FakeSession
+    monkeypatch.setitem(sys.modules, "boto3", fake_boto3)
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 3) oneLake_mini.OneLakeSession
+    fake_one = types.ModuleType("oneLake_mini")
+    class FakeOneLake:
+        def __init__(self, **kw): self.auth_token = "TOK"
+        def get_dataset(self, dsid):
+            return types.SimpleNamespace(get_s3fs=lambda: None, location="")
+    fake_one.OneLakeSession = FakeOneLake
+    monkeypatch.setitem(sys.modules, "oneLake_mini", fake_one)
+
+    # ─────────────────────────────────────────────────────────────────────────────
+    # 4) SparkSession.builder
+    #    capture the real builder before we overwrite it
+    real_builder = SparkSession.builder
+
+    class FakeBuilder:
+        def appName(self, _): return self
+        def config(self, *a, **k): return self
+        def getOrCreate(self):
+            # now call the real one to spin up a local[*] spark
+            return real_builder.master("local[1]") \
+                               .appName("pytest") \
+                               .getOrCreate()
+
+    monkeypatch.setattr(SparkSession, "builder", FakeBuilder())
+
+    yield
+
+    # tear down any real SparkSession we created
+    try:
+        SparkSession.builder.getOrCreate().stop()
+    except:
+        pass
+
+_____
 import sys
 import types
 import pytest
