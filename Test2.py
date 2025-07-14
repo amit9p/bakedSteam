@@ -1,4 +1,28 @@
 
+WITH latest_inelig AS (
+  SELECT
+    d.*,
+    ROW_NUMBER() 
+      OVER (
+        PARTITION BY SLTN_NM, loan_acct_num
+        ORDER BY defrmt_id DESC      -- or whatever timestamp/ID defines “latest”
+      ) AS rn
+  FROM COAF_DB.PHDP_COAF_BASE_VW.DELQ_ACCT_SLTN_INELIGY_REASN_FACT d
+)
+SELECT
+  a.*,
+  d.SLTN_INELIGY_REASN_DESC
+FROM COAF_DB.PHDP_COAF_BASE_VW.DELQ_ACCT_CURING_SLTN_FACT_BC a
+LEFT JOIN latest_inelig d
+  ON a.SLTN_NM        = d.SLTN_NM
+ AND a.loan_acct_num  = d.loan_acct_num
+ AND d.rn             = 1
+
+
+
+
+
+---‐
 mock_execute_rules.assert_called_once_with(
     fake_df,
     fake_config["JOB_ID"],
