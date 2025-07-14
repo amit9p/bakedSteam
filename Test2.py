@@ -1,4 +1,13 @@
 
+mock_execute_rules.assert_called_once_with(
+    fake_df,
+    fake_config["JOB_ID"],
+    fake_secrets["CLIENT_ID"],
+    fake_secrets["CLIENT_SECRET"],
+    fake_secrets["ENVIRONMENT"],    # <— matches the “NonProd” your code used
+)
+
+
 fake_reader.option.return_value.load.assert_called_once_with("base_segment.csv")
 
 
