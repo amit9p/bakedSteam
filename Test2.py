@@ -1,4 +1,7 @@
 
+fake_reader.option.return_value.load.assert_called_once_with("base_segment.csv")
+
+
 # tests/edq/test_runEDQ.py
 import sys
 import unittest
