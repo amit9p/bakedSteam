@@ -1,4 +1,23 @@
 
+@patch("builtins.open", new_callable=mock_open)
+    @patch("oneLake_mini.OneLakeSession")
+    @patch("ecbr_card_self_service.edq.local_run.runEDQ.SparkSession")
+    @patch("ecbr_card_self_service.edq.local_run.runEDQ.engine.execute_rules")
+    @patch("ecbr_card_self_service.edq.local_run.runEDQ.logger")
+    def test_main_onelake(self, mock_logger, mock_exec, mock_spark_cls, mock_ol, mock_open):
+        # … set up config, secrets, stubs, etc …
+
+        main()
+
+        # grab just the messages
+        calls = [args[0] for args, _ in mock_logger.info.call_args_list]
+        assert any("OneLake partition" in msg for msg in calls), \
+            f"expected a OneLake partition log in {calls!r}"
+
+        # then the rest of your assertions…
+
+
+______
 import sys, os, unittest
 from unittest.mock import patch, MagicMock, mock_open
 import yaml
