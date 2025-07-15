@@ -1,3 +1,26 @@
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col
+
+from ecbr_card_self_service.edq.common.schemas.customer_information import CustomerInformation
+from ecbr_card_self_service.edq.common.schemas.sbfe_ad_segment    import ADSegment
+
+def get_address_line1(cust_information_df: DataFrame) -> DataFrame:
+    """
+    Maps CustomerInformation.customer_address_line_1 → ADSegment.address_line_1,
+    retains only account_id + address_line_1 columns.
+    """
+    # 1) Overwrite or add the AD address_line_1 column from the customer column
+    df_with_ad = cust_information_df.withColumn(
+        ADSegment.address_line_1.name,                     # str: the new column name
+        CustomerInformation.customer_address_line_1        # Column: the source column
+    )
+    
+    # 2) Select just account_id and the newly-named address_line_1
+    return df_with_ad.select(
+        ADSegment.account_id,
+        ADSegment.address_line_1
+    )
+____
 
 import pytest
 from pyspark.sql import SparkSession
