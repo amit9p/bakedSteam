@@ -1,185 +1,100 @@
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import col
 
-from ecbr_card_self_service.edq.common.schemas.customer_information import CustomerInformation
-from ecbr_card_self_service.edq.common.schemas.sbfe_ad_segment    import ADSegment
-
-def get_address_line1(cust_df: DataFrame) -> DataFrame:
-    """
-    Maps CustomerInformation.customer_address_line_1 → ADSegment.address_line_1,
-    retains only account_id + address_line_1 columns.
-    """
-    # 1) Add/overwrite the AD address_line_1 column from the source column
-    df_with_ad = cust_df.withColumn(
-        ADSegment.address_line_1.name,       # e.g. "address_line_1"
-        col(CustomerInformation.customer_address_line_1.name)
-    )
-    
-    # 2) Select exactly the two output columns, renaming account_id as well if needed
-    return df_with_ad.select(
-        col(CustomerInformation.account_id.name)
-          .alias(ADSegment.account_id.name),
-        col(ADSegment.address_line_1.name)
-    )
-
-_____
+import io
+import yaml
 import pytest
-from pyspark.sql import SparkSession
+from unittest.mock import patch, MagicMock, mock_open
 
-# Helper utilities you already have in your repo:
-from tests.common import create_partially_filled_dataset, assert_df_equality
+# import your main() from the exact module
+from ecbr_card_self_service.edq.local_run.runEDQ import main
 
-# Schemas and function under test
-from ecbr_card_self_service.edq.common.schemas.customer_information import CustomerInformation
-from ecbr_card_self_service.edq.common.schemas.sbfe_ad_segment    import ADSegment
-from ecbr_card_self_service.edq.local_run.ab.ad_segment          import get_address_line1
+@pytest.fixture(autouse=True)
+def patch_all():
+    # 1) Patch builtins.open *in the runEDQ module*, not globally
+    m_open = mock_open()
+    with patch("ecbr_card_self_service.edq.local_run.runEDQ.open", new_callable=lambda: m_open) as mock_file, \
+         patch("ecbr_card_self_service.edq.local_run.runEDQ.boto3.Session")          as mock_boto_sess, \
+         patch("ecbr_card_self_service.edq.local_run.runEDQ.SparkSession")          as mock_spark_cls, \
+         patch("ecbr_card_self_service.edq.local_run.runEDQ.engine.execute_rules") as mock_exec_rules, \
+         patch("ecbr_card_self_service.edq.local_run.runEDQ.logger")               as mock_logger:
+        
+        # yield all the mocks so tests can configure them
+        yield mock_file, mock_boto_sess, mock_spark_cls, mock_exec_rules, mock_logger
 
-@pytest.fixture(scope="session")
-def spark():
-    spark = SparkSession.builder \
-        .master("local[1]") \
-        .appName("pytest-ad-segment") \
-        .getOrCreate()
-    yield spark
-    spark.stop()
+def test_main_s3_branch(patch_all):
+    mock_file, mock_boto_sess, mock_spark_cls, mock_exec_rules, mock_logger = patch_all
 
-def test_get_address_line1_maps_correctly_and_selects_only_those_columns(spark):
-    # 1) Build a full CustomerInformation DF (only populating the two relevant cols)
-    cust_df = create_partially_filled_dataset(
-        spark,
-        CustomerInformation,
-        data=[
-            {
-                CustomerInformation.account_id           : "C1",
-                CustomerInformation.customer_address_line_1: "100 Elm St"
-            },
-            {
-                CustomerInformation.account_id           : "C2",
-                CustomerInformation.customer_address_line_1: "200 Oak Ave"
-            }
-        ]
+    # A) Prepare config.yaml & secrets.yaml content
+    cfg = {
+      "DATA_SOURCE":   "S3",
+      "S3_DATA_PATH":  "s3://mybucket/myfile.csv",
+      "JOB_ID":        "JID_S3",
+      "AWS_PROFILE":   "my-profile"
+    }
+    sec = {
+      "CLIENT_ID":     "CID_S3",
+      "CLIENT_SECRET": "CSEC_S3"
+    }
+    # first open() -> config.yaml, second open() -> secrets.yaml
+    mock_file.side_effect = [
+      io.StringIO(yaml.dump(cfg)),
+      io.StringIO(yaml.dump(sec))
+    ]
+
+    # B) Stub boto3 credentials
+    fake_sess = MagicMock()
+    fake_creds = MagicMock(access_key="AK", secret_key="SK", token=None)
+    # boto3.Session().get_credentials().get_frozen_credentials() => fake_creds
+    fake_sess.get_credentials.return_value.get_frozen_credentials.return_value = fake_creds
+    mock_boto_sess.return_value = fake_sess
+
+    # C) Stub SparkSession builder -> read -> load
+    fake_spark  = MagicMock(name="spark")
+    fake_builder = MagicMock(name="builder")
+    # SparkSession.builder.appName(...).getOrCreate() => fake_spark
+    fake_builder.appName.return_value.getOrCreate.return_value = fake_spark
+    mock_spark_cls.builder = fake_builder
+
+    # Spark read chain
+    fake_reader = MagicMock(name="reader") 
+    fake_spark.read.format.return_value = fake_reader
+    fake_reader.option.return_value.load.return_value = fake_spark  # pretend load() gives us a DF
+
+    # D) Stub engine.execute_rules()
+    fake_rows = MagicMock(name="row_level_results")
+    fake_rows.show.return_value = None
+    mock_exec_rules.return_value = {
+      "result_type": "ExecutionCompleted",
+      "job_execution_result": {
+        "results": [],
+        "total_DF_rows": 0,
+        "row_level_results": fake_rows
+      }
+    }
+
+    # E) Now call main()
+    main()
+
+    # ---- Assertions ----
+
+    # 1) We should have read the config file and secrets file
+    assert mock_file.call_count == 2
+
+    # 2) We should log that we're loading from S3
+    mock_logger.info.assert_any_call("Loading data from S3 URI")
+
+    # 3) Our Spark read chain must have been invoked with the CSV format and the right S3 path
+    fake_spark.read.format.assert_called_once_with("csv")
+    fake_reader.option.assert_called_once_with("header", "true")
+    fake_reader.load.assert_called_once_with("s3://mybucket/myfile.csv")
+
+    # 4) engine.execute_rules gets exactly the signature for S3, including the uppercase "S3"
+    mock_exec_rules.assert_called_once_with(
+      fake_spark,            # the DF returned by load()
+      "JID_S3",              # job_id
+      "CID_S3",              # client_id
+      "CSEC_S3",             # client_secret
+      "S3"                   # data_source
     )
 
-    # 2) (Optionally) trim input to just the two cols—your function itself also drops extras
-    input_df = cust_df.select(
-        CustomerInformation.account_id,
-        CustomerInformation.customer_address_line_1
-    )
-
-    # 3) Call the function under test
-    result_df = get_address_line1(input_df)
-
-    # 4) Build the expected ADSegment DF
-    expected_df = create_partially_filled_dataset(
-        spark,
-        ADSegment,
-        data=[
-            { ADSegment.account_id    : "C1",
-              ADSegment.address_line_1: "100 Elm St" },
-            { ADSegment.account_id    : "C2",
-              ADSegment.address_line_1: "200 Oak Ave" }
-        ]
-    )
-
-    # 5) Assert that we have exactly those two columns and the right data
-    assert_df_equality(
-        result_df.select(ADSegment.account_id, ADSegment.address_line_1),
-        expected_df.select(ADSegment.account_id, ADSegment.address_line_1),
-        ignore_row_order=True,
-        ignore_nullable=True
-    )
-
-______
-
-from pyspark.sql import DataFrame
-from pyspark.sql.functions import col
-
-from ecbr_card_self_service.edq.common.schemas.customer_information import CustomerInformation
-from ecbr_card_self_service.edq.common.schemas.sbfe_ad_segment    import ADSegment
-
-def get_address_line1(cust_information_df: DataFrame) -> DataFrame:
-    """
-    Maps CustomerInformation.customer_address_line_1 → ADSegment.address_line_1,
-    retains only account_id + address_line_1 columns.
-    """
-    # 1) Overwrite or add the AD address_line_1 column from the customer column
-    df_with_ad = cust_information_df.withColumn(
-        ADSegment.address_line_1.name,                     # str: the new column name
-        CustomerInformation.customer_address_line_1        # Column: the source column
-    )
-    
-    # 2) Select just account_id and the newly-named address_line_1
-    return df_with_ad.select(
-        ADSegment.account_id,
-        ADSegment.address_line_1
-    )
-____
-
-import pytest
-from pyspark.sql import SparkSession
-from pyspark.sql.functions import col
-
-from tests.common import create_partially_filled_dataset, assert_df_equality
-
-from ecbr_card_self_service.edq.common.schemas.customer_information import CustomerInformation
-from ecbr_card_self_service.edq.common.schemas.sbfe_ad_segment    import ADSegment
-from ecbr_card_self_service.edq.local_run.ab.ad_segment          import get_address_line1
-
-@pytest.fixture(scope="session")
-def spark():
-    spark = SparkSession.builder \
-        .master("local[1]") \
-        .appName("pytest-ad-segment") \
-        .getOrCreate()
-    yield spark
-    spark.stop()
-
-def test_get_address_line1_trims_and_maps(spark):
-    # 1) Build a “full” CustomerInformation DF (only need to supply the two relevant cols)
-    full_cust_df = create_partially_filled_dataset(
-        spark,
-        CustomerInformation,
-        data=[
-            {
-              CustomerInformation.account_id           : "acct-1",
-              CustomerInformation.customer_address_line_1: "123 Main St",
-            },
-            {
-              CustomerInformation.account_id           : "acct-2",
-              CustomerInformation.customer_address_line_1: "456 Oak Ave",
-            }
-        ]
-    )
-
-    # 2) Trim to only the two columns your mapper expects
-    trimmed = full_cust_df.select(
-        CustomerInformation.account_id,
-        CustomerInformation.customer_address_line_1
-    )
-
-    # 3) Invoke the function under test
-    result_df = get_address_line1(trimmed)
-
-    # 4) Build the expected ADSegment DF
-    expected_df = create_partially_filled_dataset(
-        spark,
-        ADSegment,
-        data=[
-            {
-              ADSegment.account_id    : "acct-1",
-              ADSegment.address_line_1: "123 Main St"
-            },
-            {
-              ADSegment.account_id    : "acct-2",
-              ADSegment.address_line_1: "456 Oak Ave"
-            }
-        ]
-    )
-
-    # 5) Compare only those two columns, ignoring order & nullability
-    assert_df_equality(
-        result_df.select(ADSegment.account_id, ADSegment.address_line_1),
-        expected_df.select(ADSegment.account_id, ADSegment.address_line_1),
-        ignore_row_order=True,
-        ignore_nullable=True
-    )
+    # 5) And we printed the row-level results
+    fake_rows.show.assert_called_once_with(0, truncate=False)
