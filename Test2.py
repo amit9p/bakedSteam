@@ -1,4 +1,12 @@
 
+import sys
+
+# point `import edq_lib` at your real engine module
+from ecbr_card_self_service.edq.local_run import engine as _real_engine
+sys.modules['edq_lib'] = _real_engine
+
+
+
 
 import io
 import yaml
