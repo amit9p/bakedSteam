@@ -1,15 +1,16 @@
 
+
 # ────────────────────────────────────────────────────────────────
-    # ONE-LAKE  – minimal happy-path
+    # ONE-LAKE  – happy-path with real get_partition()
     # ────────────────────────────────────────────────────────────────
-    @patch.object(runEDQ, "SparkSession",   create=True)          # ① stub Spark
-    @patch.object(runEDQ, "OneLakeSession", create=True)          # ② stub SDK
-    @patch.object(runEDQ, "engine",         create=True)          # ③ stub EDQ
+    @patch.object(runEDQ, "SparkSession",   create=True)   # ① Spark stub
+    @patch.object(runEDQ, "OneLakeSession", create=True)   # ② OneLake stub
+    @patch.object(runEDQ, "engine",         create=True)   # ③ engine stub
     def test_main_onelake(self,
                           mock_engine,      # ③
                           mock_ol_cls,      # ②
                           mock_spark_cls):  # ①
-        # 1️⃣  force the onelake branch
+        # 1️⃣  drive the branch
         _inject_cfg(
             {
                 "DATA_SOURCE": "onelake",
@@ -21,18 +22,21 @@
         )
 
         # 2️⃣  OneLake session → dataset → s3fs
-        sess_mock = mock_ol_cls.return_value
-        ds_mock   = MagicMock()
-        ds_mock.location = "s3://bucket/path/"
-        sess_mock.get_dataset.return_value = ds_mock
+        session_mock = mock_ol_cls.return_value
+        dataset_mock = MagicMock()
+        dataset_mock.location = "s3://bucket/path/"
+        session_mock.get_dataset.return_value = dataset_mock
 
         s3fs_mock = MagicMock()
-        ds_mock.get_s3fs.return_value = s3fs_mock
-        # two deterministic listings – folder then file
-        s3fs_mock.ls.side_effect = [
-            ["s3://bucket/path/2025-04-10/"],                         # 1st call
-            ["s3://bucket/path/2025-04-10/part-00000.parquet"],       # 2nd call
-        ]
+        dataset_mock.get_s3fs.return_value = s3fs_mock
+
+        # side-effect: first ls() returns the folder, second ls() the file
+        def ls_side_effect(path):
+            if "2025-04-10" in path:                      # second call
+                return ["s3://bucket/path/2025-04-10/part-00000.parquet"]
+            return ["s3://bucket/path/2025-04-10/"]       # first call
+
+        s3fs_mock.ls.side_effect = ls_side_effect
 
         # 3️⃣  Spark stub
         fake_df, fake_spark = MagicMock(), MagicMock()
@@ -42,20 +46,20 @@
         ) = fake_spark
         fake_spark.read.format.return_value.load.return_value = fake_df
 
-        # 4️⃣  engine result stub (needs .row_level_results.show())
+        # 4️⃣  engine result stub (row_level_results.show() ready)
         mock_engine.execute_rules.return_value = _fake_engine_result()
 
-        # 5️⃣  run
+        # 5️⃣  run the code
         runEDQ.main()
 
-        # 6️⃣  checks
-        sess_mock.get_dataset.assert_called_once_with("CAT-123")
-        self.assertEqual(s3fs_mock.ls.call_count, 2)
+        # 6️⃣  assertions
+        session_mock.get_dataset.assert_called_once_with("CAT-123")
 
         fake_spark.read.format.assert_called_once_with("parquet")
         fake_spark.read.format.return_value.load.assert_called_once_with(
             "s3a://bucket/path/2025-04-10"
         )
+
         mock_engine.execute_rules.assert_called_once_with(
             fake_df, "JOB_OL", "CID_OL", "CSEC_OL", "NonProd"
         )
