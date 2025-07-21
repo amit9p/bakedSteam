@@ -1,4 +1,97 @@
 
+# ──────────────────────────────────────────────────────────────────────
+    # ONELAKE BRANCH
+    # ──────────────────────────────────────────────────────────────────────
+    @patch.object(runEDQ, "logger",         create=True)
+    @patch.object(runEDQ, "SparkSession",   create=True)
+    @patch.object(runEDQ, "OneLakeSession", create=True)
+    @patch.object(runEDQ, "engine",         create=True)
+    def test_main_onelake(
+        self,
+        mock_engine,
+        mock_onelake_cls,
+        mock_spark_cls,
+        mock_logger,
+    ):
+        """
+        Validate the onelake execution path:
+        * dataset + partition discovery happens
+        * parquet read is triggered
+        * engine.execute_rules is called with expected args
+        """
+
+        # ------------------------------------------------------------------
+        # 1. Inject config / secrets that drive the 'onelake' branch
+        # ------------------------------------------------------------------
+        _inject_cfg(
+            {
+                "DATA_SOURCE": "onelake",
+                "ONELAKE_CATALOG_ID": "CAT-123",
+                "ONELAKE_LOAD_PARTITION_DATE": "2025-04-10",
+                "JOB_ID": "JOB_OL",
+            },
+            {"CLIENT_ID": "CID_OL", "CLIENT_SECRET": "CSEC_OL"},
+        )
+
+        # ------------------------------------------------------------------
+        # 2. Stub OneLake session, dataset and s3fs behaviour
+        # ------------------------------------------------------------------
+        fake_session = MagicMock(name="onelake_session")
+        mock_onelake_cls.return_value = fake_session
+
+        fake_dataset = MagicMock(name="dataset")
+        fake_session.get_dataset.return_value = fake_dataset
+
+        fake_s3fs = MagicMock(name="s3fs")
+        fake_dataset.get_s3fs.return_value = fake_s3fs
+        fake_dataset.location = "s3://bucket/path/"
+
+        def ls_side_effect(path: str):
+            """
+            First call lists partition folders under base path.
+            Second call lists files inside the chosen partition.
+            """
+            if path.endswith("2025-04-10/"):
+                return ["s3://bucket/path/2025-04-10/part-00000.parquet"]
+            return ["s3://bucket/path/2025-04-10/"]
+
+        fake_s3fs.ls.side_effect = ls_side_effect
+
+        # ------------------------------------------------------------------
+        # 3. Stub Spark so no JVM starts
+        # ------------------------------------------------------------------
+        fake_df, fake_spark = MagicMock(name="df_ol"), MagicMock(name="spark_ol")
+        (
+            mock_spark_cls.builder.appName.return_value
+            .config.return_value.config.return_value.getOrCreate.return_value
+        ) = fake_spark
+        fake_spark.read.format.return_value.load.return_value = fake_df
+
+        # ------------------------------------------------------------------
+        # 4. Stub EDQ engine call
+        # ------------------------------------------------------------------
+        mock_engine.execute_rules.return_value = _fake_engine_result()
+
+        # ------------------------------------------------------------------
+        # 5. Run and assert
+        # ------------------------------------------------------------------
+        runEDQ.main()
+
+        fake_session.get_dataset.assert_called_once_with("CAT-123")
+        fake_s3fs.ls.assert_any_call("s3://bucket/path/")
+        fake_s3fs.ls.assert_any_call("s3://bucket/path/2025-04-10/")
+        fake_spark.read.format.assert_called_once_with("parquet")
+
+        mock_engine.execute_rules.assert_called_once_with(
+            fake_df,
+            "JOB_OL",
+            "CID_OL",
+            "CSEC_OL",
+            "NonProd",
+        )
+
+
+______
 
 - sys.modules["oneLake_mini"] = MagicMock()       # wrong spelling / case
 + sys.modules["onelake_mini"] = MagicMock()       # correct module name
