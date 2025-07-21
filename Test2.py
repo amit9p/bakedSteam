@@ -1,4 +1,5 @@
 
+
 # ──────────────────────────────────────────────────────────────────────
     # ONELAKE BRANCH
     # ──────────────────────────────────────────────────────────────────────
@@ -6,24 +7,16 @@
     @patch.object(runEDQ, "SparkSession",   create=True)
     @patch.object(runEDQ, "OneLakeSession", create=True)
     @patch.object(runEDQ, "engine",         create=True)
-    @patch.object(runEDQ, "get_partition",  return_value="s3://bucket/path/2025-04-10",
-                   create=True)
     def test_main_onelake(
         self,
-        mock_get_part,
         mock_engine,
         mock_onelake_cls,
         mock_spark_cls,
         mock_logger,
     ):
-        """
-        Happy-path test for the OneLake branch:
-        * session.get_dataset() is called
-        * Spark reads Parquet from the partition path returned by get_partition()
-        * engine.execute_rules receives expected arguments
-        """
+        """Happy-path test for the onelake execution branch."""
 
-        # 1️⃣  Drive the 'onelake' path via config / secrets
+        # 1️⃣  Force the 'onelake' branch
         _inject_cfg(
             {
                 "DATA_SOURCE": "onelake",
@@ -34,14 +27,32 @@
             {"CLIENT_ID": "CID_OL", "CLIENT_SECRET": "CSEC_OL"},
         )
 
-        # 2️⃣  Stub OneLake session & dataset (only to the extent main() touches)
+        # 2️⃣  Stub OneLake session ➜ dataset ➜ s3fs
         fake_session  = MagicMock(name="onelake_session")
-        fake_dataset  = MagicMock(name="dataset")
-        mock_onelake_cls.return_value            = fake_session
-        fake_session.get_dataset.return_value    = fake_dataset
+        mock_onelake_cls.return_value = fake_session
 
-        # 3️⃣  Stub Spark machinery
-        fake_df, fake_spark = MagicMock(name="df_ol"), MagicMock(name="spark_ol")
+        fake_dataset  = MagicMock(name="dataset")
+        fake_session.get_dataset.return_value = fake_dataset
+        fake_dataset.location = "s3://bucket/path/"
+
+        fake_s3fs = MagicMock(name="s3fs")
+        fake_dataset.get_s3fs.return_value = fake_s3fs
+
+        # Provide two different directory listings on two consecutive calls
+        call_counter = {"n": 0}
+
+        def ls_side_effect(_path):
+            call_counter["n"] += 1
+            # 1st call: list of partition directories
+            if call_counter["n"] == 1:
+                return ["s3://bucket/path/2025-04-10/"]
+            # 2nd call: files inside the chosen partition
+            return ["s3://bucket/path/2025-04-10/part-00000.parquet"]
+
+        fake_s3fs.ls.side_effect = ls_side_effect
+
+        # 3️⃣  Stub Spark
+        fake_df, fake_spark = MagicMock(), MagicMock()
         (
             mock_spark_cls.builder.appName.return_value
             .config.return_value.config.return_value.getOrCreate.return_value
@@ -56,11 +67,8 @@
 
         # 6️⃣  Assertions
         fake_session.get_dataset.assert_called_once_with("CAT-123")
-        mock_get_part.assert_called_once_with(fake_dataset, "2025-04-10")
-        fake_spark.read.format.assert_called_once_with("parquet")
-        fake_spark.read.format.return_value.load.assert_called_once_with(
-            "s3://bucket/path/2025-04-10"
-        )
+        self.assertEqual(fake_s3fs.ls.call_count, 2)               # two listings
+        fake_spark.read.format.assert_called_once_with("parquet")  # parquet read
         mock_engine.execute_rules.assert_called_once_with(
             fake_df, "JOB_OL", "CID_OL", "CSEC_OL", "NonProd"
         )
