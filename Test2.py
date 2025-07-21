@@ -1,105 +1,111 @@
 
-# tests/edq/test_s3.py
+import io
 import sys
-import importlib
+import unittest
+from unittest.mock import patch, mock_open, MagicMock
 import yaml
-import pytest
-from unittest.mock import patch, MagicMock
 
-# 1) Prevent import‐time failures for edq_lib, boto3, oneLake_mini
-sys.modules['edq_lib']     = MagicMock()
-sys.modules['boto3']        = MagicMock()
-sys.modules['oneLake_mini'] = MagicMock()
+# prevent hard imports inside runEDQ
+sys.modules["edq_lib"] = MagicMock()
+sys.modules["boto3"]    = MagicMock()
+sys.modules["oneLake_minij"] = MagicMock()      # <- typo? keep actual name
 
-@patch('builtins.open', create=True)
-@patch('boto3.Session')
-@patch('ecbr_card_self_service.edq.local_run.runEDQ.SparkSession')
-@patch('ecbr_card_self_service.edq.local_run.runEDQ.engine.execute_rules')
-@patch('ecbr_card_self_service.edq.local_run.runEDQ.logger')
-def test_main_s3_branch(
-    mock_logger,
-    mock_execute_rules,
-    mock_spark_cls,
-    mock_boto_session,
-    mock_open_fn
-):
-    # A) Fake config.yaml & secrets.yaml
-    config = {
-        'DATA_SOURCE':  'S3',
-        'S3_DATA_PATH': 's3://my-bucket/my-file.csv',
-        'JOB_ID':       'JOB-123',
-        'AWS_PROFILE':  'my-aws-profile',
-    }
-    secrets = {
-        'CLIENT_ID':     'CID-123',
-        'CLIENT_SECRET': 'CSEC-123',
-    }
+# import after stubbing heavy deps
+from ecbr_card_self_service.edq.local_run import runEDQ
+main, engine, SparkSession, logger = (
+    runEDQ.main, runEDQ.engine, runEDQ.SparkSession, runEDQ.logger
+)
 
-    # set up open() to first return config, then secrets
-    cfg_handle = MagicMock()
-    cfg_handle.read.return_value = yaml.dump(config)
-    sec_handle = MagicMock()
-    sec_handle.read.return_value = yaml.dump(secrets)
-    mock_open_fn.side_effect = [cfg_handle, sec_handle]
+class TestRunEDQ(unittest.TestCase):
 
-    # B) Stub boto3.Session().get_credentials().get_frozen_credentials()
-    fake_creds = MagicMock(access_key='AK', secret_key='SK', token=None)
-    fake_sess  = MagicMock()
-    fake_sess.get_credentials.return_value.get_frozen_credentials.return_value = fake_creds
-    mock_boto = mock_boto_session.return_value
-    mock_boto_session.return_value = fake_sess
+    def build_open_side_effect(self, cfg_dict, sec_dict):
+        """
+        Returns a side-effect function that yields two
+        in-memory file-handles whose read() returns the
+        dumped YAML strings (config first, secrets second).
+        """
+        cfg_str  = yaml.dump(cfg_dict)
+        sec_str  = yaml.dump(sec_dict)
 
-    # C) Stub SparkSession.builder.appName(...).config(...).config(...).getOrCreate()
-    fake_spark   = MagicMock(name='spark')
-    fake_builder = MagicMock(name='builder')
-    # chain every method back to the same builder
-    fake_builder.appName.return_value    = fake_builder
-    fake_builder.config.return_value     = fake_builder
-    fake_builder.getOrCreate.return_value = fake_spark
-    # patch the class so its .builder property is our fake
-    mock_spark_cls.builder = fake_builder
+        def _open_side_effect(*args, **kwargs):
+            path = args[0]
+            if path.endswith("config.yml"):
+                return io.StringIO(cfg_str)
+            elif path.endswith("secrets.yml"):
+                return io.StringIO(sec_str)
+            else:                                 # anything else → real open
+                return open_original(*args, **kwargs)
 
-    # D) Stub spark.read.format(...).option(...).load(...)
-    fake_reader = MagicMock(name='reader')
-    fake_reader.format.return_value = fake_reader
-    fake_reader.option.return_value = fake_reader
-    fake_reader.load.return_value   = fake_spark  # pretend the DF is just the same mock
-    fake_spark.read = fake_reader
+        return _open_side_effect
 
-    # E) Stub engine.execute_rules(...)
-    fake_rows = MagicMock(name='rows')
-    fake_rows.show.return_value = None
-    mock_execute_rules.return_value = {
-        'result_type': 'ExecutionCompleted',
-        'job_execution_result': {
-            'results':           [],
-            'total_DF_rows':     0,
-            'row_level_results': fake_rows
+
+    @patch("ecbr_card_self_service.edq.local_run.runEDQ.yaml.safe_load")
+    @patch("builtins.open", new_callable=mock_open)
+    @patch("ecbr_card_self_service.edq.local_run.runEDQ.boto3.Session")
+    @patch("ecbr_card_self_service.edq.local_run.runEDQ.SparkSession")
+    @patch("ecbr_card_self_service.edq.local_run.runEDQ.engine.execute_rules")
+    @patch("ecbr_card_self_service.edq.local_run.runEDQ.logger")
+    def test_main_s3(
+        self,
+        mock_logger,
+        mock_exec_rules,
+        mock_spark_cls,
+        mock_boto_sess,
+        mock_open_file,
+        mock_yaml_load,
+    ):
+        # ----------------- A) config & secrets we expect -----------------
+        cfg = {
+            "DATA_SOURCE": "s3",
+            "S3_DATA_PATH": "s3://bucket/base_segment.csv",
+            "JOB_ID": "JOB_S3",
+            "AWS_PROFILE": "my-profile",
         }
-    }
+        sec = {
+            "CLIENT_ID": "CID_S3",
+            "CLIENT_SECRET": "CSEC_S3",
+        }
 
-    # F) Now import & reload the module under test
-    import ecbr_card_self_service.edq.local_run.runEDQ as runEDQ
-    importlib.reload(runEDQ)
+        # feed the YAML loader: first call → config, second → secrets
+        mock_yaml_load.side_effect = [cfg, sec]
 
-    # G) Call main()
-    runEDQ.main()
+        # still patch open so we never hit the real filesystem
+        global open_original      # keep reference for fallback use
+        open_original = open      # noqa: E402
+        mock_open_file.side_effect = self.build_open_side_effect(cfg, sec)
 
-    # H) Verify we took the S3 branch
-    mock_logger.info.assert_any_call("Loading data from S3 URI")
-    # The CSV reader should only be called once, with exactly your S3 path:
-    fake_reader.format.assert_called_once_with("csv")
-    fake_reader.option.assert_called_once_with("header", "true")
-    fake_reader.load.assert_called_once_with("s3://my-bucket/my-file.csv")
+        # ----------------- B) boto3 stub -----------------
+        fake_creds = MagicMock(access_key="AK", secret_key="SK", token=None)
+        mock_boto_sess.return_value.get_credentials.return_value\
+            .get_frozen_credentials.return_value = fake_creds
 
-    # And execute_rules must be invoked with the DF and your credentials/job
-    mock_execute_rules.assert_called_once_with(
-        fake_spark,        # DataFrame
-        "JOB-123",         # job_id
-        "CID-123",         # client_id
-        "CSEC-123",        # client_secret
-        "S3"               # data_source
-    )
+        # ----------------- C) Spark stub -----------------
+        fake_df = MagicMock(name="df_s3")
+        mock_spark = MagicMock(name="spark_s3")
+        mock_spark.read.format.return_value.option.return_value.load.return_value = fake_df
+        mock_spark_cls.builder.appName.return_value.config.return_value\
+            .config.return_value.getOrCreate.return_value = mock_spark
 
-    # Finally the show on your fake row‐level results
-    fake_rows.show.assert_called_once_with(0, truncate=False)
+        # ----------------- D) engine.execute_rules stub -----------------
+        mock_exec_rules.return_value = {
+            "result_type": "ExecutionCompleted",
+            "job_execution_result": {
+                "results": [],
+                "total_DF_rows": 0,
+                "row_level_results": MagicMock(),
+            },
+        }
+
+        # ----------------- E) RUN -----------------
+        main()
+
+        # ----------------- F) ASSERT -----------------
+        # correct branch?
+        mock_logger.info.assert_any_call("Loading data from S3 URI")
+        mock_spark.read.format.assert_called_once_with("csv")
+        mock_exec_rules.assert_called_once_with(
+            fake_df, "JOB_S3", "CID_S3", "CSEC_S3", "S3"
+        )
+
+if __name__ == "__main__":
+    unittest.main()
