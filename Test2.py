@@ -1,4 +1,10 @@
 
+
+- sys.modules["oneLake_mini"] = MagicMock()       # wrong spelling / case
++ sys.modules["onelake_mini"] = MagicMock()       # correct module name
+
+
+
 """
 Validate all three branches of ecbr_card_self_service.edq.local_run.runEDQ.main()
 """
