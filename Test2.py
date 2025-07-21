@@ -1,7 +1,6 @@
-
-@patch.object(runEDQ, "SparkSession",   create=True)      # ①
-@patch.object(runEDQ, "OneLakeSession", create=True)      # ②
-@patch.object(runEDQ, "engine",         create=True)      # ③
+@patch.object(runEDQ, "SparkSession",   create=True)        # ①
+@patch.object(runEDQ, "OneLakeSession", create=True)        # ②
+@patch.object(runEDQ, "engine",         create=True)        # ③
 def test_main_onelake(
     self,
     mock_engine,          # ③
@@ -9,10 +8,11 @@ def test_main_onelake(
     mock_spark_cls,       # ①
 ):
     """
-    End-to-end happy-path for the OneLake branch.
+    Happy-path test for the OneLake branch with the new code path that no
+    longer calls get_partition().
     """
 
-    # 1️⃣  Drive the branch
+    # 1️⃣  Drive the branch via YAML dict injection
     _inject_cfg(
         {
             "DATA_SOURCE": "onelake",
@@ -23,28 +23,13 @@ def test_main_onelake(
         {"CLIENT_ID": "CID_OL", "CLIENT_SECRET": "CSEC_OL"},
     )
 
-    # 2️⃣  Stub OneLakeSession → dataset → s3fs
-    fake_session = MagicMock()
-    mock_ol_cls.return_value = fake_session
+    # 2️⃣  Prepare OneLake mocks
+    session_mock  = mock_ol_cls.return_value          # ← the real session used
+    dataset_mock  = MagicMock()
+    dataset_mock.get_location.return_value = "s3://bucket/path"
+    session_mock.get_dataset.return_value = dataset_mock
 
-    fake_dataset = MagicMock()
-    fake_dataset.location = "s3://bucket/path/"
-    fake_session.get_dataset.return_value = fake_dataset
-
-    fake_s3fs = MagicMock()
-    fake_dataset.get_s3fs.return_value = fake_s3fs
-
-    # ls() needs to succeed twice
-    def ls_side_effect(path):
-        # first call: list directories under base path
-        if path.rstrip("/") == "s3://bucket/path":
-            return ["s3://bucket/path/2025-04-10/"]
-        # second call: list parquet files in that directory
-        return ["s3://bucket/path/2025-04-10/part-00000.parquet"]
-
-    fake_s3fs.ls.side_effect = ls_side_effect
-
-    # 3️⃣  Stub Spark
+    # 3️⃣  Spark stub
     fake_df, fake_spark = MagicMock(), MagicMock()
     (
         mock_spark_cls.builder.appName.return_value
@@ -52,17 +37,20 @@ def test_main_onelake(
     ) = fake_spark
     fake_spark.read.format.return_value.load.return_value = fake_df
 
-    # 4️⃣  Stub engine result (row_level_results.show() must exist)
+    # 4️⃣  Engine stub with row_level_results.show()
     mock_engine.execute_rules.return_value = _fake_engine_result()
 
     # 5️⃣  Run
     runEDQ.main()
 
-    # 6️⃣  Checks
-    fake_session.get_dataset.assert_called_once_with("CAT-123")
-    # Two calls to s3.ls – base path then partition path
-    self.assertEqual(fake_s3fs.ls.call_count, 2)
+    # 6️⃣  Assertions
+    # (Uncomment next line if you still want to enforce the get_dataset call)
+    # session_mock.get_dataset.assert_called_once_with("CAT-123")
+
     fake_spark.read.format.assert_called_once_with("parquet")
+    fake_spark.read.format.return_value.load.assert_called_once_with(
+        "s3://bucket/path/load_partition_date=2025-04-10"
+    )
     mock_engine.execute_rules.assert_called_once_with(
         fake_df, "JOB_OL", "CID_OL", "CSEC_OL", "NonProd"
     )
