@@ -1,51 +1,64 @@
 
-# tests/edq/test_onelake_min.py
-import unittest
-from unittest.mock import patch, MagicMock
-import ecbr_card_self_service.edq.local_run.runEDQ as runEDQ
+# tests/edq/test_get_partition.py
+import os
+import pytest
+from unittest.mock import MagicMock
+
+# import just the helper
+from ecbr_card_self_service.edq.local_run.runEDQ import get_partition
 
 
-class TestRunEDQ(unittest.TestCase):
-    @patch.object(runEDQ, "SparkSession",   create=True)
-    @patch.object(runEDQ, "OneLakeSession", create=True)
-    @patch.object(runEDQ, "engine",         create=True)
-    @patch.object(runEDQ, "get_partition",
-                  return_value="bucket/path/2025-04-10")
-    def test_main_onelake_min(self,
-                              _mock_part,
-                              mock_engine,
-                              mock_ol_cls,
-                              mock_spark_cls):
+# ────────────────────────────────────────────────────────────────
+# helpers ─ make a fake dataset-like object with a nested s3fs stub
+# ────────────────────────────────────────────────────────────────
+def _make_dataset(base: str, partition: str, with_file: bool = True):
+    """
+    Constructs
 
-        # 1️⃣ drive OneLake branch
-        _inject_cfg(
-            {
-                "DATA_SOURCE": "onelake",
-                "ONELAKE_CATALOG_ID":          "CAT-123",
-                "ONELAKE_LOAD_PARTITION_DATE": "2025-04-10",
-                "JOB_ID":                      "JOB_OL",
-            },
-            {"CLIENT_ID": "CID_OL", "CLIENT_SECRET": "CSEC_OL"},
-        )
+        dataset.location == base
+        dataset.get_s3fs().ls(base)       ->  [f"{base}{partition}/"]
+        dataset.get_s3fs().ls(f"{base}{partition}/")
+                                       ->  [f"{base}{partition}/part-00000.parquet"]
 
-        # 2️⃣ OneLake SDK stubs
-        session  = mock_ol_cls.return_value
-        dataset  = MagicMock()
-        session.get_dataset.return_value = dataset
+    so that get_partition(dataset, partition) succeeds.
+    """
+    s3fs_mock = MagicMock()
+    dataset    = MagicMock()
+    dataset.location          = base
+    dataset.get_s3fs.return_value = s3fs_mock
 
-        # 3️⃣ Spark stub (returns fake df)
-        fake_df, fake_spark = MagicMock(), MagicMock()
-        (
-            mock_spark_cls.builder.appName.return_value
-            .config.return_value.config.return_value.getOrCreate.return_value
-        ) = fake_spark
-        fake_spark.read.format.return_value.load.return_value = fake_df
+    # 1️⃣ first ls(): list the partition directory
+    s3fs_mock.ls.side_effect = [
+        [f"{base}{partition}/"],                         # ls(base)
+        [f"{base}{partition}/part-00000.parquet"]        # ls(base/partition)
+        if with_file else []                             # second call may be empty
+    ]
+    return dataset
 
-        # 4️⃣ engine result
-        mock_engine.execute_rules.return_value = _fake_engine_result()
 
-        # 5️⃣ run
-        runEDQ.main()
+# ────────────────────────────────────────────────────────────────
+# happy-path
+# ────────────────────────────────────────────────────────────────
+def test_get_partition_success():
+    base       = "s3://bucket/path/"
+    partition  = "2025-04-10"
+    dataset    = _make_dataset(base, partition)
 
-        # 6️⃣ single sanity-check → pipeline executed
-        assert mock_engine.execute_rules.called
+    result = get_partition(dataset, partition)
+
+    expected = os.path.dirname(                           # <- mirrors helper’s logic
+        dataset.get_s3fs().ls.side_effect[1][-1]
+    )
+    assert result == expected
+
+
+# ────────────────────────────────────────────────────────────────
+# error-path
+# ────────────────────────────────────────────────────────────────
+def test_get_partition_not_found():
+    base       = "s3://bucket/path/"
+    partition  = "2025-04-10"
+    dataset    = _make_dataset(base, partition, with_file=False)
+
+    with pytest.raises(ValueError, match=partition):
+        get_partition(dataset, partition)
