@@ -1,4 +1,58 @@
 
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, when, lit
+
+def calculate_account_status_1(
+    account_df: DataFrame,
+    customer_df: DataFrame,
+    recoveries_df: DataFrame,
+    fraud_df: DataFrame,
+    generated_fields_df: DataFrame,
+    caps_df: DataFrame,
+) -> DataFrame:
+    """
+    Compute Field “Account Status 1” by:
+      1. Extracting Field 17A (account_status) from account_df
+      2. Extracting Field 19 (special_comment_code) from generated_fields_df
+      3. Joining on account_id
+      4. Applying the 10 business rules to yield an integer status.
+    Returns: DataFrame(account_id, account_status_1:int)
+    """
+
+    # 1) Build the two source DataFrames
+    account_status_df = account_df.select(
+        col("account_id"),
+        col("account_status").alias("acc_status")     # Field 17A
+    )
+
+    special_code_df = generated_fields_df.select(
+        col("account_id"),
+        col("special_comment_code")                    # Field 19
+    )
+
+    # 2) Join them
+    joined = account_status_df.join(special_code_df, on="account_id", how="left")
+
+    # 3) Apply the rules
+    result = joined.select(
+        col("account_id"),
+        when(col("acc_status") == "11",  lit(11))
+        .when((col("acc_status") == "13") & (col("special_comment_code") == "AU"), lit(16))
+        .when((col("acc_status") == "13") & (col("special_comment_code") != "AU"), lit(30))
+        .when((col("acc_status") == "64") & (col("special_comment_code") == "AU"), lit(16))
+        .when((col("acc_status") == "64") & (col("special_comment_code") != "AU"), lit(9))
+        .when((col("acc_status") == "97") & (col("special_comment_code") == "AH"), lit(2))
+        .when((col("acc_status") == "97") & (col("special_comment_code") != "AH"), lit(11))
+        .when(col("acc_status").isin("71", "78", "80", "82", "83"),       lit(11))
+        .when(col("acc_status") == "DA",                                 lit(5))
+        .otherwise(lit(None))
+        .cast("int")
+        .alias("account_status_1")
+    )
+
+    return result
+
+-____
 # metro2_disposition_codes.py
 
 # Two- or three-digit disposition codes (as integers)
