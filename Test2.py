@@ -1,3 +1,22 @@
+# metro2_special_condition_codes.py
+
+# Two-character special condition codes (positions 124–125)
+PURCHASED_BY_ANOTHER_COMPANY        = "AH"  # Purchased by another company
+PIF_LESS_THAN_FULL_BALANCE          = "AU"  # Account PIF for less than full balance
+CLOSED_DUE_TO_TRANSFER              = "AT"  # Account closed due to transfer
+CLOSED_AT_CREDIT_GRANTOR_REQUEST    = "M"   # Account closed at credit grantor’s request
+NO_SPECIAL_CONDITION                = None  # Code = NULL
+
+# Optional reverse lookup if you need the constant name from a code:
+SPECIAL_COND_NAME_BY_CODE = {
+    PURCHASED_BY_ANOTHER_COMPANY:     "PURCHASED_BY_ANOTHER_COMPANY",
+    PIF_LESS_THAN_FULL_BALANCE:       "PIF_LESS_THAN_FULL_BALANCE",
+    CLOSED_DUE_TO_TRANSFER:           "CLOSED_DUE_TO_TRANSFER",
+    CLOSED_AT_CREDIT_GRANTOR_REQUEST: "CLOSED_AT_CREDIT_GRANTOR_REQUEST",
+    NO_SPECIAL_CONDITION:             "NO_SPECIAL_CONDITION",
+}
+
+
 
 # metro2_codes.py
 
