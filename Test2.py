@@ -1,3 +1,24 @@
+
+# metro2_disposition_codes.py
+
+# Two- or three-digit disposition codes (as integers)
+ACCOUNT_SOLD_TRANSFERRED                  = 2    # “2” – Account Sold/Transferred
+CLOSED                                    = 5    # “5” – Closed
+PAID_CHARGE_OFF                           = 9    # “9” – Paid Charge Off
+CHARGE_OFF_WHOLE_BALANCE                  = 11   # “11” – Charge Off – Whole Balance
+SETTLED_FOR_LESS_THAN_AMOUNT_DUE_AGREEMENT = 16   # “16” – Settled for Less than Amount Due (Agreement)
+ACCOUNT_PAID_IN_FULL_AS_AGREED            = 30   # “30” – Account Paid in Full – As Agreed
+
+# Optional reverse-lookup mapping if you need to get the name from a code:
+DISPOSITION_NAME_BY_CODE = {
+    ACCOUNT_SOLD_TRANSFERRED:                  "ACCOUNT_SOLD_TRANSFERRED",
+    CLOSED:                                    "CLOSED",
+    PAID_CHARGE_OFF:                           "PAID_CHARGE_OFF",
+    CHARGE_OFF_WHOLE_BALANCE:                  "CHARGE_OFF_WHOLE_BALANCE",
+    SETTLED_FOR_LESS_THAN_AMOUNT_DUE_AGREEMENT: "SETTLED_FOR_LESS_THAN_AMOUNT_DUE_AGREEMENT",
+    ACCOUNT_PAID_IN_FULL_AS_AGREED:            "ACCOUNT_PAID_IN_FULL_AS_AGREED",
+}
+
 # metro2_special_condition_codes.py
 
 # Two-character special condition codes (positions 124–125)
