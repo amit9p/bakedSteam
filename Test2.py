@@ -1,37 +1,30 @@
 
-# tests/edq/test_get_partition.py
-import os
-import pytest
-from unittest.mock import MagicMock
-from ecbr_card_self_service.edq.local_run.runEDQ import get_partition
+# metro2_codes.py
 
+# Two-char Metro2 status codes
+CURRENT             = "11"  # 0–29 days past due
+PAID_ZERO_BALANCE   = "13"  # Paid or closed account
+PAST_DUE_30_59      = "71"  # 30–59 days past due
+PAST_DUE_60_89      = "78"  # 60–89 days past due
+PAST_DUE_90_119     = "80"  # 90–119 days past due
+PAST_DUE_120_149    = "82"  # 120–149 days past due
+PAST_DUE_150_179    = "83"  # 150–179 days past due
+PAST_DUE_180_PLUS   = "84"  # 180+ days past due
+CHARGE_OFF_LOSS     = "97"  # Unpaid balance reported as a loss
+PAID_IN_FULL_CHGOFF = "64"  # PIF, was a charge-off
+DELETE_ACCOUNT      = "DA"  # Delete Account
 
-def _make_dataset(base: str, partition: str, with_file: bool = True):
-    s3fs_mock = MagicMock()
-    dataset    = MagicMock()
-    dataset.location = base
-    dataset.get_s3fs.return_value = s3fs_mock
-    s3fs_mock.ls.side_effect = [
-        [f"{base}{partition}/"],
-        [f"{base}{partition}/part-00000.parquet"] if with_file else []
-    ]
-    return dataset
-
-
-def test_get_partition_success():
-    base      = "s3://bucket/path/"
-    partition = "2025-04-10"
-    dataset   = _make_dataset(base, partition)
-
-    result    = get_partition(dataset, partition)
-    expected  = f"{base}{partition}"        # ← simpler & iterator-safe
-    assert result == expected
-
-
-def test_get_partition_not_found():
-    base      = "s3://bucket/path/"
-    partition = "2025-04-10"
-    dataset   = _make_dataset(base, partition, with_file=False)
-
-    with pytest.raises(ValueError, match=partition):
-        get_partition(dataset, partition)
+# Optional reverse lookup:
+METRO2_NAME_BY_CODE = {
+    CURRENT:             "CURRENT",
+    PAID_ZERO_BALANCE:   "PAID_ZERO_BALANCE",
+    PAST_DUE_30_59:      "PAST_DUE_30_59",
+    PAST_DUE_60_89:      "PAST_DUE_60_89",
+    PAST_DUE_90_119:     "PAST_DUE_90_119",
+    PAST_DUE_120_149:    "PAST_DUE_120_149",
+    PAST_DUE_150_179:    "PAST_DUE_150_179",
+    PAST_DUE_180_PLUS:   "PAST_DUE_180_PLUS",
+    CHARGE_OFF_LOSS:     "CHARGE_OFF_LOSS",
+    PAID_IN_FULL_CHGOFF: "PAID_IN_FULL_CHGOFF",
+    DELETE_ACCOUNT:      "DELETE_ACCOUNT",
+}
