@@ -1,4 +1,36 @@
 
+expected_rows = [
+    ( "A11",    11 ),
+    ( "A13_AU", 16 ),
+    ( "A13_X",  30 ),
+    ( "A64_AU", 16 ),
+    ( "A64_X",   9 ),
+    ( "A97_AH",  2 ),
+    ( "A97_X",  11 ),   # ← now correct
+    ( "A71",    11 ),
+    ( "A78",    11 ),
+    ( "A80",    11 ),
+    ( "A82",    11 ),
+    ( "A83",    11 ),
+    ( "ADA",     5 ),
+    ( "A84",  c.DEFAULT_ERROR_INTEGER ),
+]
+
+expected_df = (
+    spark.createDataFrame(expected_rows, ["account_id","account_status_1"])
+    # or use create_partially_filled_dataset with ABSegment
+)
+
+
+assert_df_equality(
+    result_df,
+    expected_df,
+    ignore_row_order=True,
+    ignore_column_order=True,
+    ignore_nullable=True,    # ← handles the nullable mismatch
+)
+
+______
 # tests/test_account_status_1.py
 from chispa import assert_df_equality
 from unittest.mock import patch
