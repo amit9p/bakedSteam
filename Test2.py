@@ -3,17 +3,18 @@
 import pytest
 from chispa import assert_df_equality
 from pyspark.sql import SparkSession
-from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+from pyspark.sql.types import IntegerType, StructType, StructField, StringType
 
-# ── adjust these three lines to your actual package structure ─────────────
-import your_project.fields.account_status_1 as mod             # <- module with calculate_account_status_1
+# ── adjust these to your repo structure ───────────────────────────────────
+import your_project.fields.account_status_1 as mod
+from your_project.schemas.base_segment import BaseSegment        # typed-spark schema
 from your_project.test_utils import create_partially_filled_dataset
 from your_project.constants import DEFAULT_ERROR_INTEGER
 # ──────────────────────────────────────────────────────────────────────────
 
-# ───────────────────────── spark fixture ─────────────────────────────────
+
 @pytest.fixture(scope="session")
-def spark():
+def spark() -> SparkSession:
     return (
         SparkSession.builder
         .master("local[2]")
@@ -21,101 +22,98 @@ def spark():
         .getOrCreate()
     )
 
-# ──────────────────────────── the test ───────────────────────────────────
+
 def test_account_status_1_all_outputs(spark, monkeypatch):
-    # ── 1. source rows ────────────────────────────────────────────────────
-    account_rows = [
-        #  Field 17A only (no SCC required)
-        {"account_id": "A11", "account_status": "11"},   # → 11
-        {"account_id": "A71", "account_status": "71"},   # → 11 (rule-8 set)
-        {"account_id": "A78", "account_status": "78"},   # → 11
-        {"account_id": "A80", "account_status": "80"},   # → 11
-        {"account_id": "A82", "account_status": "82"},   # → 11
-        {"account_id": "A83", "account_status": "83"},   # → 11
-        {"account_id": "ADA", "account_status": "DA"},   # → 5
-        {"account_id": "A84", "account_status": "84"},   # → else / error
-        # combos that need SCC
-        {"account_id": "A13_AU", "account_status": "13"},
-        {"account_id": "A13_X",  "account_status": "13"},
-        {"account_id": "A64_AU", "account_status": "64"},
-        {"account_id": "A64_X",  "account_status": "64"},
-        {"account_id": "A97_AH", "account_status": "97"},
-        {"account_id": "A97_X",  "account_status": "97"},
+    # ── 1. 𝙎𝙤𝙪𝙧𝙘𝙚 𝙙𝙖𝙩𝙖  -------------------------------------------------------------
+    id_list = [
+        "A11", "A71", "A78", "A80", "A82", "A83",            # rule-8 set & 11
+        "ADA", "A84",                                        # 5  &  ERROR
+        "A13_AU", "A13_X",                                   # 16 & 30
+        "A64_AU", "A64_X",                                   # 16 &  9
+        "A97_AH", "A97_X",                                   #  2 & 11
+    ]
+    status_list = [
+        "11", "71", "78", "80", "82", "83",
+        "DA", "84",
+        "13", "13",
+        "64", "64",
+        "97", "97",
     ]
 
-    special_rows = [
-        {"account_id": "A13_AU", "special_comment_code": "AU"},
-        {"account_id": "A13_X",  "special_comment_code": "AT"},  # anything ≠ AU
-        {"account_id": "A64_AU", "special_comment_code": "AU"},
-        {"account_id": "A64_X",  "special_comment_code": "AT"},
-        {"account_id": "A97_AH", "special_comment_code": "AH"},
-        {"account_id": "A97_X",  "special_comment_code": "AT"},  # anything ≠ AH
-        # others default to NULL
+    # Special-comment codes *aligned by position* (None → NULL)
+    scc_list = [
+        None, None, None, None, None, None,          # A11 … A83
+        None, None,                                  # ADA, A84
+        "AU", "AT",                                  # A13_AU, A13_X
+        "AU", "AT",                                  # A64_AU, A64_X
+        "AH", "AT",                                  # A97_AH, A97_X
     ]
 
-    # ── 2. build DataFrames with helper ───────────────────────────────────
-    acct_schema = StructType([
-        StructField("account_id", StringType(), False),
-        StructField("account_status", StringType(), False),
-    ])
-    scc_schema = StructType([
-        StructField("account_id", StringType(), False),
-        StructField("special_comment_code", StringType(), True),
-    ])
-
-    test_acct_df = create_partially_filled_dataset(spark, account_rows, schema=acct_schema)
-    test_scc_df  = create_partially_filled_dataset(spark, special_rows,  schema=scc_schema)
-    empty_df     = create_partially_filled_dataset(spark, [], schema=acct_schema)
-
-    # ── 3. monkey-patch upstream helpers used in account_status_1 ─────────
-    def stub_calculate_account_status(*_args, **_kwargs):
-        # must return cols: account_id, account_status
-        return test_acct_df
-
-    def stub_calculate_special_comment_code(*_args, **_kwargs):
-        # must return cols: account_id, special_comment_code
-        return test_scc_df
-
-    monkeypatch.setattr(mod, "calculate_account_status", stub_calculate_account_status)
-    monkeypatch.setattr(mod, "calculate_special_comment_code", stub_calculate_special_comment_code)
-
-    # ── 4. run the real function ──────────────────────────────────────────
-    result_df = (
-        mod.calculate_account_status_1(
-            account_df=test_acct_df,
-            customer_df=empty_df,
-            recoveries_df=empty_df,
-            fraud_df=empty_df,
-            generated_fields_df=test_scc_df,
-            caps_df=empty_df,
-        )
-        .select("account_id", "account_status_1")  # keep only what we assert on
+    # ── 2. 𝘮𝘰𝘤𝘬 Account-Status DF  ------------------------------------------------
+    account_df = create_partially_filled_dataset(
+        spark,
+        BaseSegment,
+        {
+            BaseSegment.account_id:     id_list,
+            BaseSegment.account_status: status_list,
+        },
     )
 
-    # ── 5. expected DataFrame ────────────────────────────────────────────
+    # ── 3. 𝘮𝘰𝘤𝘬 Special-Comment-Code DF  ------------------------------------------
+    special_df = create_partially_filled_dataset(
+        spark,
+        BaseSegment,
+        {
+            BaseSegment.account_id:           id_list,
+            BaseSegment.special_comment_code: scc_list,
+        },
+    )
+
+    empty_df = create_partially_filled_dataset(
+        spark, BaseSegment, {BaseSegment.account_id: [], BaseSegment.account_status: []}
+    )
+
+    # ── 4. patch upstream helpers so the real function uses our mocks  -----------
+    monkeypatch.setattr(mod, "calculate_account_status",          lambda *_, **__: account_df)
+    monkeypatch.setattr(mod, "calculate_special_comment_code",    lambda *_, **__: special_df)
+
+    # ── 5. run the *real* calculate_account_status_1  ----------------------------
+    result_df = (
+        mod.calculate_account_status_1(
+            account_df     = account_df,
+            customer_df    = empty_df,
+            recoveries_df  = empty_df,
+            fraud_df       = empty_df,
+            generated_fields_df = special_df,
+            caps_df        = empty_df,
+        )
+        .select("account_id", "account_status_1")
+    )
+
+    # ── 6. expected dataframe (simple spark.createDataFrame)  --------------------
     expected_rows = [
-        {"account_id": "A11",    "account_status_1": 11},
-        {"account_id": "A71",    "account_status_1": 11},
-        {"account_id": "A78",    "account_status_1": 11},
-        {"account_id": "A80",    "account_status_1": 11},
-        {"account_id": "A82",    "account_status_1": 11},
-        {"account_id": "A83",    "account_status_1": 11},
-        {"account_id": "A13_AU", "account_status_1": 16},
-        {"account_id": "A64_AU", "account_status_1": 16},
-        {"account_id": "A13_X",  "account_status_1": 30},
-        {"account_id": "A64_X",  "account_status_1": 9},
-        {"account_id": "A97_AH", "account_status_1": 2},
-        {"account_id": "A97_X",  "account_status_1": 11},
-        {"account_id": "ADA",    "account_status_1": 5},
-        {"account_id": "A84",    "account_status_1": DEFAULT_ERROR_INTEGER},
+        ("A11",    11),
+        ("A71",    11),
+        ("A78",    11),
+        ("A80",    11),
+        ("A82",    11),
+        ("A83",    11),
+        ("A13_AU", 16),
+        ("A64_AU", 16),
+        ("A13_X",  30),
+        ("A64_X",   9),
+        ("A97_AH",  2),
+        ("A97_X",  11),
+        ("ADA",     5),
+        ("A84", DEFAULT_ERROR_INTEGER),
     ]
-    expected_schema = StructType([
-        StructField("account_id", StringType(), False),
+    exp_schema = StructType([
+        StructField("account_id",       StringType(), False),
         StructField("account_status_1", IntegerType(), True),
     ])
-    expected_df = create_partially_filled_dataset(spark, expected_rows, schema=expected_schema)
+    expected_df = spark.createDataFrame(expected_rows, exp_schema)
 
-    # ── 6. assert equality (row / col order agnostic) ─────────────────────
+    # ── 7. assert equality  -------------------------------------------------------
     assert_df_equality(
         result_df,
         expected_df,
