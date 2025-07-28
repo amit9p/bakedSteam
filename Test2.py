@@ -1,4 +1,18 @@
 
+# Step 1: Checkout your feature branch
+git checkout feature-branch
+
+# Step 2: Fetch latest main
+git fetch origin
+
+# Step 3: Merge main into your branch (like "update with merge commit")
+git merge origin/main
+
+# Step 4: Push changes (if needed)
+git push origin feature-branch
+
+
+
 expected_rows = [
     {ABSegment.account_id: "A11",    ABSegment.account_status_1: 11},
     {ABSegment.account_id: "A13_AU", ABSegment.account_status_1: 16},
