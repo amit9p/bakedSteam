@@ -1,4 +1,22 @@
 
+Good catch, Mohan – you’re right.
+In the current Lucidchart the arrow that feeds “Joint Account Indicator = true” comes after the “Bankruptcy File Date < Charge-Off Date” check, so the pure “Bankruptcy Chapter + Joint Account” shortcut from Step 4 isn’t represented.
+
+We really need two parallel branches under “Bankruptcy Chapter [exists]”:
+
+1. Step 4 Bankruptcy Chapter + Joint Account → Account Status = DA (no File-Date test).
+
+
+2. Step 6 Bankruptcy Status = OPEN + File Date < CO Date (+ other qualifiers) → Pre-CO Status.
+
+
+
+I’ll add a separate arrow from the “Bankruptcy Chapter” diamond straight to the “Joint Account” diamond (label it “4”) and leave the existing File-Date/Status-OPEN branch as “6”. I’ll push the updated Lucidchart shortly so we’re fully aligned with the function table.  Thanks for flagging this!
+
+
+
+
+
 “The Bankruptcy File Date check is in Step 6 of the function table (the ‘Bankruptcy Status = OPEN’ rule); Step 4 handles only ‘Bankruptcy Chapter + Joint Account’. Lucidchart shows those two diamonds in that same order, so the logic still lines up.”
 
 
