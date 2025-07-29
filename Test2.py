@@ -1,3 +1,6 @@
+You’re right, Mohan—the Lucidchart is missing the straight “Bankruptcy Chapter + Joint Account → DA” branch from Step 4.
+
+_____
 
 Good catch, Mohan – you’re right.
 In the current Lucidchart the arrow that feeds “Joint Account Indicator = true” comes after the “Bankruptcy File Date < Charge-Off Date” check, so the pure “Bankruptcy Chapter + Joint Account” shortcut from Step 4 isn’t represented.
