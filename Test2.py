@@ -1,4 +1,9 @@
 
+“The Bankruptcy File Date check is in Step 6 of the function table (the ‘Bankruptcy Status = OPEN’ rule); Step 4 handles only ‘Bankruptcy Chapter + Joint Account’. Lucidchart shows those two diamonds in that same order, so the logic still lines up.”
+
+
+
+
 # Step 1: Checkout your feature branch
 git checkout feature-branch
 
