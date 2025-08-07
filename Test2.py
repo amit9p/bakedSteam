@@ -1,4 +1,17 @@
 
+from pyspark.sql import types as T
+
+schema = T.StructType([
+    T.StructField("equifax",   T.StringType()),
+    T.StructField("experian",  T.StringType()),
+    T.StructField("transunion",T.StringType()),
+    T.StructField("consumer_account_number", T.StringType())
+])
+
+new_ids = spark.createDataFrame(rows, schema=schema)
+
+
+
 from pyspark.sql import functions as F
 from pyspark.sql import types as T
 
