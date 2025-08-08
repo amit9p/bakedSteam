@@ -1,4 +1,11 @@
 
+spark = (
+    SparkSession.builder
+    .appName("replace-identification-number-22rows")
+    .getOrCreate()
+)
+
+
 from pyspark.sql import Row
 
 rows = [
