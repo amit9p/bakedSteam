@@ -1,3 +1,54 @@
+
+from pyspark.sql import SparkSession, Row, functions as F, types as T
+
+spark = (
+    SparkSession.builder
+    .appName("ident-number-df")
+    .getOrCreate()
+)
+
+# ── raw triples exactly as in the sheet (image-2) ────────────────
+rows = [
+    ("850BB01498", "1270246",  "1DTV001"),
+    ("484BB01456", "1205950",  "1DTV003"),
+    ("190BB12984", "1109050",  "1DTV228"),
+    ("190BB13037", "1110080",  "1DTV229"),
+    ("190BB13028", "1110330",  "1DTV232"),
+    ("190BB13000", "1110380",  "1DTV233"),
+    ("190BC00012", "2825800",  "1DTV234"),
+    ("190BC00020", "1974175",  "1DTV235"),
+    ("6440ON6249", "2218590",  "7452009"),
+    ("484BB05903", "2517060",  "1DTV237"),
+    ("458LZ00188", "1942275",  "1DTV080"),
+    ("163BB34197", "1949299",  "1DTV202"),
+    ("155DC03627", "1195162",  "2DQ3001"),
+    ("190BB12831", "2445250",  "1DTV225"),
+    ("155DC03411", "1195324",  "2DQ2001"),
+    ("155DC03429", "1195328",  "1DTV040"),
+    ("484BB06174", "2926315",  "1DTV238"),
+    ("484BB06299", "2990785",  "1DTV241"),
+    ("163BB34160", "1201640",  "1DTV041"),
+    ("163BB34179", "1949295",  "1DTV057"),
+    ("155DC03445", "1942066",  "1DTV075"),
+    ("484BB06358", "3947032",  "1DTV244")
+]
+
+# ── create an intermediate DF with three simple string columns ──
+triples_df = spark.createDataFrame(rows, ["equifax", "experian", "transunion"])
+
+# ── pack them into the struct & keep ONLY that struct column ─────
+df_struct = (
+    triples_df
+    .withColumn("identification_number",
+                F.struct("equifax", "experian", "transunion"))
+    .select("identification_number")
+)
+
+df_struct.printSchema()
+df_struct.show(truncate=False)
+
+
+__________
 from pyspark.sql import SparkSession
 
 # 1️⃣  session
