@@ -1,36 +1,34 @@
 
 from pyspark.sql import functions as F
 
-# df1: big table (has many cols incl. identification_number)
-# df2: small table (cols: consumer_account_number, identification_number)
+# df1 = big table (many cols incl. identification_number)
+# df2 = small table (consumer_account_number, identification_number)
 
-# make sure join key types match
-key_type = dict(df1.dtypes)["consumer_account_number"]
-df2_k = df2.select(
-    F.col("consumer_account_number").cast(key_type).alias("consumer_account_number"),
-    F.col("identification_number").alias("identification_number_new")
+# 1) make sure join-key dtypes match
+key_type = dict(df1.dtypes)["consumer_account_number"]  # e.g. 'string' or 'int'
+
+df2_k = (
+    df2.select(
+        F.col("consumer_account_number").cast(key_type).alias("consumer_account_number"),
+        F.col("identification_number").alias("id_new")   # rename to avoid ambiguity
+    )
 )
 
-# left-join and overwrite the struct where df2 has a value
-df_out = (
+# 2) Build final DF: keep ALL cols from df1, but swap the struct if df2 has it
+cols_keep = [c for c in df1.columns if c != "identification_number"]
+
+df_updated = (
     df1.alias("l")
-       .join(df2_k.alias("r"), on="consumer_account_number", how="left")
-       .withColumn(
-           "identification_number",
-           F.coalesce(F.col("r.identification_number_new"), F.col("l.identification_number"))
-       )
-       .drop("identification_number_new")
+      .join(F.broadcast(df2_k).alias("r"), on="consumer_account_number", how="left")
+      .select(
+          *[F.col(f"l.{c}") for c in cols_keep],                               # all other df1 columns
+          F.coalesce(F.col("r.id_new"), F.col("l.identification_number"))       # updated struct
+           .alias("identification_number")
+      )
 )
 
-# df_out now = all columns from df1 + id_number coming from df2 when available
+# sanity check
+df_updated.select("consumer_account_number","identification_number").show(100, False)
 
-
-
-df_out = (
-    df1.alias("l")
-       .join(df2_k.alias("r"), "consumer_account_number", "left")
-       .drop("l.identification_number")
-       .withColumnRenamed("identification_number_new", "identification_number")
-)
-```0
-
+# write if needed
+# df_updated.write.mode("overwrite").parquet("/path/out/accounts_updated.parquet")
