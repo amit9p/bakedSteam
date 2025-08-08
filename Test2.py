@@ -1,4 +1,24 @@
 
+from pyspark.sql import Row
+
+rows = [
+    Row(consumer_account_number=1 , equifax="850BB01498", experian="1270246", transunion="1DTV001"),
+    Row(consumer_account_number=2 , equifax="484BB01456", experian="1205950", transunion="1DTV003"),
+    # … add the remaining 20 rows …
+]
+
+ddl = """
+consumer_account_number INT,
+equifax                 STRING,
+experian                STRING,
+transunion              STRING
+"""
+
+# CAPITAL ‘D’ in createDataFrame
+new_ids_flat = spark.createDataFrame(rows, ddl)
+
+
+-----
 from pyspark.sql import SparkSession, Row, functions as F
 
 spark = (
