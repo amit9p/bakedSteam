@@ -1,4 +1,33 @@
+from pyspark.sql import functions as F
 
+# df1  = big dataframe (image 1) → has many columns incl. "identification_number" (struct)
+# df2  = small dataframe (image 2) → cols: "consumer_account_number", "identification_number" (struct)
+
+# 1) Make sure join keys have the same dtype
+key_dtype = dict(df1.dtypes)["consumer_account_number"]  # e.g. 'string' or 'int'
+
+df2_fix = df2.select(
+    F.col("consumer_account_number").cast(key_dtype).alias("consumer_account_number"),
+    F.col("identification_number").alias("identification_number_new")
+)
+
+# 2) Join and replace the struct where there’s a match
+df_updated = (
+    df1.join(df2_fix, on="consumer_account_number", how="left")
+       .withColumn(
+           "identification_number",
+           F.coalesce(F.col("identification_number_new"), F.col("identification_number"))
+       )
+       .drop("identification_number_new")
+)
+
+# (optional) sanity check
+df_updated.select("consumer_account_number", "identification_number").show(truncate=False)
+
+# (optional) write back
+# df_updated.write.mode("overwrite").parquet("/path/out/accounts_updated.parquet")
+
+____
 from pyspark.sql import SparkSession, functions as F
 
 spark = SparkSession.builder.appName("ident_numbers_with_accno").getOrCreate()
