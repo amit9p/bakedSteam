@@ -1,4 +1,14 @@
 
+rows = [
+    (1 , "850BB01498", "1270246", "1DTV001"),
+    (2 , "484BB01456", "1205950", "1DTV003"),
+    # …
+]
+new_ids_flat = spark.createDataFrame(rows).toDF(
+    "consumer_account_number", "equifax", "experian", "transunion"
+)
+
+
 spark = (
     SparkSession.builder
     .appName("replace-identification-number-22rows")
