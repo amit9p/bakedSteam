@@ -3,69 +3,72 @@ from pyspark.sql import SparkSession, functions as F
 
 spark = (
     SparkSession.builder
-    .appName("overwrite-identification-number")
+    .appName("replace-identification-number-22rows")
     .getOrCreate()
 )
 
-# ─────────────────────────────────────────────
-# 1 ▸ Load your existing Parquet
-# ─────────────────────────────────────────────
-PATH_IN  = "/path/to/original/accounts.parquet"
-df_raw   = spark.read.parquet(PATH_IN)
+# ── 1.  Original Parquet ───────────────────────────────────────────
+src_path = "/path/or/s3/in/accounts_original.parquet"   # ← change
+df_raw   = spark.read.parquet(src_path)
 
-# ─────────────────────────────────────────────
-# 2 ▸ Build a tiny mapping DataFrame
-#     (Equifax, Experian, TransUnion + KEY)
-#     ▼  Paste the rows from your sheet ▼
-# ─────────────────────────────────────────────
+# ── 2.  22-row mapping table  ──────────────────────────────────────
 rows = [
-    ("850BB0149B", "1270246",  "1DTV001", "1234567890123456"),
-    ("484BB01456", "1205950",  "1DTV003", "1234567890123457"),
-    ("190BB12984", "1109050",  "1DTV228", "1234567890123458"),
-    ("190BB13037", "1110080",  "1DTV229", "1234567890123459"),
-    ("190BB13028", "1110330",  "1DTV232", "1234567890123460"),
-    ("190BB13000", "1110380",  "1DTV233", "1234567890123461"),
-    ("190BC00012", "2825800",  "1DTV234", "1234567890123462"),
-    ("190BC00020", "1974175",  "1DTV235", "1234567890123463"),
-    ("6440ON6249", "2218590",  "7452009", "1234567890123464"),
-    ("484BB05903", "2517060",  "1DTV237", "1234567890123465"),
-    ("458LZ00188", "1942275",  "1DTV080", "1234567890123466"),
-    # ─── add more rows here ───
+    # (consumer_account_number ,   Equifax , Experian , TransUnion)
+    (1 ,  "850BB01498", "1270246", "1DTV001"),
+    (2 ,  "484BB01456", "1205950", "1DTV003"),
+    (3 ,  "190BB12984", "1109050", "1DTV228"),
+    (4 ,  "190BB13037", "1110080", "1DTV229"),
+    (5 ,  "190BB13028", "1110330", "1DTV232"),
+    (6 ,  "190BB13000", "1110380", "1DTV233"),
+    (7 ,  "190BC00012", "2825800", "1DTV234"),
+    (8 ,  "190BC00020", "1974175", "1DTV235"),
+    (9 ,  "6440ON6249", "2218590", "7452009"),
+    (10,  "484BB05903", "2517060", "1DTV237"),
+    (11,  "458LZ00188", "1942275", "1DTV080"),
+    (12,  "163BB34197", "1949299", "1DTV202"),
+    (13,  "155DC03627", "1195162", "2DQ3001"),
+    (14,  "190BB12831", "2445250", "1DTV225"),
+    (15,  "155DC03411", "1195324", "2DQ2001"),
+    (16,  "155DC03429", "1195328", "1DTV040"),
+    (17,  "484BB06174", "2926315", "1DTV238"),
+    (18,  "484BB06299", "2990785", "1DTV241"),
+    (19,  "163BB34160", "1201640", "1DTV041"),
+    (20,  "163BB34179", "1949295", "1DTV057"),
+    (21,  "155DC03445", "1942066", "1DTV075"),
+    (22,  "484BB06358", "3947032", "1DTV244"),
 ]
 
-cols = ["equifax", "experian", "transunion", "consumer_account_number"]
-new_ids_flat = spark.createDataFrame(rows, cols)
+schema = (
+    "consumer_account_number INT, "
+    "equifax STRING, experian STRING, transunion STRING"
+)
+new_ids_flat = spark.createDataFrame(rows, schema)
 
-# Collapse → struct identical to original schema
+# ── 3.  Build the replacement struct  ──────────────────────────────
 new_ids_struct = (
     new_ids_flat.select(
         "consumer_account_number",
-        F.struct("equifax", "experian", "transunion").alias("identification_number")
+        F.struct(
+            F.col("equifax"),
+            F.col("experian"),
+            F.col("transunion")
+        ).alias("identification_number")
     )
 )
 
-# ─────────────────────────────────────────────
-# 3 ▸ Join & overwrite
-# ─────────────────────────────────────────────
+# ── 4.  Swap the struct where account_number 1-22 match ────────────
 df_updated = (
     df_raw.alias("base")
-    .join(new_ids_struct.alias("upd"), on="consumer_account_number", how="left")
+    .join(new_ids_struct.alias("u"), on="consumer_account_number", how="left")
     .withColumn(
         "identification_number",
-        F.coalesce("upd.identification_number", "base.identification_number")
+        F.coalesce("u.identification_number", "base.identification_number")
     )
-    .drop("upd.identification_number")
+    .drop("u.identification_number")
 )
 
-# ─────────────────────────────────────────────
-# 4 ▸ Write back to Parquet
-# ─────────────────────────────────────────────
-PATH_OUT = "/path/to/updated/accounts.parquet"
-(
-    df_updated
-    .write
-    .mode("overwrite")      # or "overwrite" → replace entire folder
-    .parquet(PATH_OUT)
-)
+# ── 5.  Write out the refreshed Parquet  ───────────────────────────
+dst_path = "/path/or/s3/out/accounts_fixed.parquet"     # ← change
+df_updated.write.mode("overwrite").parquet(dst_path)
 
-print("✅   Updated Parquet saved to:", PATH_OUT)
+print("✅  Parquet with updated identification_number written to:", dst_path)
