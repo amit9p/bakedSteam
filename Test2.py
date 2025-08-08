@@ -1,6 +1,53 @@
 
 from pyspark.sql import SparkSession, functions as F
 
+spark = SparkSession.builder.appName("ident_numbers_with_accno").getOrCreate()
+
+# Build rows on the JVM (no Python inference), now with a 4th column: consumer_account_number 1..22
+base = spark.sql("""
+SELECT * FROM VALUES
+ ('850BB01498','1270246','1DTV001', 1),
+ ('484BB01456','1205950','1DTV003', 2),
+ ('190BB12984','1109050','1DTV228', 3),
+ ('190BB13037','1110080','1DTV229', 4),
+ ('190BB13028','1110330','1DTV232', 5),
+ ('190BB13000','1110380','1DTV233', 6),
+ ('190BC00012','2825800','1DTV234', 7),
+ ('190BC00020','1974175','1DTV235', 8),
+ ('6440ON6249','2218590','7452009', 9),
+ ('484BB05903','2517060','1DTV237',10),
+ ('458LZ00188','1942275','1DTV080',11),
+ ('163BB34197','1949299','1DTV202',12),
+ ('155DC03627','1195162','2DQ3001',13),
+ ('190BB12831','2445250','1DTV225',14),
+ ('155DC03411','1195324','2DQ2001',15),
+ ('155DC03429','1195328','1DTV040',16),
+ ('484BB06174','2926315','1DTV238',17),
+ ('484BB06299','2990785','1DTV241',18),
+ ('163BB34160','1201640','1DTV041',19),
+ ('163BB34179','1949295','1DTV057',20),
+ ('155DC03445','1942066','1DTV075',21),
+ ('484BB06358','3947032','1DTV244',22)
+AS t(equifax, experian, transunion, consumer_account_number)
+""")
+
+# Pack into struct + keep the account number
+df_out = base.select(
+    F.struct("equifax","experian","transunion").alias("identification_number"),
+    # cast to STRING if your target schema expects string; change to "int" if needed
+    F.col("consumer_account_number").cast("string").alias("consumer_account_number")
+)
+
+df_out.printSchema()
+df_out.show(truncate=False)
+
+# Optional write
+# df_out.write.mode("overwrite").parquet("/tmp/ident22_with_acc.parquet")
+
+
+<><><><><>
+from pyspark.sql import SparkSession, functions as F
+
 spark = (
     SparkSession.builder
     .appName("ident_numbers_sql_values")
