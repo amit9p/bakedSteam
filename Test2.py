@@ -1,80 +1,71 @@
 
-from pyspark.sql import types as T
+from pyspark.sql import SparkSession, functions as F
 
-schema = T.StructType([
-    T.StructField("equifax",   T.StringType()),
-    T.StructField("experian",  T.StringType()),
-    T.StructField("transunion",T.StringType()),
-    T.StructField("consumer_account_number", T.StringType())
-])
+spark = (
+    SparkSession.builder
+    .appName("overwrite-identification-number")
+    .getOrCreate()
+)
 
-new_ids = spark.createDataFrame(rows, schema=schema)
+# ─────────────────────────────────────────────
+# 1 ▸ Load your existing Parquet
+# ─────────────────────────────────────────────
+PATH_IN  = "/path/to/original/accounts.parquet"
+df_raw   = spark.read.parquet(PATH_IN)
 
-
-
-from pyspark.sql import functions as F
-from pyspark.sql import types as T
-
-# ------------------------------------------------------------------
-# 1.  Rows you copied from the sheet (image-2)  ➜  build a DataFrame
-# ------------------------------------------------------------------
+# ─────────────────────────────────────────────
+# 2 ▸ Build a tiny mapping DataFrame
+#     (Equifax, Experian, TransUnion + KEY)
+#     ▼  Paste the rows from your sheet ▼
+# ─────────────────────────────────────────────
 rows = [
-    # (equifax,    experian,  transunion,  consumer_account_number)
-    ("850B0B1498", "1270246", "1DTV001", "1234567890123456"),
-    ("484B0B1456", "1205950", "1DTV003", "1234567890123457"),
-    ("19B0B12984", "1109050", "1DTV028", "1234567890123458"),
-    # ... add the rest of the rows here ...
+    ("850BB0149B", "1270246",  "1DTV001", "1234567890123456"),
+    ("484BB01456", "1205950",  "1DTV003", "1234567890123457"),
+    ("190BB12984", "1109050",  "1DTV228", "1234567890123458"),
+    ("190BB13037", "1110080",  "1DTV229", "1234567890123459"),
+    ("190BB13028", "1110330",  "1DTV232", "1234567890123460"),
+    ("190BB13000", "1110380",  "1DTV233", "1234567890123461"),
+    ("190BC00012", "2825800",  "1DTV234", "1234567890123462"),
+    ("190BC00020", "1974175",  "1DTV235", "1234567890123463"),
+    ("6440ON6249", "2218590",  "7452009", "1234567890123464"),
+    ("484BB05903", "2517060",  "1DTV237", "1234567890123465"),
+    ("458LZ00188", "1942275",  "1DTV080", "1234567890123466"),
+    # ─── add more rows here ───
 ]
 
 cols = ["equifax", "experian", "transunion", "consumer_account_number"]
-new_ids = spark.createDataFrame(rows, cols)
+new_ids_flat = spark.createDataFrame(rows, cols)
 
-# ------------------------------------------------------------------
-# 2.  Collapse the three agency columns into ONE struct column
-# ------------------------------------------------------------------
+# Collapse → struct identical to original schema
 new_ids_struct = (
-    new_ids
-    .select(
-        F.struct(
-            F.col("equifax"),
-            F.col("experian"),
-            F.col("transunion")
-        ).alias("identification_number"),
-        "consumer_account_number"          # keep join key
+    new_ids_flat.select(
+        "consumer_account_number",
+        F.struct("equifax", "experian", "transunion").alias("identification_number")
     )
 )
 
-# new_ids_struct.printSchema()
-# root
-#  |-- identification_number: struct (nullable = false)
-#  |    |-- equifax: string (nullable = true)
-#  |    |-- experian: string (nullable = true)
-#  |    |-- transunion: string (nullable = true)
-#  |-- consumer_account_number: string (nullable = true)
-
-# ------------------------------------------------------------------
-# 3.  (Optional) overwrite the column in your main dataframe
-# ------------------------------------------------------------------
-# df_raw is the DataFrame from image-1 that already has every other column.
-# Join on consumer_account_number and replace the struct.
-
+# ─────────────────────────────────────────────
+# 3 ▸ Join & overwrite
+# ─────────────────────────────────────────────
 df_updated = (
-    df_raw.alias("left")
-    .join(new_ids_struct.alias("right"), on="consumer_account_number", how="left")
+    df_raw.alias("base")
+    .join(new_ids_struct.alias("upd"), on="consumer_account_number", how="left")
     .withColumn(
         "identification_number",
-        F.coalesce("right.identification_number", "left.identification_number")
+        F.coalesce("upd.identification_number", "base.identification_number")
     )
-    .drop(F.col("right.identification_number"))  # clean helper col
+    .drop("upd.identification_number")
 )
 
-# ------------------------------------------------------------------
-# 4.  Verify
-# ------------------------------------------------------------------
-df_updated.select("identification_number", "consumer_account_number").show(truncate=False)
+# ─────────────────────────────────────────────
+# 4 ▸ Write back to Parquet
+# ─────────────────────────────────────────────
+PATH_OUT = "/path/to/updated/accounts.parquet"
+(
+    df_updated
+    .write
+    .mode("overwrite")      # or "overwrite" → replace entire folder
+    .parquet(PATH_OUT)
+)
 
-# ------------------------------------------------------------------
-# 5.  (If you just want the struct-only DataFrame)  write as Parquet / CSV
-# ------------------------------------------------------------------
-#   new_ids_struct.write.mode("overwrite").parquet("/tmp/id_struct")   # column is struct
-#   new_ids_struct.write.mode("overwrite").option("header", True).csv("/tmp/id_struct_csv")
+print("✅   Updated Parquet saved to:", PATH_OUT)
