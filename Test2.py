@@ -1,4 +1,22 @@
 
+from pyspark.sql import SparkSession
+
+# 1️⃣  session
+spark = SparkSession.builder.appName("check").getOrCreate()
+
+# 2️⃣  dummy rows
+rows = [
+    (1, "E1", "X1", "T1"),
+    (2, "E2", "X2", "T2")
+]
+
+# 3️⃣  create DF  (DON’T overwrite `spark`!)
+df = spark.createDataFrame(rows) \
+         .toDF("consumer_account_number", "equifax", "experian", "transunion")
+
+df.show()
+
+-----
 rows = [
     (1 , "850BB01498", "1270246", "1DTV001"),
     (2 , "484BB01456", "1205950", "1DTV003"),
