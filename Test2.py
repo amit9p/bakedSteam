@@ -1,3 +1,31 @@
+
+from pyspark.sql import functions as F
+
+# df1 = big table (image 1)
+# df2 = small table (image 2) -> has cols: consumer_account_number, identification_number (struct)
+
+# 1) make sure join key dtypes match
+key_dtype = dict(df1.dtypes)["consumer_account_number"]
+df2_k = df2.select(
+    F.col("consumer_account_number").cast(key_dtype).alias("consumer_account_number"),
+    F.col("identification_number").alias("identification_number_new")  # rename BEFORE join
+)
+
+# 2) join with aliases and overwrite the struct
+df_updated = (
+    df1.alias("l")
+      .join(df2_k.alias("r"), on="consumer_account_number", how="left")
+      .withColumn(
+          "identification_number",
+          F.coalesce(F.col("r.identification_number_new"), F.col("l.identification_number"))
+      )
+      .drop("r.identification_number_new")
+)
+
+df_updated.select("consumer_account_number","identification_number").show(truncate=False)
+
+
+*********
 from pyspark.sql import functions as F
 
 # df1  = big dataframe (image 1) → has many columns incl. "identification_number" (struct)
