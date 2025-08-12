@@ -1,4 +1,11 @@
+Thanks, Tyler — yes, CSV can store "null" text and escape JSON for nested data, but those are workarounds rather than native type support.
 
+In CSV, all fields are still strings, and parsing null or JSON requires extra logic in every read.
+
+Parquet stores real NULLs, schema, and nested structures natively — no custom parsing needed.
+
+
+_____
 Here’s a brief but solid reasoning why Parquet is generally better than CSV for most analytical workloads — especially when dealing with NULLs and complex types like structs:
 
 
