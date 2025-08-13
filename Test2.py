@@ -1,3 +1,6 @@
+
+^\+?[1-9]\d{1,14}$               # after removing all non-digits except leading +
+
 Thanks, Tyler — yes, CSV can store "null" text and escape JSON for nested data, but those are workarounds rather than native type support.
 
 In CSV, all fields are still strings, and parsing null or JSON requires extra logic in every read.
