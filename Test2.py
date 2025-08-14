@@ -1,91 +1,66 @@
 
-^\+?[1-9]\d{1,14}$               # after removing all non-digits except leading +
-
-Thanks, Tyler — yes, CSV can store "null" text and escape JSON for nested data, but those are workarounds rather than native type support.
-
-In CSV, all fields are still strings, and parsing null or JSON requires extra logic in every read.
-
-Parquet stores real NULLs, schema, and nested structures natively — no custom parsing needed.
-
-
-_____
-Here’s a brief but solid reasoning why Parquet is generally better than CSV for most analytical workloads — especially when dealing with NULLs and complex types like structs:
-
-
----
-
-1️⃣ Null Handling
-
-CSV: No native NULL type — missing values are just empty text or special markers (NA, null), which are parser-dependent. This causes ambiguity when reading the file into different systems.
-
-Parquet: Stores NULLs explicitly in the file’s schema and encodes them efficiently with definition levels. Any system reading Parquet knows exactly which values are NULL without guessing.
-
-
-
----
-
-2️⃣ Data Types & Schema
-
-CSV: Everything is text. The schema has to be inferred or provided at read time. This means 123 might be read as a string in one system, an integer in another.
-
-Parquet: Schema is stored with the file (column names, types, nullability). Ensures type consistency across reads without manual definitions.
-
-
-
----
-
-3️⃣ Support for Complex Types
-
-CSV: Flat text only — no native support for arrays, maps, or nested structures. Complex data must be flattened or serialized as JSON strings, which hurts query performance.
-
-Parquet: Natively supports struct, array, and map types. Nested data can be stored and queried directly without conversion.
-
-
-
----
-
-4️⃣ Performance
-
-CSV: Row-based → Reads all columns even if you query only one; slower and larger on disk.
-
-Parquet: Columnar → Reads only needed columns, compressed per column, much smaller storage footprint and faster I/O.
-
-
-
----
-
-✅ In short: Parquet is better because it:
-
-Stores real NULLs without ambiguity.
-
-Preserves data types and schema.
-
-Handles structs and nested data natively.
-
-Is columnar & compressed, making it more efficient for analytics.
-
-
-
-
-
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, when, lower  # kept from your file (not strictly needed below)
 from pyspark.sql import functions as F
 
-orig_cols = df1.columns  # preserves df1's column order
-
-df2_k = (df2.select(
-            F.col("consumer_account_number").cast(dict(df1.dtypes)["consumer_account_number"]).alias("consumer_account_number"),
-            F.col("identification_number").alias("id_new"))
-        )
-
-df_updated = (
-    df1.alias("l")
-      .join(F.broadcast(df2_k).alias("r"), "consumer_account_number", "left")
-      .select(*[
-          # keep df1 order; replace only this column
-          F.coalesce(F.col("r.id_new"), F.col("l.identification_number")).alias("identification_number")
-          if c == "identification_number" else F.col(f"l.{c}")
-          for c in orig_cols
-      ])
+import ecbr_card_self_service.calculations.constants as constants
+from ecbr_card_self_service.ecbr_calculations.fields.base.account_status import (
+    calculate_account_status,
 )
+from ecbr_card_self_service.schemas.base.segment_import import BaseSegment
+from ecbr_card_self_service.schemas.sbfe.ab_segment import ABSegment
 
-# df_updated now has the SAME column order as df1, with identification_number in its original position.
+
+def calculate_acc_update_delete_ind(
+    customer_information_df: DataFrame,
+    account_df: DataFrame,
+    recoveries_df: DataFrame,
+    fraud_df: DataFrame,
+    generated_fields_df: DataFrame,
+    caps_df: DataFrame,
+    abs_df: DataFrame,
+) -> DataFrame:
+    """
+    Outputs:
+      - account_id
+      - account_update_delete_ind: '003' when Account Status == 'DA' OR deceased_notification == True, else '000'
+    """
+
+    # Derive account_status (your existing call)
+    account_status_df = calculate_account_status(
+        account_df,
+        customer_information_df,
+        recoveries_df,
+        fraud_df,
+        generated_fields_df,
+        caps_df,
+    )
+
+    # Join to get the deceased flag alongside account_status (your existing join)
+    joined = account_status_df.join(
+        customer_information_df, on=ABSegment.account_id, how="left"
+    )
+
+    # Resolve column-name constants safely
+    ACCOUNT_ID_COL = getattr(ABSegment, "account_id", "account_id")
+    OUT_COL = getattr(ABSegment, "account_update_delete_ind", "account_update_delete_ind")
+    STATUS_COL = getattr(BaseSegment, "account_status", "account_status")
+    DECEASED_COL = getattr(BaseSegment, "deceased_notification", "deceased_notification")
+
+    # Apply rules:
+    # 1) If Account Status == 'DA' -> 3
+    # 2) Else if deceased_notification == True -> 3
+    # 3) Else -> 0
+    result_df = (
+        joined.withColumn(
+            "account_update_delete_ind_raw",
+            F.when(F.upper(F.col(STATUS_COL)) == F.lit("DA"), F.lit(3))
+            .when(F.coalesce(F.col(DECEASED_COL).cast("boolean"), F.lit(False)), F.lit(3))
+            .otherwise(F.lit(0)),
+        )
+        # Format as 3-character numeric string (right-justified via zero left-pad)
+        .withColumn(OUT_COL, F.lpad(F.col("account_update_delete_ind_raw").cast("string"), 3, "0"))
+        .select(F.col(ACCOUNT_ID_COL).alias(ACCOUNT_ID_COL), F.col(OUT_COL).alias(OUT_COL))
+    )
+
+    return result_df
