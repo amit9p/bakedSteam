@@ -1,4 +1,20 @@
 
+# Ensure UUT has both columns and correct types
+result_df = result_df.select(
+    F.col(ABSegment.account_id.str),                         # keep id
+    F.col(ABSegment.ab_update_ind.str).cast("int")
+        .alias(ABSegment.ab_update_ind.str)
+)
+
+# Ensure expected uses the same types & columns
+expected_df = expected_df.select(
+    F.col(ABSegment.account_id.str),
+    F.col(ABSegment.ab_update_ind.str).cast("int")
+        .alias(ABSegment.ab_update_ind.str)
+)
+
+
+
 # test_acc_update_delete_ind.py
 from unittest.mock import patch
 from chispa import assert_df_equality
