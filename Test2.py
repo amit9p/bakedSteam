@@ -1,4 +1,15 @@
 
+result_df = calculate_acc_update_delete_ind(
+    customer_information_df=cust_stub,
+    account_df=empty,
+    customer_df=empty,                # <-- add
+    recoveries_df=empty,
+    fraud_df=empty,
+    generated_fields_df=empty,
+    caps_df=empty,
+).select(ABSegment.account_id.str, ABSegment.ab_update_ind.str)
+
+
 # test_acc_update_delete_ind.py
 from unittest.mock import patch
 from chispa import assert_df_equality
