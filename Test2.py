@@ -1,3 +1,26 @@
+# normalize status in Spark and compare to the literal 'DA'
+status_is_DA = (
+    F.upper(F.col(BaseSegment.account_status.str)) == F.lit(constants.AccountStatus.DA.value)
+)
+
+# treat null as False; cast only if the source column isn't boolean
+deceased_is_true = F.coalesce(
+    F.col(CustomerInformation.is_account_holder_deceased.str).cast("boolean"),
+    F.lit(False)
+)
+
+rule_expr = F.when(status_is_DA | deceased_is_true,
+                   F.lit(constants.SbfeAccountUpdateDeleteIndicator.THREE.value)) \
+             .otherwise(F.lit(constants.SbfeAccountUpdateDeleteIndicator.ZERO.value))
+
+
+result_df = joined.select(
+    F.col(ABSegment.account_id_str),
+    rule_expr.alias(ABSegment.ab_update_ind_str)
+)
+
+
+
 
 from pyspark.sql import DataFrame, functions as F
 from ecbr_card_self_service.ecbr_calculations.fields.base.account_status import calculate_account_status
