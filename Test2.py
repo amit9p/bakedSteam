@@ -1,3 +1,30 @@
+
+# joined already built:
+# joined = account_status_df.join(customer_information_df, on=ABSegment.account_id_str, how="left")
+
+# case-insensitive + trim to handle " da ", None, etc.
+status_col   = F.trim(F.col(BaseSegment.account_status.str).cast("string"))
+status_is_DA = F.upper(status_col) == F.upper(F.lit(constants.AccountStatus.DA.value))  # works for "da" or "DA"
+
+# null-safe boolean for deceased flag
+deceased_is_true = F.coalesce(
+    F.col(CustomerInformation.is_account_holder_deceased.str).cast("boolean"),
+    F.lit(False),
+)
+
+# business rule: DA OR deceased -> 3; else -> 0
+indicator_expr = F.when(status_is_DA | deceased_is_true,
+                        F.lit(constants.SbfeAccountUpdateDeleteIndicator.THREE.value)) \
+                  .otherwise(F.lit(constants.SbfeAccountUpdateDeleteIndicator.ZERO.value))
+
+result_df = joined.select(
+    F.col(ABSegment.account_id_str),
+    indicator_expr.alias(ABSegment.ab_update_ind_str)
+)
+
+return result_df
+
+:::::::::::::::
 # test_acc_update_delete_ind.py
 from unittest.mock import patch
 from chispa import assert_df_equality
