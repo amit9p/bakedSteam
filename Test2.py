@@ -6,7 +6,6 @@ from ecbr_card_self_service.schemas.base_segment import BaseSegment
 from ecbr_card_self_service.schemas.sbfe.ab_segment import ABSegment
 from ecbr_card_self_service.schemas.customer_information import CustomerInformation
 
-
 def calculate_acc_update_delete_ind(
     customer_information_df: DataFrame,
     account_df: DataFrame,
@@ -26,34 +25,33 @@ def calculate_acc_update_delete_ind(
         customer_information_df, on=ABSegment.account_id.str, how="left"
     )
 
-    # 3) build conditions
+    # 3) conditions
     status_col   = F.trim(F.col(BaseSegment.account_status.str).cast("string"))
-    status_is_DA = F.upper(status_col) == F.upper(F.lit(constants.AccountStatus.DA.value))
+    status_is_DA = F.upper(status_col) == F.upper(F.lit(constants.AccountStatus.DA.value))  # "da"/"DA"
 
-    dec_col         = F.col(CustomerInformation.is_account_holder_deceased.str).cast("boolean")
-    deceased_is_null = dec_col.isNull()
-    deceased_is_true = F.coalesce(dec_col, F.lit(False))
+    dec_col           = F.col(CustomerInformation.is_account_holder_deceased.str).cast("boolean")
+    deceased_is_null  = dec_col.isNull()
+    deceased_is_true  = F.coalesce(dec_col, F.lit(False))
 
-    # 4) business rule (string output):
-    #    if deceased is NULL -> "C1-ERROR"
-    #    elif status == DA or deceased == true -> "3"
-    #    else -> "0"
+    # 4) rules (INT output):
+    #    NULL deceased  -> DEFAULT_ERROR_INTEGER
+    #    DA or deceased -> 3
+    #    else           -> 0
     indicator_expr = (
-        F.when(deceased_is_null, F.lit(constants.DEFAULT_ERROR_STRING))
+        F.when(deceased_is_null, F.lit(constants.DEFAULT_ERROR_INTEGER))
          .when(status_is_DA | deceased_is_true,
-               F.lit(str(constants.SbfeAccountUpdateDeleteIndicator.THREE.value)))
-         .otherwise(F.lit(str(constants.SbfeAccountUpdateDeleteIndicator.ZERO.value)))
+               F.lit(constants.SbfeAccountUpdateDeleteIndicator.THREE.value))
+         .otherwise(F.lit(constants.SbfeAccountUpdateDeleteIndicator.ZERO.value))
     )
 
-    result_df = joined.select(
+    return joined.select(
         F.col(ABSegment.account_id.str),
         indicator_expr.alias(ABSegment.ab_update_ind.str)
     )
-    return result_df
 
 
 
--------
+
 
 # test_acc_update_delete_ind.py
 from unittest.mock import patch
@@ -94,11 +92,11 @@ def _make_customer_stub(spark, cases):
 def test_acc_update_delete_ind_rules(mock_calc_status, spark):
     # (account_id, account_status, deceased)
     cases = [
-        ("A100", constants.AccountStatus.DA.value, None),  # NULL deceased -> "C1-ERROR"
-        ("A101", "DA", True),                              # -> "3"
-        ("A102", "11", False),                             # -> "0"
-        ("A103", "97", None),                              # NULL -> "C1-ERROR"
-        ("A104", "da", False),                             # DA -> "3"
+        ("A100", constants.AccountStatus.DA.value, None),  # NULL -> ERROR INT
+        ("A101", "DA", True),                              # -> 3
+        ("A102", "11", False),                             # -> 0
+        ("A103", "97", None),                              # NULL -> ERROR INT
+        ("A104", "da", False),                             # DA -> 3
     ]
 
     status_stub = _make_status_stub(spark, [(a, s) for a, s, _ in cases])
@@ -117,19 +115,22 @@ def test_acc_update_delete_ind_rules(mock_calc_status, spark):
         caps_df=empty,
     )
 
-    # Assert ONLY indicator as STRING
-    result_df = uut_df.select(F.col(ABSegment.ab_update_ind.str))
+    # assert INT indicator only
+    result_df = uut_df.select(
+        F.col(ABSegment.ab_update_ind.str).cast("int").alias(ABSegment.ab_update_ind.str)
+    )
 
     def expected_ind(status, deceased):
         if deceased is None:
-            return constants.DEFAULT_ERROR_STRING                       # "C1-ERROR"
+            return int(constants.DEFAULT_ERROR_INTEGER)
         if (status or "").strip().lower() == constants.AccountStatus.DA.value or deceased is True:
-            return str(constants.SbfeAccountUpdateDeleteIndicator.THREE.value)  # "3"
-        return str(constants.SbfeAccountUpdateDeleteIndicator.ZERO.value)       # "0"
+            return int(constants.SbfeAccountUpdateDeleteIndicator.THREE.value)
+        return int(constants.SbfeAccountUpdateDeleteIndicator.ZERO.value)
 
     expected_rows = [{ABSegment.ab_update_ind: expected_ind(s, d)} for _, s, d in cases]
-    expected_df = create_partially_filled_dataset(spark, ABSegment, data=expected_rows) \
-        .select(F.col(ABSegment.ab_update_ind.str))
+    expected_df = create_partially_filled_dataset(spark, ABSegment, data=expected_rows).select(
+        F.col(ABSegment.ab_update_ind.str).cast("int").alias(ABSegment.ab_update_ind.str)
+    )
 
     assert_df_equality(
         result_df,
@@ -138,3 +139,8 @@ def test_acc_update_delete_ind_rules(mock_calc_status, spark):
         ignore_column_order=True,
         ignore_nullable=True,
     )
+
+
+
+
+
