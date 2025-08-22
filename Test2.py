@@ -1,4 +1,13 @@
 
+Option 2: Flatten Structs for Testing
+
+If your test framework must use CSV:
+
+Flatten the struct into multiple columns (struct.field1 → col1, struct.field2 → col2).
+
+Store these as simple columns in CSV.
+
+
 # test_acc_update_delete_ind.py
 from unittest.mock import patch
 from chispa import assert_df_equality
