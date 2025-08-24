@@ -1,4 +1,11 @@
 
+# Calculator Architecture
+
+Here’s the high-level design:
+
+![Calculator Architecture](/img/diagram.png)
+
+
 Option 2: Flatten Structs for Testing
 
 If your test framework must use CSV:
