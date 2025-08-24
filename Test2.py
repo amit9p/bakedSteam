@@ -1,3 +1,4 @@
+[![Calculator Architecture](/img/calculator-arch.png)](/img/calculator-arch.png)
 
 # Calculator Architecture
 
