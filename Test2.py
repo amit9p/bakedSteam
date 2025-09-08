@@ -1,104 +1,70 @@
-import logging
-from pyspark.sql import DataFrame, functions as F
 
-logger = logging.getLogger(__name__)
+Summary
 
-def business_date(df: DataFrame) -> DataFrame:
-    """
-    Input : CCAccount DF with columns at least [account_id, load_partition_date (DateType)]
-    Output: DF [account_id, business_date] where business_date is the dataset-wide max(load_partition_date)
-            applied to every row (no dedupe).
-    """
-    max_df = df.agg(
-        F.max(F.col(CCAccount.load_partition_date.str))
-         .alias(BaseSegment.business_date.str)
-    )
+This PR introduces initial schema definitions for Credit Bureau reporting as part of the DFS → Omega migration work.
 
-    # Attach the single-row scalar to all rows (keeps input cardinality)
-    return (
-        df.select(F.col(BaseSegment.account_id.str))
-          .crossJoin(max_df)                    # or: .join(F.broadcast(max_df), on=True)
-    )
+Added credit_bureau_account.py schema (with typed columns for account, status, delinquency dates, etc.).
+
+Setup project structure for future schema modules (customer, report_snapshot, event_log, etc.).
+
+Added Pipfile and .gitignore to manage dependencies and keep repo clean.
 
 
+This lays the groundwork for eCBR self-service so downstream jobs can consume structured schemas.
 
 
-# tests/fields/test_business_date.py
-from datetime import datetime
-import pytest
-from chispa import assert_df_equality
-from pyspark.sql import SparkSession
-from typepark import create_partially_filled_dataset
+---
 
-from ecbr_card_self_service.calculations.fields.business_date import business_date
-from ecbr_card_self_service.schemas.base_segment import BaseSegment
-from ecbr_card_self_service.schemas.cc_account import CCAccount
+Resolves / Relates To
+
+Relates to DFS migration tasks in CBR modernization.
+
+Sets foundation for later tasks like data ingestion, validation, and Metro2 reporting.
 
 
-def test_business_date_happy_path(spark: SparkSession):
-    # Input CCAccount rows (DateType)
-    data = create_partially_filled_dataset(
-        spark,
-        CCAccount,
-        data=[
-            {
-                CCAccount.account_id: "1",
-                CCAccount.load_partition_date: datetime(year=2024, month=12, day=9).date(),
-            },
-            {
-                CCAccount.account_id: "2",
-                CCAccount.load_partition_date: datetime(year=2024, month=12, day=10).date(),
-            },
-            {
-                CCAccount.account_id: "3",
-                CCAccount.load_partition_date: None,
-            },
-            {
-                CCAccount.account_id: "4",
-                CCAccount.load_partition_date: None,
-            },
-        ],
-    )
 
-    result_df = business_date(data)
+---
 
-    # Expected: max(load_partition_date) = 2024-12-10 applied to ALL rows
-    expected = create_partially_filled_dataset(
-        spark,
-        BaseSegment,
-        data=[
-            {
-                BaseSegment.account_id: "1",
-                BaseSegment.business_date: datetime(year=2024, month=12, day=10).date(),
-            },
-            {
-                BaseSegment.account_id: "2",
-                BaseSegment.business_date: datetime(year=2024, month=12, day=10).date(),
-            },
-            {
-                BaseSegment.account_id: "3",
-                BaseSegment.business_date: datetime(year=2024, month=12, day=10).date(),
-            },
-            {
-                BaseSegment.account_id: "4",
-                BaseSegment.business_date: datetime(year=2024, month=12, day=10).date(),
-            },
-        ],
-    ).select(BaseSegment.account_id.col, BaseSegment.business_date.col)
+Review Focus
 
-    assert_df_equality(result_df, expected, ignore_row_order=True)
+Check schema field names and data types for correctness against expected CBR requirements.
+
+Ensure Pipfile dependencies (pyspark, typedspark) are correctly placed in [packages].
+
+Confirm project layout makes sense for additional schema files.
 
 
-def test_business_date_all_nulls_raises(spark: SparkSession):
-    # All load_partition_date are NULL → our impl raises (adjust if you prefer a default)
-    data = create_partially_filled_dataset(
-        spark,
-        CCAccount,
-        data=[
-            {CCAccount.account_id: "1", CCAccount.load_partition_date: None},
-            {CCAccount.account_id: "2", CCAccount.load_partition_date: None},
-        ],
-    )
 
-    with pytest.raises(ValueError):
-        _ = business_date(data)
+---
+
+Help Wanted
+
+Feedback on whether we should standardize naming convention for schema classes (e.g., Credit_Bureau_Account vs. CreditBureauAccount).
+
+Any missing fields that should be part of the base schema?
+
+
+
+---
+
+Implementation Strategy
+
+Used typed-spark to enforce schema at compile-time.
+
+Organized schemas in a dedicated schemas/ folder for clarity.
+
+Dependency management via Pipenv (Pipfile committed for reproducibility).
+
+
+
+---
+
+Readiness Checklist
+
+[x] Added schema file with fields needed for initial DFS migration reporting.
+
+[x] Added Pipfile and .gitignore.
+
+[ ] No tests yet – test cases will be added once ingestion/transformation logic is implemented.
+
+
