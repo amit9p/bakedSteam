@@ -1,4 +1,41 @@
 
+# tests/test_sanity.py
+from typedspark import create_schema, Schema, Column
+
+# ---- import ONLY schema classes here ----
+from ecbr_tenant_card_dfs_l1_self_service.schemas.ecbr_consolidator_dfs_account_service_account import (
+    ECBR_Consolidator_Account_Service_Account,
+)
+from ecbr_tenant_card_dfs_l1_self_service.schemas.ecbr_calculator_dfs_output import (
+    ECBR_Calculator_Output,
+)
+# add more schema classes as needed ...
+
+CANDIDATES = [
+    ECBR_Consolidator_Account_Service_Account,
+    ECBR_Calculator_Output,
+    # add others here...
+]
+
+def _is_typedspark_schema(cls) -> bool:
+    """True only for classes that are actual typed-spark Schemas with Column[...] annotations."""
+    if not (isinstance(cls, type) and issubclass(cls, Schema) and cls is not Schema):
+        return False
+    ann = getattr(cls, "__annotations__", {})
+    return any(getattr(t, "__origin__", None) is Column for t in ann.values())
+
+ALL_SCHEMAS = [cls for cls in CANDIDATES if _is_typedspark_schema(cls)]
+
+def test_build_all_schemas():
+    built = 0
+    for schema_cls in ALL_SCHEMAS:
+        st = create_schema(schema_cls)
+        assert len(st.fields) > 0
+        built += 1
+    assert built > 0
+
+
+
 [build-system]
 requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
