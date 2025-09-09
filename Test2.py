@@ -1,3 +1,50 @@
+
+Your current names vs. fixed names
+
+Current name	Suggested name
+
+ECBR_Calculator_Output	EcbrCalculatorOutput
+ECBR_Consolidator_Account_Service_Account	EcbrConsolidatorAccountServiceAccount
+ECBR_Consolidator_Account_Service_Address	EcbrConsolidatorAccountServiceAddress
+ECBR_Consolidator_Account_Service_Customer	EcbrConsolidatorAccountServiceCustomer
+ECBR_Consolidator_Credit_Bureau_Account_Dm_Os	EcbrConsolidatorCreditBureauAccountDmOs
+ECBR_Consolidator_Customer_Dm_Os	EcbrConsolidatorCustomerDmOs
+ECBR_Consolidator_Service_Collector_Configuration	EcbrConsolidatorServiceCollectorConfiguration
+ECBR_Consolidator_Trxn_Service_Full_Extract	EcbrConsolidatorTrxnServiceFullExtract
+
+
+
+---
+
+How to apply changes safely
+
+1. Rename class definitions in your schema files (change the class keyword).
+Example:
+
+# before
+class ECBR_Calculator_Output(Schema):
+    ...
+
+# after
+class EcbrCalculatorOutput(Schema):
+    ...
+
+
+2. Update all imports across your repo (tests, consolidators, etc.).
+Example:
+
+from schemas.ecbr_calculator_dfs_output import EcbrCalculatorOutput
+
+
+3. Run tests again (pipenv run pytest -q) to confirm everything still works.
+
+
+
+
+
+
+
+
 import pytest
 from typedspark import create_schema
 
