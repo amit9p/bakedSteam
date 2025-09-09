@@ -1,4 +1,23 @@
 
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ecbr-tenant-card-dfs-l1-self-service"
+version = "0.0.1"
+packages = ["ecbr_tenant_card_dfs_l1_self_service"]
+
+
+
+
+
+
+
+
+
+
+
 [pytest]
 pythonpath = .
 
