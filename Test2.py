@@ -1,4 +1,8 @@
 
+[pytest]
+pythonpath = .
+
+
 from typedspark import create_schema
 
 # ---- Import your schema classes (list them here) ----
