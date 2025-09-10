@@ -1,4 +1,13 @@
 
+nc -vz <phone_ip> 8080       # should say 'succeeded'
+curl -I --proxy http://<phone_ip>:8080 http://example.com
+curl -I --proxy http://<phone_ip>:8080 https://example.com
+
+
+
+
+
+
 Your current names vs. fixed names
 
 Current name	Suggested name
