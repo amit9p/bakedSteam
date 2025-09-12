@@ -1,4 +1,9 @@
 
+from pyspark.sql import functions as F, types as T
+
+int32_cols = ["account_id", "instnc_id"]  # add any others that must be 32-bit
+df = df.withColumns({c: F.col(c).cast(T.IntegerType()) for c in int32_cols})
+
 nc -vz <phone_ip> 8080       # should say 'succeeded'
 curl -I --proxy http://<phone_ip>:8080 http://example.com
 curl -I --proxy http://<phone_ip>:8080 https://example.com
