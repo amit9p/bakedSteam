@@ -1,3 +1,45 @@
+
+
+from pyspark.sql import SparkSession, functions as F
+
+bucket = "cof-uscard-lossmitigation-cat3-qa-useast1"
+prefix = "okes2/lake/recoveries/account_service_account/src/"
+
+spark = (SparkSession.builder
+    .appName("CSV sample writer")
+    # give the driver more RAM
+    .config("spark.driver.memory", "8g")
+    .config("spark.sql.shuffle.partitions", "8")
+    .config("spark.sql.files.maxPartitionBytes", "64m")
+    # make reads lighter (less memory hungry)
+    .config("spark.sql.parquet.enableVectorizedReader", "false")
+    .config("spark.sql.codegen.wholeStage", "false")
+    .getOrCreate())
+
+path = f"s3a://{bucket}/{prefix}"
+
+# 1) Read only a handful of files (uses glob). Adjust pattern to match your files.
+#    If you know a specific small file, give its full path instead of the glob.
+df_fs = (spark.read
+         .option("recursiveFileLookup", "true")
+         .option("pathGlobFilter", "part-0000*.parquet")  # <- read just a few files
+         .parquet(path))
+
+# (Optional) Select only columns you need; fewer columns = less memory
+NEEDED = ["account_id", "instnc_id", "first_name", "last_name"]  # adapt to your schema
+df_fs = df_fs.select(*NEEDED)
+
+# Fix 32-bit vs 64-bit ints if needed
+df_fs = (df_fs
+         .withColumn("account_id", F.col("account_id").cast("long"))
+         .withColumn("instnc_id",  F.col("instnc_id").cast("long")))
+
+
+
+
+
+
+
 from pyspark.sql import functions as F
 
 spark = (
