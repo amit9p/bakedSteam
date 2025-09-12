@@ -1,3 +1,28 @@
+from pyspark.sql import functions as F
+
+spark = (
+    SparkSession.builder
+    .appName("read with schema merge")
+    .config("spark.sql.parquet.mergeSchema", "true")   # promote mixed int32/int64 to long
+    .getOrCreate()
+)
+
+# also add the option on the reader (belt & suspenders)
+df_fs = spark.read.option("mergeSchema", "true").parquet(fs_filepath)
+
+# Make sure “problem” ints are long so CSV write won’t choke
+int_maybe64 = ["account_id", "instnc_id"]     # add more if needed
+df_fs = df_fs.select(*[
+    F.col(c).cast("long") if c in int_maybe64 else F.col(c) for c in df_fs.columns
+])
+
+# If you only need 1000 rows:
+df_1000 = df_fs.limit(1000)
+
+# Write CSV (single file, with header)
+out = "file:///Users/…/account_service_account"
+df_1000.coalesce(1).write.mode("overwrite").option("header", "true").csv(out)
+
 
 from pyspark.sql import functions as F, types as T
 
