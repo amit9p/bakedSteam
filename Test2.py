@@ -1,4 +1,21 @@
 
+from py4j.java_gateway import java_import
+
+sc = spark.sparkContext
+hadoop_conf = sc._jsc.hadoopConfiguration()
+fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(hadoop_conf)
+path = sc._jvm.org.apache.hadoop.fs.Path("s3a://my-bucket/source/")
+
+# list status of all files/directories under path
+files = fs.listStatus(path)
+
+# extract directory names
+dirs = [f.getPath().getName() for f in files if f.isDirectory()]
+print(dirs)
+
+
+
+
 
 from pyspark.sql import SparkSession, functions as F
 
