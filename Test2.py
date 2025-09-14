@@ -1,3 +1,22 @@
+from pyspark.sql import functions as F
+
+STRUCT_COLS = [c for c, t in df_fs.dtypes if t.startswith("struct")]
+
+df_out = (
+    df_fs
+      .drop(*STRUCT_COLS)       # remove all struct columns (e.g., sdp4_metadata)
+      .limit(1000)              # keep first 1000 rows
+)
+
+df_out.coalesce(1).write.mode("overwrite").option("header", "true") \
+    .csv("/path/to/out/folder")
+
+
+______
+
+
+
+
 # --- Spark & Hadoop conf are already set (fs.s3a.* etc.) ---
 
 sc = spark.sparkContext
