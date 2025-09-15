@@ -1,3 +1,22 @@
+
+
+from pyspark.sql import functions as F
+
+# Assuming your DataFrame is df_fs
+df_primary = df_fs.filter(F.col("account_type") == "PRIMARY")
+
+# Show few rows to verify
+df_primary.show(20, truncate=False)
+
+# If you want to save results as CSV
+df_primary.coalesce(1).write.format("csv") \
+    .mode("overwrite") \
+    .option("header", "true") \
+    .save("/Users/vmq634/PyCharmProjects/calculator/main/output/primary_accounts")
+
+
+
+
 from pyspark.sql import functions as F
 
 STRUCT_COLS = [c for c, t in df_fs.dtypes if t.startswith("struct")]
