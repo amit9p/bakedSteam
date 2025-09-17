@@ -1,4 +1,167 @@
 
+# tests/ecbr_generator/test_reportable_accounts.py
+
+import datetime as dt
+import pytest
+from chispa import assert_df_equality
+from typespark import create_partially_filled_dataset
+
+# ---- Schemas (update these import paths to match your repo) ----
+from ecbr_tenant_card_dfs_11_self_service.schemas.ecbr_calculator_dfs_output import (  # <-- UPDATE PATH
+    EcbrCalculatorOutput as Calc,
+)
+from ecbr_generator.schemas.reporting_override import (  # <-- UPDATE PATH
+    EcbrDFSOverride as Override,
+)
+from ecbr_generator.schemas.ecbr_generator_dfs_accounts_primary import (  # <-- UPDATE PATH
+    EcbrGeneratorDfsAccountsPrimary as Prev,  # previously-reported dataset
+)
+
+# ---- Function under test (update import path) ----
+from ecbr_generator.utils.reportable_accounts import get_reportable_accounts  # <-- UPDATE PATH
+
+
+def d(s: str) -> dt.date:
+    """yyyy-mm-dd -> date helper for readability."""
+    return dt.datetime.strptime(s, "%Y-%m-%d").date()
+
+
+def ts(s: str) -> dt.datetime:
+    """yyyy-mm-dd -> timestamp helper (midnight)."""
+    return dt.datetime.strptime(s, "%Y-%m-%d")
+
+
+@pytest.mark.usefixtures("spark")  # if you already have a spark fixture; else remove
+def test_get_reportable_accounts_happy_path(spark):
+    """
+    Given:
+      - calculator_df with 4 accounts (A1..A4)
+      - reporting_override_df marking A1 as 'R', A2 as 'r', A3 as 'S' (suppressed), A4 absent
+      - previously_reported_accounts_df contains A2 (should be filtered out)
+    Expect:
+      - output contains A1 only (and all Calc fields), since:
+          * A1 has override 'R'
+          * A2 had 'r' (valid) but is already reported -> filtered by left_anti
+          * A3 override not 'R' -> excluded
+          * A4 no override row -> excluded
+    """
+    # ----------------- Build inputs (only the fields we care about) -----------------
+    calculator_df = create_partially_filled_dataset(
+        spark,
+        Calc,
+        {
+            Calc.account_id: ["A1", "A2", "A3", "A4"],
+            # populate a couple of Calc fields to prove they pass through
+            Calc.first_name: ["Ann", "Bob", "Cara", "Dan"],
+            Calc.open_date: [d("2024-01-01"), d("2024-02-02"), d("2024-03-03"), d("2024-04-04")],
+        },
+    )
+
+    reporting_override_df = create_partially_filled_dataset(
+        spark,
+        Override,
+        {
+            Override.account_id: ["A1", "A2", "A3"],
+            Override.reporting_status: ["R", "r", "S"],  # case-insensitive 'R' is valid
+            Override.initiated_date: [ts("2024-01-15"), ts("2024-02-15"), ts("2024-03-15")],
+        },
+    )
+
+    previously_reported_accounts_df = create_partially_filled_dataset(
+        spark,
+        Prev,
+        {
+            Prev.account_id: ["A2"],  # A2 was previously reported -> should be removed
+            # add any required key/metadata fields here if Prev schema enforces them
+        },
+    )
+
+    # ----------------- Call function under test -----------------
+    actual_df = get_reportable_accounts(
+        calculator_df=calculator_df,
+        reporting_override_df=reporting_override_df,
+        previously_reported_accounts_df=previously_reported_accounts_df,
+    )
+
+    # ----------------- Build expected (all Calc fields for A1 only) -----------------
+    expected_df = create_partially_filled_dataset(
+        spark,
+        Calc,
+        {
+            Calc.account_id: ["A1"],
+            Calc.first_name: ["Ann"],
+            Calc.open_date: [d("2024-01-01")],
+        },
+    )
+
+    # We only need to compare the columns this component promises to output.
+    # If your function truly returns *all* Calc fields, restricting to Calc’s columns is fine.
+    calc_cols = list(Calc.__annotations__.keys())
+    assert_df_equality(
+        actual_df.select(*calc_cols),
+        expected_df.select(*calc_cols),
+        ignore_row_order=True,
+        ignore_column_order=True,
+        allow_precision_loss=True,
+    )
+
+
+@pytest.mark.usefixtures("spark")
+def test_case_insensitive_r_and_no_previous_reports(spark):
+    """
+    If overrides are 'r' (lowercase) and there are no previously reported rows,
+    all calculator rows with an 'r' override should pass through.
+    """
+    calculator_df = create_partially_filled_dataset(
+        spark,
+        Calc,
+        {
+            Calc.account_id: ["X1", "X2"],
+            Calc.first_name: ["Xavier", "Xena"],
+        },
+    )
+
+    reporting_override_df = create_partially_filled_dataset(
+        spark,
+        Override,
+        {
+            Override.account_id: ["X1", "X2"],
+            Override.reporting_status: ["r", "R"],  # both should qualify
+        },
+    )
+
+    previously_reported_accounts_df = create_partially_filled_dataset(
+        spark,
+        Prev,
+        {
+            Prev.account_id: [],  # none previously reported
+        },
+    )
+
+    actual_df = get_reportable_accounts(
+        calculator_df, reporting_override_df, previously_reported_accounts_df
+    )
+
+    expected_df = create_partially_filled_dataset(
+        spark,
+        Calc,
+        {
+            Calc.account_id: ["X1", "X2"],
+            Calc.first_name: ["Xavier", "Xena"],
+        },
+    )
+
+    calc_cols = list(Calc.__annotations__.keys())
+    assert_df_equality(
+        actual_df.select(*calc_cols),
+        expected_df.select(*calc_cols),
+        ignore_row_order=True,
+        ignore_column_order=True,
+        allow_precision_loss=True,
+    )
+
+
+=========
 # tests/edq/output/test_date_opened.py
 import datetime as dt
 import pytest
