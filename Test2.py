@@ -1,66 +1,69 @@
+Summary
 
-from pyspark.sql import DataFrame, functions as F
+This PR introduces a declarative generator configuration for DFS pipelines so we can define inputs, keys, joins, and filters in one place (no more hard-coded rules in code).
+It enables the generator to:
 
-# schema accessors (string paths to columns)
-from ecbr_tenant_card_dfs_il_self_service.schemas.ecbr_calculator_dfs_output import EcbrCalculatorDfOutput
-from ecbr_tenant_card_dfs_il_self_service.schemas.reporting_override import EcbrDFSOverride
+read calculator, reporting-override, and previously-reported datasets,
+
+normalize/validate join keys,
+
+apply the business rule “Reporting (‘R’/’r’) and not previously reported”, and
+
+emit only Calculator fields for the final reportable accounts feed.
 
 
-def get_reportable_accounts(
-    calculator_df: DataFrame,
-    reporting_override_df: DataFrame,
-    previously_reported_accounts_df: DataFrame,
-) -> DataFrame:
-    """
-    Rules:
-      1) Keep calculator rows whose account_id appears in reporting_override with reporting_status 'R' (case-insensitive)
-      2) From those, remove any account_id already present in previously_reported_accounts
-      3) Output only the calculator_df columns
-    """
+This is groundwork for future generators and makes changes safer/auditable.
 
-    # --- Column names via schemas (no hardcoding) ----------------------------
-    ACC_ID_CALC = EcbrCalculatorDfOutput.account_id.str
-    ACC_ID_OVR  = EcbrDFSOverride.account_id.str
-    STATUS      = EcbrDFSOverride.reporting_status.str
+Relates to: CT4019T-454 (Generator Config)
 
-    # --- Normalize IDs as strings once to avoid type/precision mismatches ----
-    c = (
-        calculator_df
-        .withColumn("_acc_id_str", F.col(ACC_ID_CALC).cast("string"))
-        .alias("c")
-    )
+Focus
 
-    # eligible override accounts: reporting_status == 'r' (case-insensitive)
-    o_keys = (
-        reporting_override_df
-        .select(
-            F.col(ACC_ID_OVR).cast("string").alias("ovr_account_id"),
-            F.lower(F.col(STATUS)).alias("ovr_status")
-        )
-        .filter(F.col("ovr_status") == F.lit("r"))
-        .select("ovr_account_id")
-        .dropna()
-        .dropDuplicates()
-        .alias("o")
-    )
+Centralize rules that were scattered across utils into a single config artifact.
 
-    # previously reported account ids
-    p_keys = (
-        previously_reported_accounts_df
-        .select(F.col(ACC_ID_CALC).cast("string").alias("prev_account_id"))
-        .dropna()
-        .dropDuplicates()
-        .alias("p")
-    )
+Keep existing behavior: case-insensitive reporting_status == R and left-anti against previously-reported.
 
-    # 1) inner join calculator with eligible overrides
-    eligible_calc = c.join(F.broadcast(o_keys), F.col("c._acc_id_str") == F.col("o.ovr_account_id"), how="inner")
+Improve observability (row counts by step) for easier debugging.
 
-    # 2) left_anti to remove already-reported accounts
-    pruned = eligible_calc.join(p_keys, F.col("c._acc_id_str") == F.col("p.prev_account_id"), how="left_anti")
 
-    # 3) return only the original calculator columns (in original order)
-    calc_cols = calculator_df.columns
-    final_df = pruned.select(*[F.col(f"c.`{col}`") for col in calc_cols])
+Implementation strategy
 
-    return final_df
+Added config: dfs/generator/generator_config_CT4019T_454.yaml (name example) with:
+
+dataset aliases (Calc, Ovr, Prev)
+
+column bindings using schemas (EcbrCalculatorDfOutput.account_id, EcbrDFSOverride.reporting_status, …)
+
+join types/conditions and filters
+
+
+Added light-weight loader + validation (required keys/columns, types, allowed join types).
+
+Updated ecbr_generator/.../reportable_accounts.py to consume config instead of hardcoding:
+
+Normalize join keys (cast -> string, trim)
+
+Status normalization: lower(substring(status,1,1)) == 'r'
+
+inner join Calc ↔ Ovr; left_anti with Prev
+
+Return columns in Calculator order
+
+
+Kept schemas in schemas/ as the single source for field names.
+
+Added unit tests under tests/ecbr_generator/unit_tests/test_reportable_accounts.py using create_partially_filled_dataset with happy-path and edge cases.
+
+Added defensive logs for step counts (eligible, pruned) to aid triage (log level DEBUG).
+
+
+Readiness checklist
+
+[x] All tests pass locally
+
+[x] Relevant unit tests added/updated
+
+[x] Backwards compatible (no breaking schema changes)
+
+[x] Config validated at load time; descriptive errors on missing/typo’d columns
+
+[x] Docs: short README in dfs/generator/ describing config fields and examples
