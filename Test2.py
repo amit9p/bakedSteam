@@ -1,4 +1,23 @@
 
+from pyspark.sql.types import StringType
+
+calculator_df = calculator_df.withColumn(
+    EcbrCalculatorDfOutput.account_id.str,
+    F.col(EcbrCalculatorDfOutput.account_id.str).cast(StringType())
+)
+
+reporting_override_df = reporting_override_df.withColumn(
+    EcbrDFSOverride.account_id.str,
+    F.col(EcbrDFSOverride.account_id.str).cast(StringType())
+)
+
+previously_reported_accounts_df = previously_reported_accounts_df.withColumn(
+    EcbrCalculatorDfOutput.account_id.str,
+    F.col(EcbrCalculatorDfOutput.account_id.str).cast(StringType())
+)
+
+
+
 # tests/ecbr_generator/test_reportable_accounts.py
 
 import datetime as dt
