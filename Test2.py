@@ -1,60 +1,66 @@
 
-from pyspark.sql import functions as F, DataFrame
-from pyspark.sql.types import StringType
+from pyspark.sql import DataFrame, functions as F
 
-# Schema-driven names (string accessors you mentioned)
-ACC_ID   = EcbrCalculatorDfOutput.account_id.str
-INST     = EcbrCalculatorDfOutput.instnc_id.str           # include if needed
-OVR_ID   = EcbrDFSOverride.account_id.str
-OVR_INST = EcbrDFSOverride.instnc_id.str
-STATUS   = EcbrDFSOverride.reporting_status.str
-PRV_ID   = EcbrCalculatorDfOutput.account_id.str          # previous has same name
+# schema accessors (string paths to columns)
+from ecbr_tenant_card_dfs_il_self_service.schemas.ecbr_calculator_dfs_output import EcbrCalculatorDfOutput
+from ecbr_tenant_card_dfs_il_self_service.schemas.reporting_override import EcbrDFSOverride
+
 
 def get_reportable_accounts(
     calculator_df: DataFrame,
     reporting_override_df: DataFrame,
-    previously_reported_accounts_df: DataFrame
+    previously_reported_accounts_df: DataFrame,
 ) -> DataFrame:
+    """
+    Rules:
+      1) Keep calculator rows whose account_id appears in reporting_override with reporting_status 'R' (case-insensitive)
+      2) From those, remove any account_id already present in previously_reported_accounts
+      3) Output only the calculator_df columns
+    """
 
-    # normalize keys & status
-    def n(col): return F.trim(F.col(col).cast(StringType()))
-    c = (calculator_df
-         .withColumn(ACC_ID, n(ACC_ID))
-         .withColumn(INST,   n(INST)))
-    o = (reporting_override_df
-         .withColumn(OVR_ID, n(OVR_ID))
-         .withColumn(OVR_INST, n(OVR_INST))
-         .withColumn(STATUS, F.lower(F.trim(F.col(STATUS)))))
-    p = (previously_reported_accounts_df
-         .withColumn(PRV_ID, n(PRV_ID))
-         .withColumn(INST,   n(INST)))
+    # --- Column names via schemas (no hardcoding) ----------------------------
+    ACC_ID_CALC = EcbrCalculatorDfOutput.account_id.str
+    ACC_ID_OVR  = EcbrDFSOverride.account_id.str
+    STATUS      = EcbrDFSOverride.reporting_status.str
 
-    # keep only R/r overrides and only the keys we need from overrides
-    o_keys = (o.filter(F.col(STATUS) == "r")
-                .select(F.col(OVR_ID).alias("o_account_id"),
-                        F.col(OVR_INST).alias("o_instnc_id"))
-                .dropna()
-                .dropDuplicates())
+    # --- Normalize IDs as strings once to avoid type/precision mismatches ----
+    c = (
+        calculator_df
+        .withColumn("_acc_id_str", F.col(ACC_ID_CALC).cast("string"))
+        .alias("c")
+    )
 
-    # eligible calculator rows: inner join with overrides (by id and instance if applicable)
-    eligible_calc = (c.alias("c")
-                     .join(o_keys.alias("o"),
-                           (F.col("c."+ACC_ID)  == F.col("o.o_account_id")) &
-                           (F.col("c."+INST)    == F.col("o.o_instnc_id")),   # drop this line if instance isn’t needed
-                           "inner"))
+    # eligible override accounts: reporting_status == 'r' (case-insensitive)
+    o_keys = (
+        reporting_override_df
+        .select(
+            F.col(ACC_ID_OVR).cast("string").alias("ovr_account_id"),
+            F.lower(F.col(STATUS)).alias("ovr_status")
+        )
+        .filter(F.col("ovr_status") == F.lit("r"))
+        .select("ovr_account_id")
+        .dropna()
+        .dropDuplicates()
+        .alias("o")
+    )
 
-    # de-dup the key so the anti-join keys are unique on the right
-    p_keys = (p.select(F.col(PRV_ID).alias("p_account_id"),
-                       F.col(INST).alias("p_instnc_id"))
-                .dropna()
-                .dropDuplicates())
+    # previously reported account ids
+    p_keys = (
+        previously_reported_accounts_df
+        .select(F.col(ACC_ID_CALC).cast("string").alias("prev_account_id"))
+        .dropna()
+        .dropDuplicates()
+        .alias("p")
+    )
 
-    # left_anti: remove already reported
-    final_df = (eligible_calc.alias("ec")
-                .join(p_keys.alias("p"),
-                      (F.col("ec."+ACC_ID) == F.col("p.p_account_id")) &
-                      (F.col("ec."+INST)   == F.col("p.p_instnc_id")),   # drop if instance isn’t part of the key
-                      "left_anti")
-                .select("c.*"))  # <-- disambiguates: return only calculator columns
+    # 1) inner join calculator with eligible overrides
+    eligible_calc = c.join(F.broadcast(o_keys), F.col("c._acc_id_str") == F.col("o.ovr_account_id"), how="inner")
+
+    # 2) left_anti to remove already-reported accounts
+    pruned = eligible_calc.join(p_keys, F.col("c._acc_id_str") == F.col("p.prev_account_id"), how="left_anti")
+
+    # 3) return only the original calculator columns (in original order)
+    calc_cols = calculator_df.columns
+    final_df = pruned.select(*[F.col(f"c.`{col}`") for col in calc_cols])
 
     return final_df
