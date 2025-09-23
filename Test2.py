@@ -1,3 +1,21 @@
+# Grab only schema fields that actually exist in DF
+calc_cols = [
+    c for c in EcbrCalculatorOutput.__annotations__.keys()
+    if c in actual_df.columns and c in expected_df.columns
+]
+
+print("Common columns being compared:", calc_cols)
+
+assert_df_equality(
+    actual_df.select(*calc_cols),
+    expected_df.select(*calc_cols),
+    ignore_row_order=True,
+    ignore_column_order=True,
+)
+
+______<<<<
+
+
 
 return final_df.select([F.col(c) for c in EcbrCalculatorOutput.__annotations__.keys()])
 
