@@ -1,3 +1,17 @@
+
+cols_to_check = ["account_id", "first_name", "date_opened"]
+
+assert_df_equality(
+    actual_df.select(*cols_to_check),
+    expected_df.select(*cols_to_check),
+    ignore_row_order=True,
+    ignore_column_order=True,
+)
+
+
+
+<><>_><><><<
+
 # Grab only schema fields that actually exist in DF
 calc_cols = [
     c for c in EcbrCalculatorOutput.__annotations__.keys()
