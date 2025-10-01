@@ -1,29 +1,32 @@
 
 
+from pyspark.sql import functions as F
+from pyspark.sql import Row
 
-import datetime
-from pyspark.sql import Row, types as T
+# 1. Drop unwanted column
+df2 = df.drop("sdp4_metadata")
 
-schema = T.StructType([
-    T.StructField("account_id", T.LongType(), True),
-    T.StructField("recap_sequence", T.IntegerType(), True),
-    T.StructField("transaction_posting_date", T.DateType(), True),
-    T.StructField("transaction_date", T.DateType(), True),
-    T.StructField("transaction_category", T.StringType(), True),
-    T.StructField("transaction_source", T.StringType(), True),
-    T.StructField("transaction_description", T.StringType(), True),
-    T.StructField("transaction_amount", T.DoubleType(), True),
-    T.StructField("transaction_resulting_balance", T.DoubleType(), True),
-])
+# 2. Add instnc_id column (static value, or replace with dynamic if needed)
+df2 = df2.withColumn("instnc_id", F.lit("20251001"))
 
-rows = [
-    (7777771001, 1, datetime.date(2020,2,26), datetime.date(2020,2,26),
-     "PAYMENT", "IEPS", "175292049842333844342", -150.0, 6555.28),
-    (7777771001, 2, datetime.date(2020,2,27), datetime.date(2020,2,27),
-     "PAYMENT", "IEPS", "175292049842333844342", -200.0, 6355.28),
-]
+# 3. Generate new account_id starting at 7777771001
+# Use zipWithIndex to avoid expensive window()
+df_with_idx = df2.rdd.zipWithIndex().map(
+    lambda x: Row(**x[0].asDict(), row_num=x[1]+1)  # +1 so index starts at 1
+).toDF()
 
-df = spark.createDataFrame(rows, schema=schema)
+df_with_new_id = df_with_idx.withColumn(
+    "account_id",
+    (F.lit(7777771000) + F.col("row_num")).cast("long")
+).drop("row_num")
 
-df.printSchema()
-df.show(truncate=False)
+# 4. Reorder columns: instnc_id second last, chargeoff_principal last
+cols = df_with_new_id.columns
+cols_reordered = [c for c in cols if c not in ["instnc_id", "chargeoff_principal"]]
+cols_reordered = cols_reordered + ["instnc_id", "chargeoff_principal"]
+
+df_final = df_with_new_id.select(cols_reordered)
+
+# Show result
+df_final.printSchema()
+df_final.show(20, truncate=False)
