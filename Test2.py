@@ -1,4 +1,31 @@
 
+from pyspark.sql import Row
+
+# Your mapping values
+mapping_data = [
+    (1001315206, 7777771001),
+    (1004043965, 7777771002),
+    (1004043969, 7777771003),
+    (1004043979, 7777771004),
+    (1004043992, 7777771005),
+    (1004043993, 7777771006),
+    (1004043996, 7777771007),
+    (1004044027, 7777771008),
+    (1004044038, 7777771009),
+    (1004044038, 7777771010)
+]
+
+# Convert into Row objects
+rows = [Row(customer_id=int(c), account_id=int(a)) for c, a in mapping_data]
+
+# Create DataFrame (Spark infers schema automatically)
+mapping_df = spark.createDataFrame(rows)
+
+mapping_df.show()
+mapping_df.printSchema()
+
+
+-------
 mapping_df = spark.createDataFrame(mapping_data, ["customer_id", "account_id"])
 
 
