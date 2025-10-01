@@ -1,35 +1,31 @@
 
 
 
+
+
+
+from pyspark.sql import Row
 from pyspark.sql import functions as F
-from pyspark.sql.window import Window
 
-# Drop instnc_id
-df_new = df.drop("instnc_id")
+# Drop instnc_id if present
+df_no_instnc = df.drop("instnc_id")
 
-# Step 1: Assign a new sequential number per distinct account_id
-account_map = (
-    df_new
-    .select("account_id")
-    .distinct()
-    .withColumn("row_num", F.row_number().over(Window.orderBy("account_id")))
-    .withColumn("new_account_id", (F.lit(7777771000) + F.col("row_num")).cast("string"))
-    .drop("row_num")
-)
+# Use zipWithIndex to create sequential row numbers
+df_indexed = df_no_instnc.rdd.zipWithIndex().map(
+    lambda x: Row(**x[0].asDict(), row_num=x[1] + 1)
+).toDF()
 
-# Step 2: Join back to original DataFrame so all transactions for an account map to same new ID
-df_mapped = (
-    df_new
-    .join(account_map, on="account_id", how="left")
-    .drop("account_id")  # drop old one
-    .withColumnRenamed("new_account_id", "account_id")  # rename new
-)
+# Generate account_id starting from 7777771001
+df_new = df_indexed.withColumn(
+    "account_id", (F.lit(7777771000) + F.col("row_num")).cast("string")
+).drop("row_num")
 
-# Step 3: (Optional) Keep recap sequence ordering inside each account
-df_mapped = df_mapped.withColumn(
-    "recap_seq",
-    F.row_number().over(Window.partitionBy("account_id").orderBy("transaction_date"))
-)
+# Show first 20 rows
+df_new.show(20, truncate=False)
 
-# Show result
-df_mapped.show(20, truncate=False)
+# (Optional) Write to Parquet
+(df_new
+    .coalesce(1)
+    .write
+    .mode("overwrite")
+    .parquet("s3://your-bucket/output/df_with_new_account_ids/"))
