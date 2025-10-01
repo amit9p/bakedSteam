@@ -1,32 +1,23 @@
 
 
-from pyspark.sql import functions as F
-from pyspark.sql import Row
+from pyspark.sql import Row, functions as F
 
-# 1. Drop unwanted column
-df2 = df.drop("sdp4_metadata")
-
-# 2. Add instnc_id column (static value, or replace with dynamic if needed)
-df2 = df2.withColumn("instnc_id", F.lit("20251001"))
-
-# 3. Generate new account_id starting at 7777771001
-# Use zipWithIndex to avoid expensive window()
-df_with_idx = df2.rdd.zipWithIndex().map(
-    lambda x: Row(**x[0].asDict(), row_num=x[1]+1)  # +1 so index starts at 1
+# Step 1: Add sequential row numbers using zipWithIndex
+df_indexed = df.rdd.zipWithIndex().map(
+    lambda x: Row(**x[0].asDict(), rn=x[1] + 1)  # +1 so it starts from 1
 ).toDF()
 
-df_with_new_id = df_with_idx.withColumn(
-    "account_id",
-    (F.lit(7777771000) + F.col("row_num")).cast("long")
-).drop("row_num")
+# Step 2: Replace account_id with sequential values starting from 7777771001
+df_new = df_indexed.withColumn(
+    "account_id", (F.lit(7777771000) + F.col("rn")).cast("long")
+).drop("rn")
 
-# 4. Reorder columns: instnc_id second last, chargeoff_principal last
-cols = df_with_new_id.columns
-cols_reordered = [c for c in cols if c not in ["instnc_id", "chargeoff_principal"]]
-cols_reordered = cols_reordered + ["instnc_id", "chargeoff_principal"]
+# Step 3: Reorder columns → move chargeoff_principal to the end
+cols = df_new.columns
+cols_reordered = [c for c in cols if c != "chargeoff_principal"] + ["chargeoff_principal"]
 
-df_final = df_with_new_id.select(cols_reordered)
+df_final = df_new.select(cols_reordered)
 
-# Show result
+# Show results
 df_final.printSchema()
-df_final.show(20, truncate=False)
+df_final.show(10, truncate=False)
