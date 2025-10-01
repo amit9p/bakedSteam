@@ -1,10 +1,11 @@
 
+
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, LongType
 
 spark = SparkSession.builder.getOrCreate()
 
-# Define your mapping data
+# Your mapping data
 mapping_data = [
     (4146147380, 1001315206, 7777771001),
     (4146146886, 1004043965, 7777771002),
@@ -15,18 +16,21 @@ mapping_data = [
     (3477618797, 1004044027, 7777771007),
     (3477618801, 1004044038, 7777771008),
     (4454193181, 1004044027, 7777771009),
-    (3477618821, 1004044038, 7777771010),
+    (3477618821, 1004044038, 7777771010)
 ]
 
-# Define schema explicitly
+# Convert to RDD
+rdd = spark.sparkContext.parallelize(mapping_data)
+
+# Define schema
 schema = StructType([
     StructField("customer_pk_id", LongType(), True),
     StructField("new_customer_id", LongType(), True),
-    StructField("new_account_id", LongType(), True),
+    StructField("new_account_id", LongType(), True)
 ])
 
-# Create DataFrame
-mapping_df = spark.createDataFrame(mapping_data, schema)
+# Create DataFrame from RDD with schema
+mapping_df = spark.createDataFrame(rdd, schema)
 
-# Show to verify
-mapping_df.show(truncate=False)
+# Show result
+mapping_df.show()
