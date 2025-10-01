@@ -1,3 +1,7 @@
+
+mapping_df = spark.createDataFrame(mapping_data, ["customer_id", "account_id"])
+
+
 from pyspark.sql import Row
 from pyspark.sql.types import StructType, StructField, LongType
 
