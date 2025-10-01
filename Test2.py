@@ -1,35 +1,39 @@
 
 
 
-import datetime
-from pyspark.sql.types import StructType, StructField, LongType, IntegerType, DateType, StringType, DoubleType
+from pyspark.sql import functions as F, types as T
+from pyspark.sql import Row
 
-schema = StructType([
-    StructField("account_id", LongType(), True),
-    StructField("recap_sequence", IntegerType(), True),
-    StructField("transaction_posting_date", DateType(), True),
-    StructField("transaction_date", DateType(), True),
-    StructField("transaction_category", StringType(), True),
-    StructField("transaction_source", StringType(), True),
-    StructField("transaction_description", StringType(), True),
-    StructField("transaction_amount", DoubleType(), True),
-    StructField("transaction_resulting_balance", DoubleType(), True)
-])
-
-# ✅ Use datetime.date for DateType fields
-data = [
-    (7777771001, 1, datetime.date(2020, 2, 26), datetime.date(2020, 2, 26), "PAYMENT", "IEPS", "175292049842333844342", -150.0, 6555.28),
-    (7777771001, 2, datetime.date(2020, 2, 26), datetime.date(2020, 2, 26), "PAYMENT", "IEPS", "175292049842333844342", -150.0, 6405.28),
-    (7777771001, 3, datetime.date(2020, 2, 26), datetime.date(2020, 2, 26), "PAYMENT", "IEPS", "175292049842333844342", -150.0, 6255.28),
-    (7777771001, 4, datetime.date(2020, 2, 26), datetime.date(2020, 2, 26), "PAYMENT", "IEPS", "175292049842333844342", -150.0, 6105.28),
-    (7777771001, 5, datetime.date(2020, 2, 26), datetime.date(2020, 2, 26), "PAYMENT", "IEPS", "175292049842333844342", -150.0, 5955.28),
-    (7777771001, 6, datetime.date(2020, 2, 26), datetime.date(2020, 2, 26), "PAYMENT", "IEPS", "175292049842333844342", -150.0, 5805.28),
-    (7777771001, 7, datetime.date(2020, 2, 26), datetime.date(2020, 2, 26), "PAYMENT", "IEPS", "175292049842333844342", -150.0, 5655.28),
-    (7777771001, 8, datetime.date(2020, 2, 26), datetime.date(2020, 2, 26), "PAYMENT", "IEPS", "175292049842333844342", -150.0, 5505.28),
-    (7777771001, 9, datetime.date(2020, 2, 26), datetime.date(2020, 2, 26), "PAYMENT", "IEPS", "175292049842333844342", -150.0, 5355.28),
-    (7777771001, 10, datetime.date(2020, 2, 26), datetime.date(2020, 2, 26), "PAYMENT", "IEPS", "175292049842333844342", -150.0, 5205.28)
+# ---- 1) Build rows using only strings / plain numbers ----
+rows = [
+    Row(account_id=7777771001, recap_sequence=1,
+        transaction_posting_date="2020-02-26", transaction_date="2020-02-26",
+        transaction_category="PAYMENT", transaction_source="IEPS",
+        transaction_description="175292049842333844342",
+        transaction_amount="-150.0", transaction_resulting_balance="6555.28"),
+    Row(account_id=7777771001, recap_sequence=2,
+        transaction_posting_date="2020-02-26", transaction_date="2020-02-26",
+        transaction_category="PAYMENT", transaction_source="IEPS",
+        transaction_description="175292049842333844342",
+        transaction_amount="-150.0", transaction_resulting_balance="6405.28"),
+    # ... add the rest of your rows the same way ...
 ]
 
-df = spark.createDataFrame(data, schema=schema)
-df.show(truncate=False)
+# ---- 2) Create DF without forcing a complex schema upfront ----
+df_raw = spark.createDataFrame(rows)
+
+# ---- 3) Cast to your catalog schema inside Spark ----
+df = (df_raw
+      .withColumn("account_id", F.col("account_id").cast(T.LongType()))
+      .withColumn("recap_sequence", F.col("recap_sequence").cast(T.IntegerType()))
+      .withColumn("transaction_posting_date", F.to_date("transaction_posting_date", "yyyy-MM-dd"))
+      .withColumn("transaction_date", F.to_date("transaction_date", "yyyy-MM-dd"))
+      .withColumn("transaction_category", F.col("transaction_category").cast(T.StringType()))
+      .withColumn("transaction_source", F.col("transaction_source").cast(T.StringType()))
+      .withColumn("transaction_description", F.col("transaction_description").cast(T.StringType()))
+      .withColumn("transaction_amount", F.col("transaction_amount").cast(T.DoubleType()))
+      .withColumn("transaction_resulting_balance", F.col("transaction_resulting_balance").cast(T.DoubleType()))
+)
+
 df.printSchema()
+df.show(truncate=False)
