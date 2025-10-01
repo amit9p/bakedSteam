@@ -1,9 +1,7 @@
 
 
-# inline mapping table using Spark SQL (most reliable)
 mapping_df = spark.sql("""
-SELECT customer_pk_id, new_customer_id, new_account_id
-FROM VALUES
+VALUES
   (4146147380, 1001315206, 7777771001),
   (4146146886, 1004043965, 7777771002),
   (3477618751, 1004043969, 7777771003),
@@ -14,5 +12,4 @@ FROM VALUES
   (3477618801, 1004044038, 7777771008),
   (4454193181, 1004044027, 7777771009),
   (3477618821, 1004044038, 7777771010)
-AS m(customer_pk_id, new_customer_id, new_account_id)
-""")
+""").toDF("customer_pk_id", "new_customer_id", "new_account_id")
