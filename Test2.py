@@ -1,24 +1,38 @@
 
 
+
 from pyspark.sql import functions as F
-from pyspark.sql.window import Window
+from pyspark.sql import Row
 
-# Step 1: Add sequential row numbers using row_number()
-w = Window.orderBy(F.monotonically_increasing_id())
+# Your 10 fixed values (from screenshot)
+customer_ids = [
+    1001315206, 1004043965, 1004043969, 1004043979, 1004043992,
+    1004043993, 1004043996, 1004044027, 1004044038, 1004044038
+]
+account_ids = [
+    7777771001, 7777771002, 7777771003, 7777771004, 7777771005,
+    7777771006, 7777771007, 7777771008, 7777771009, 7777771010
+]
 
-df_indexed = df.withColumn("rn", F.row_number().over(w))
+# Add row_num for aligning
+df1 = df.drop("sdp4_metadata")
+df1 = df1.withColumn("row_num", F.row_number().over(Window.orderBy(F.monotonically_increasing_id())))
 
-# Step 2: Replace account_id with sequential values starting from 7777771001
-df_new = df_indexed.withColumn(
-    "account_id",
-    (F.lit(7777771000) + F.col("rn")).cast("long")
-).drop("rn")
+# Create mapping DataFrame with your values
+pairs = list(zip(customer_ids, account_ids, range(1, 11)))
+mapping_df = spark.createDataFrame(pairs, ["customer_id", "account_id", "row_num"])
 
-# Step 3: Reorder columns: move chargeoff_principal to the end
-cols = df_new.columns
-cols_reordered = [c for c in cols if c != "chargeoff_principal"] + ["chargeoff_principal"]
+# Join to replace
+df2 = (
+    df1.join(mapping_df, on="row_num", how="inner")
+       .drop("row_num")
+)
 
-df_final = df_new.select(cols_reordered)
+# Add instnc_id at the end
+df2 = df2.withColumn("instnc_id", F.lit("20251001"))
 
-# Show final result
-df_final.show(10, truncate=False)
+# Reorder columns → instnc_id last
+cols = [c for c in df2.columns if c != "instnc_id"] + ["instnc_id"]
+df_final = df2.select(cols).limit(10)
+
+df_final.show(truncate=False)
