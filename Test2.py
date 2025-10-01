@@ -1,3 +1,20 @@
+from pyspark.sql.types import StructType, StructField, LongType, IntegerType, DateType, StringType, DoubleType
+
+schema = StructType([
+    StructField("account_id", LongType(), True),   # Long, not String
+    StructField("recap_sequence", IntegerType(), True),
+    StructField("transaction_posting_date", DateType(), True),
+    StructField("transaction_date", DateType(), True),
+    StructField("transaction_category", StringType(), True),
+    StructField("transaction_source", StringType(), True),
+    StructField("transaction_description", StringType(), True),
+    StructField("transaction_amount", DoubleType(), True),
+    StructField("transaction_resulting_balance", DoubleType(), True)
+])
+
+
+
+
 
 
 from pyspark.sql import SparkSession
