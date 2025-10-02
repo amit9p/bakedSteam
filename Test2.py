@@ -1,4 +1,10 @@
 
+from pyspark.sql.functions import lit
+
+# Replace all values in 'identification_number' column with 'CAPDISK'
+df_updated = df.withColumn("identification_number", lit("CAPDISK"))
+
+
 from pyspark.sql.functions import col
 from pyspark.sql.types import LongType, StringType, TimestampType, DateType
 
