@@ -1,4 +1,8 @@
 
+
+
+unique_account_ids = df.select("account_id").distinct()
+
 df_renamed = (
     df
     .withColumnRenamed("run_id", "ecbr_run_id")
