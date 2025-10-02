@@ -1,4 +1,13 @@
 
+df_renamed = (
+    df
+    .withColumnRenamed("run_id", "ecbr_run_id")
+    .withColumnRenamed("run_id_utc_timestamp", "ecbr_run_id_utc_timestamp")
+    .withColumnRenamed("run_id_date", "ecbr_run_id_date")
+)
+
+
+
 from pyspark.sql.functions import lit
 
 # Replace all values in 'identification_number' column with 'CAPDISK'
