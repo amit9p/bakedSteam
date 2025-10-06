@@ -1,5 +1,7 @@
 
+from pyspark.sql.functions import lit
 
+df_updated = df.withColumn("identification_number", lit("CAPDISC"))
 
 unique_account_ids = df.select("account_id").distinct()
 
