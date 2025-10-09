@@ -1,4 +1,10 @@
 
+we started testing in vo1x1t02, but the Glue job failed with a subnet IP exhaustion error.
+Looks like the Glue connection needs an available subnet — could you please check?
+
+
+
+
 Hi team, our Glue job failed with:
 “The specified subnet does not have enough free IP addresses to satisfy the request. Please provide a connection with a subnet which is available.”
 
