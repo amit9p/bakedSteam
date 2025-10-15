@@ -1,5 +1,6 @@
 
-
+from datetime import datetime, timezone
+CreditBureauReportingServiceReportingOverride.initiated_date: datetime(2024, 1, 15, tzinfo=timezone.utc)
 
 assert_df_equality(expected_df, result_df, ignore_row_order=True, ignore_nullable=True, ignore_column_order=True, ignore_time_zone=True)
 
