@@ -1,4 +1,8 @@
 
+
+
+assert_df_equality(expected_df, result_df, ignore_row_order=True, ignore_nullable=True, ignore_column_order=True, ignore_time_zone=True)
+
 we started testing in vo1x1t02, but the Glue job failed with a subnet IP exhaustion error.
 Looks like the Glue connection needs an available subnet — could you please check?
 
