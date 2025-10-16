@@ -1,4 +1,4 @@
-
+df = df.filter(F.col("reporting_status") == "R")
 from datetime import datetime, timezone
 CreditBureauReportingServiceReportingOverride.initiated_date: datetime(2024, 1, 15, tzinfo=timezone.utc)
 
