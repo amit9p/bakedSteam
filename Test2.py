@@ -1,3 +1,30 @@
+
+PR Title
+
+Make generator functions compatible with Glue job context argument
+
+
+---
+
+🧩 PR Description
+
+Context:
+The Glue orchestration layer appends a job_context object as an additional argument when invoking generator functions through common_utils.execute_function().
+Some generator functions, such as get_reportable_accounts, were defined with a fixed number of parameters (3 DataFrames). This caused Glue jobs to fail with
+TypeError: get_reportable_accounts() takes 3 positional arguments but 4 were given.
+
+Change:
+
+Updated get_reportable_accounts() to include flexible parameters (*_args, **_kwargs) to absorb the extra job_context argument passed by the framework.
+
+This makes the generator consistent with other framework components (e.g., calculators and consolidators), which already handle optional args gracefully.
+
+Added _args, _kwargs naming convention to avoid SonarQube “unused parameter” warnings.
+
+
+
+
+
 df = df.filter(F.col("reporting_status") == "R")
 from datetime import datetime, timezone
 CreditBureauReportingServiceReportingOverride.initiated_date: datetime(2024, 1, 15, tzinfo=timezone.utc)
