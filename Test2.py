@@ -1,10 +1,11 @@
 
+
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import monotonically_increasing_id
 
 spark = SparkSession.builder.getOrCreate()
 
-# Example DataFrames (replace with your actual DataFrames)
+# Example DataFrames
 transaction_history = spark.createDataFrame([
     (7777771001, 'PAYMENT', -50.0, '2014-02-14', 1),
     (7777771002, 'PAYMENT', -50.0, '2014-02-28', 2),
@@ -19,16 +20,23 @@ account_info = spark.createDataFrame([
     (1044765198, 589.96, '2021-06-01', 589.96),
 ], ['account_id', 'total_current_balance', 'pre_chargeoff_last_payment_date', 'chargeoffbalance'])
 
-# Add a unique ID to preserve row order for replacement
-transaction_history = transaction_history.withColumn("row_id", monotonically_increasing_id())
-account_info = account_info.withColumn("row_id", monotonically_increasing_id())
+# Collect account_ids, rotate: last one goes first, drop the original first
+account_ids = [row.account_id for row in account_info.collect()]
+rotated_ids = [account_ids[-1]] + account_ids[1:]  # move last to front, drop first
 
-# Replace account_id values using row_id alignment
+# Create new df for rotated ids
+rotated_df = spark.createDataFrame([(i,) for i in rotated_ids], ["account_id"]) \
+                  .withColumn("row_id", monotonically_increasing_id())
+
+# Add row_id to transaction_history for alignment
+transaction_history = transaction_history.withColumn("row_id", monotonically_increasing_id())
+
+# Join rotated account_ids to transaction_history
 updated_df = (
     transaction_history
-    .join(account_info.select("row_id", account_info.account_id.alias("new_account_id")), on="row_id", how="inner")
+    .join(rotated_df, on="row_id", how="inner")
     .drop("row_id")
-    .withColumnRenamed("new_account_id", "account_id")
+    .select("account_id", "transaction_category", "transaction_amount", "transaction_date", "recap_sequence")
 )
 
 updated_df.show(truncate=False)
