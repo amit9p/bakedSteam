@@ -1,4 +1,23 @@
 
+Here’s what that block is doing:
+
+groupBy(OUTPUT_FILE_SEQUENCE, COMPUTE_RECORD_SEQUENCE) → one row per output record.
+
+.pivot(OUTPUT_FIELD_SEQUENCE) → each field position (1,2,3,…) becomes a column.
+
+.agg(first("formatted")) → pick the value for that field.
+
+.fillna("") → blank out any missing fields.
+
+.drop(OUTPUT_FIELD_SEQUENCE) → we no longer need the field-level sequence after the pivot (we still keep file/record ids for ordering).
+
+
+pivot_df is therefore a wide table: one row per record, columns 1, 2, 3, … holding the already-formatted field strings.
+
+Next step: build the Metro 2 line by concatenating those columns in numeric order (no delimiter), e.g. concat_ws("", col("1"), col("2"), …). After we produce the final metro2_string, we can drop the file/record ids too if the output is just the flat text.
+
+
+
 from pyspark.sql import SparkSession, functions as F
 
 spark = SparkSession.builder.getOrCreate()
