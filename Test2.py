@@ -1,4 +1,31 @@
+from pathlib import Path
+import yaml
+import os
 
+def _project_root() -> Path:
+    # this file is: <project>/token_generator/get_credentials.py
+    # project root is one level up from this file's folder
+    return Path(__file__).resolve().parents[1]
+
+def load_secrets(filename: str = "secrets.yaml") -> dict:
+    # allow override via env var if you ever need it
+    env_override = os.getenv("SECRETS_PATH")
+    if env_override:
+        secrets_path = Path(env_override).expanduser().resolve()
+    else:
+        secrets_path = _project_root() / "config" / filename
+
+    if not secrets_path.exists():
+        raise FileNotFoundError(f"Secrets file not found at: {secrets_path}")
+
+    with secrets_path.open("r") as f:
+        return yaml.safe_load(f) or {}
+
+from token_generator.get_credentials import load_secrets
+
+creds = load_secrets()
+client_id = creds["auth"]["client_id"]
+client_secret = creds["auth"]["client_secret"]
 
 import yaml
 import requests
