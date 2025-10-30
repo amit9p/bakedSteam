@@ -1,4 +1,7 @@
-
+auth:
+  client_id: "your-client-id-here"
+  client_secret: "your-client-secret-here"
+  token_url: "https://api.capitalone.com/oauth/token"
 
 {
   "s3_path": "s3://your-bucket/input/",
