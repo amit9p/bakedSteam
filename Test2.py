@@ -1,4 +1,5 @@
 
+
 import yaml
 import requests
 import os
@@ -9,6 +10,37 @@ def load_secrets():
     with open(secrets_path, "r") as f:
         secrets = yaml.safe_load(f)
     return secrets["auth"]
+
+def get_token():
+    """Fetches OAuth token using client credentials."""
+    creds = load_secrets()
+    client_id = creds["client_id"]
+    client_secret = creds["client_secret"]
+    token_url = creds["token_url"]
+
+    payload = {
+        "grant_type": "client_credentials",
+        "client_id": client_id,
+        "client_secret": client_secret
+    }
+
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    response = requests.post(token_url, data=payload, headers=headers)
+    response.raise_for_status()
+
+    return response.json()["access_token"]
+
+
+
+from token_generator.get_credentials import load_secrets
+
+creds = load_secrets()
+client_id = creds["auth"]["client_id"]
+client_secret = creds["auth"]["client_secret"]
+
+
+
+
 
 def get_token():
     """Fetches OAuth token using client credentials."""
