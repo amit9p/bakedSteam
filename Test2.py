@@ -1,3 +1,6 @@
+2014-02-14T00:00:00.000
+
+
 
 
 from pyspark.sql.functions import col, to_date, coalesce, date_format, lit
