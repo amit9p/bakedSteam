@@ -1,3 +1,41 @@
+# utils/config_loader.py
+from pathlib import Path
+import os, json
+
+def _project_root() -> Path:
+    # utils/config_loader.py -> <project>/utils/...  -> go up 1 (utils) then to project root
+    return Path(__file__).resolve().parents[1]
+
+def load_config(filename: str = "config.json") -> dict:
+    env_override = os.getenv("CONFIG_PATH")
+    cfg_path = Path(env_override).expanduser().resolve() if env_override \
+               else _project_root() / "config" / filename
+
+    if not cfg_path.exists():
+        raise FileNotFoundError(f"Config file not found at: {cfg_path}")
+
+    with cfg_path.open("r", encoding="utf-8") as f:
+        return json.load(f)
+
+
+# main.py
+from utils.config_loader import load_config
+from token_generator.get_credentials import load_secrets  # your existing loader
+
+def main():
+    cfg = load_config()          # reads <project>/config/config.json (or CONFIG_PATH)
+    secrets = load_secrets()     # reads <project>/config/secrets.yaml (or SECRETS_PATH)
+
+    s3_path   = cfg["s3_path"]
+    file_list = cfg["file_list"]
+    # ... rest of your orchestration
+
+if __name__ == "__main__":
+    main()
+
+-----
+
+
 from pathlib import Path
 import yaml
 import os
