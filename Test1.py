@@ -1,4 +1,5 @@
-
+submission_id = response_json.get("fileSubmissionId")
+print(submission_id)
 
 import json
 import logging
