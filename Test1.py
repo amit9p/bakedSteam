@@ -1,3 +1,11 @@
+import json
+
+data = json.loads(response.content.decode('utf-8'))
+submission_id = data.get("fileSubmissionId")
+print(submission_id)
+
+
+
 submission_id = response_json.get("fileSubmissionId")
 print(submission_id)
 
