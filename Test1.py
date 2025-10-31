@@ -1,45 +1,72 @@
 
-# s3_ops.py
+
+# s3_from_aws_credentials.py
 import os
+from pathlib import Path
+from configparser import RawConfigParser
 import boto3
 from botocore.exceptions import BotoCoreError, ClientError
 
-# 1) Choose the profile that CloudSentry populated (or leave None for "default")
-AWS_PROFILE = os.getenv("AWS_PROFILE", "default")   # e.g., "GR_GG_COF_AWS_STsdigital_Dev_Developer"
-AWS_REGION  = os.getenv("AWS_REGION",  "us-east-1") # set if your bucket is region-specific
+def load_creds_from_files(profile: str = "default"):
+    """Read access keys (and optional session token) from ~/.aws/credentials"""
+    creds_path = Path.home() / ".aws" / "credentials"
+    cfg = RawConfigParser()
+    if not cfg.read(creds_path):
+        raise FileNotFoundError(f"Could not read {creds_path}")
 
-# 2) Create a session that reads ~/.aws/credentials and ~/.aws/config
-session = boto3.Session(profile_name=AWS_PROFILE, region_name=AWS_REGION)
-s3 = session.client("s3")
+    if not cfg.has_section(profile):
+        raise KeyError(f"Profile [{profile}] not found in {creds_path}")
 
-def list_objects(bucket: str, prefix: str = ""):
-    """Print all object keys under a prefix."""
+    return {
+        "aws_access_key_id":     cfg.get(profile, "aws_access_key_id", fallback=None),
+        "aws_secret_access_key": cfg.get(profile, "aws_secret_access_key", fallback=None),
+        "aws_session_token":     cfg.get(profile, "aws_session_token", fallback=None),  # may be empty
+    }
+
+def load_region(profile: str = "default", fallback_region: str = "us-east-1"):
+    """Read region from ~/.aws/config (handles [profile <name>] format)"""
+    config_path = Path.home() / ".aws" / "config"
+    cfg = RawConfigParser()
+    cfg.read(config_path)
+
+    section = "default" if profile == "default" else f"profile {profile}"
+    return cfg.get(section, "region", fallback=fallback_region)
+
+def make_s3_client(profile: str = "default", verify_ssl: bool | str | None = None):
+    """
+    verify_ssl:
+      - False  → disable verification (not recommended, debug only)
+      - None   → default system trust store
+      - str    → path to a CA bundle (recommended in corporate networks)
+    """
+    creds = load_creds_from_files(profile)
+    region = load_region(profile)
+
+    return boto3.client(
+        "s3",
+        region_name=region,
+        verify=verify_ssl,
+        **{k: v for k, v in creds.items() if v}  # drop None
+    )
+
+def list_objects(bucket: str, prefix: str = "", profile: str = "default", verify_ssl: bool | str | None = None):
+    s3 = make_s3_client(profile, verify_ssl)
     paginator = s3.get_paginator("list_objects_v2")
-    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-        for obj in page.get("Contents", []):
-            print(obj["Key"])
-
-def upload_file(local_path: str, bucket: str, key: str):
-    """Upload a local file to S3 (uses multipart automatically)."""
     try:
-        s3.upload_file(local_path, bucket, key)  # best for files
-        print(f"✅ Uploaded {local_path} -> s3://{bucket}/{key}")
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                print(obj["Key"])
     except (ClientError, BotoCoreError) as e:
-        print(f"❌ Upload failed: {e}")
-
-def put_text(bucket: str, key: str, text: str):
-    """Create/overwrite a small text object."""
-    try:
-        s3.put_object(Bucket=bucket, Key=key, Body=text.encode("utf-8"))
-        print(f"✅ Put text to s3://{bucket}/{key}")
-    except (ClientError, BotoCoreError) as e:
-        print(f"❌ Put failed: {e}")
+        print("Error:", e)
 
 if __name__ == "__main__":
-    # EXAMPLES
-    BUCKET = "your-bucket"
-    PREFIX = "incoming/"
-    list_objects(BUCKET, PREFIX)
+    # ----- EXAMPLE USAGE -----
+    PROFILE = os.getenv("AWS_PROFILE", "default")
+    BUCKET  = "my-data-bucket"          # <- bucket NAME only (no s3://)
+    PREFIX  = "incoming/data/"          # <- optional "folder" path; "" lists all
 
-    upload_file("/path/to/local.csv", BUCKET, f"{PREFIX}local.csv")
-    put_text(BUCKET, f"{PREFIX}hello.txt", "hello from local!")
+    # Option A (debug only): disable SSL verification
+    list_objects(BUCKET, PREFIX, profile=PROFILE, verify_ssl=False)
+
+    # Option B (recommended in corp networks): use your corporate CA bundle
+    # list_objects(BUCKET, PREFIX, profile=PROFILE, verify_ssl="/path/to/corporate-ca.pem")
