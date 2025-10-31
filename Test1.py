@@ -1,138 +1,45 @@
 
-DFSL1 Data Push Automation
+# s3_ops.py
+import os
+import boto3
+from botocore.exceptions import BotoCoreError, ClientError
 
-This repository contains a Python script that automates data upload and validation for the DFSL1 pipeline.
+# 1) Choose the profile that CloudSentry populated (or leave None for "default")
+AWS_PROFILE = os.getenv("AWS_PROFILE", "default")   # e.g., "GR_GG_COF_AWS_STsdigital_Dev_Developer"
+AWS_REGION  = os.getenv("AWS_REGION",  "us-east-1") # set if your bucket is region-specific
 
-Overview
+# 2) Create a session that reads ~/.aws/credentials and ~/.aws/config
+session = boto3.Session(profile_name=AWS_PROFILE, region_name=AWS_REGION)
+s3 = session.client("s3")
 
-The script reads input CSV files from an S3 location and pushes them to OneLake through an API.
-It also performs validation of each upload using a secondary API call and generates a summary report of all uploads.
+def list_objects(bucket: str, prefix: str = ""):
+    """Print all object keys under a prefix."""
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            print(obj["Key"])
 
-Steps
-
-1. Prepare Input Data
-
-Place all required CSV files in the configured S3 bucket/path.
-
-
-
-2. Run the Script
-
-Execute the script from your project directory:
-
-python main.py
-
-The script will:
-
-Iterate through each file in the S3 path
-
-Call the upload API for each dataset
-
-Validate each upload using the validation API
-
-Collect results for all submissions
-
-
-
-import json
-from datetime import datetime
-
-def generate_report(responses, file_prefix="validation_report"):
-    """
-    Takes a list of JSON/dict responses and writes them to a text file.
-    Each response will be formatted as JSON and separated by blank lines.
-    """
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    file_name = f"{file_prefix}_{timestamp}.txt"
-
-    with open(file_name, "w") as f:
-        for response in responses:
-            # convert dict to nicely formatted JSON string
-            f.write(json.dumps(response, indent=2))
-            f.write("\n\n")  # separate entries with blank lines
-
-    print(f"✅ Report generated: {file_name}")
-    return file_name
-
-
-import json
-
-data = json.loads(response.content.decode('utf-8'))
-submission_id = data.get("fileSubmissionId")
-print(submission_id)
-
-
-
-submission_id = response_json.get("fileSubmissionId")
-print(submission_id)
-
-import json
-import logging
-from typing import Any, Dict, Optional
-
-log = logging.getLogger(__name__)
-
-def file_submission_id_from(resp: Any) -> Optional[str]:
-    """
-    Works with:
-      - requests.Response
-      - dict (already parsed)
-      - JSON string
-  collected_ids = []
-
-resp = publishFile(payload)     # your call
-fid = file_submission_id_from(resp)
-if fid:
-    collected_ids.append(fid)
-else:
-    # Inspect raw to see what came back
-    body = resp.text if hasattr(resp, "text") else (resp[:300] if isinstance(resp, str) else str(resp))
-    logging.error("No fileSubmissionId in response. Status=%s Body(head)=%r",
-                  getattr(resp, "status_code", "?"), body)  Returns the 'fileSubmissionId' or None.
-    """
+def upload_file(local_path: str, bucket: str, key: str):
+    """Upload a local file to S3 (uses multipart automatically)."""
     try:
-        # 1) requests.Response
-        if hasattr(resp, "json") and callable(getattr(resp, "json")):
-            try:
-                data: Dict[str, Any] = resp.json()
-            except ValueError:
-                # Body not JSON (could be 404 HTML) -> fall back to text
-                log.error("Response body is not JSON. Status=%s Body(head)=%r",
-                          getattr(resp, "status_code", "?"), resp.text[:200])
-                return None
+        s3.upload_file(local_path, bucket, key)  # best for files
+        print(f"✅ Uploaded {local_path} -> s3://{bucket}/{key}")
+    except (ClientError, BotoCoreError) as e:
+        print(f"❌ Upload failed: {e}")
 
-        # 2) dict
-        elif isinstance(resp, dict):
-            data = resp
+def put_text(bucket: str, key: str, text: str):
+    """Create/overwrite a small text object."""
+    try:
+        s3.put_object(Bucket=bucket, Key=key, Body=text.encode("utf-8"))
+        print(f"✅ Put text to s3://{bucket}/{key}")
+    except (ClientError, BotoCoreError) as e:
+        print(f"❌ Put failed: {e}")
 
-        # 3) JSON string
-        elif isinstance(resp, str):
-            data = json.loads(resp)
+if __name__ == "__main__":
+    # EXAMPLES
+    BUCKET = "your-bucket"
+    PREFIX = "incoming/"
+    list_objects(BUCKET, PREFIX)
 
-        else:
-            log.error("Unsupported response type: %s", type(resp))
-            return None
-
-        fid = data.get("fileSubmissionId")
-        if not fid:
-            # Some APIs nest IDs; adapt here if needed (e.g., data['result']['fileSubmissionId'])
-            log.error("fileSubmissionId key not found. Keys present: %s", list(data.keys()))
-        return fid
-
-    except Exception:
-        log.exception("Failed to extract fileSubmissionId")
-        return None
-
-____
-
-collected_ids = []
-
-resp = publishFile(payload)     # your call
-fid = file_submission_id_from(resp)
-if fid:
-    collected_ids.append(fid)
-else:
-    # Inspect raw to see what came back
-    body = resp.text if hasattr(resp, "text") else (resp[:300] if isinstance(resp, str) else str(resp))
-    logging.error("No fileSubmissionId in response. Status=%s Body(head)=%r",
-                  getattr(resp, "status_code", "?"), body)
+    upload_file("/path/to/local.csv", BUCKET, f"{PREFIX}local.csv")
+    put_text(BUCKET, f"{PREFIX}hello.txt", "hello from local!")
