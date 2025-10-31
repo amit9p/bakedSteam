@@ -1,3 +1,25 @@
+
+import json
+from datetime import datetime
+
+def generate_report(responses, file_prefix="validation_report"):
+    """
+    Takes a list of JSON/dict responses and writes them to a text file.
+    Each response will be formatted as JSON and separated by blank lines.
+    """
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    file_name = f"{file_prefix}_{timestamp}.txt"
+
+    with open(file_name, "w") as f:
+        for response in responses:
+            # convert dict to nicely formatted JSON string
+            f.write(json.dumps(response, indent=2))
+            f.write("\n\n")  # separate entries with blank lines
+
+    print(f"✅ Report generated: {file_name}")
+    return file_name
+
+
 import json
 
 data = json.loads(response.content.decode('utf-8'))
