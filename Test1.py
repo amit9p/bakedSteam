@@ -59,4 +59,14 @@ else:
 
 ____
 
+collected_ids = []
 
+resp = publishFile(payload)     # your call
+fid = file_submission_id_from(resp)
+if fid:
+    collected_ids.append(fid)
+else:
+    # Inspect raw to see what came back
+    body = resp.text if hasattr(resp, "text") else (resp[:300] if isinstance(resp, str) else str(resp))
+    logging.error("No fileSubmissionId in response. Status=%s Body(head)=%r",
+                  getattr(resp, "status_code", "?"), body)
