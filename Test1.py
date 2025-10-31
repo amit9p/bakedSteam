@@ -1,4 +1,39 @@
 
+DFSL1 Data Push Automation
+
+This repository contains a Python script that automates data upload and validation for the DFSL1 pipeline.
+
+Overview
+
+The script reads input CSV files from an S3 location and pushes them to OneLake through an API.
+It also performs validation of each upload using a secondary API call and generates a summary report of all uploads.
+
+Steps
+
+1. Prepare Input Data
+
+Place all required CSV files in the configured S3 bucket/path.
+
+
+
+2. Run the Script
+
+Execute the script from your project directory:
+
+python main.py
+
+The script will:
+
+Iterate through each file in the S3 path
+
+Call the upload API for each dataset
+
+Validate each upload using the validation API
+
+Collect results for all submissions
+
+
+
 import json
 from datetime import datetime
 
