@@ -1,3 +1,14 @@
+
+import subprocess
+import shlex
+
+def fetch_cloudsentry_credentials(account_id: str, ba_code: str):
+    cmd = f"cloudsentry access get --account={account_id} --ba={ba_code}"
+    # -l loads login config; -c runs the command
+    out = subprocess.run(["/bin/zsh", "-lc", cmd], capture_output=True, text=True, check=True)
+    return out.stdout
+
+-------
 import subprocess
 
 def fetch_cloudsentry_credentials(account_id: str, ba_code: str):
