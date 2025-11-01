@@ -1,4 +1,37 @@
+import subprocess
 
+def fetch_cloudsentry_credentials(account_id: str, ba_code: str):
+    """
+    Runs the 'cloudsentry access get' command and returns its output.
+    """
+    cmd = [
+        "cloudsentry",
+        "access",
+        "get",
+        f"--account={account_id}",
+        f"--ba={ba_code}"
+    ]
+
+    try:
+        # Run the command and capture the output
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        print("✅ Cloudsentry credentials fetched successfully!")
+        return result.stdout.strip()
+
+    except subprocess.CalledProcessError as e:
+        print("❌ Failed to fetch credentials:")
+        print(e.stderr.strip())
+        return None
+
+
+# Example usage
+if __name__ == "__main__":
+    account_id = "5665566"
+    ba_code = "BAECBR"
+
+    output = fetch_cloudsentry_credentials(account_id, ba_code)
+    if output:
+        print("\nCommand Output:\n", output)
 
 # s3_from_aws_credentials.py
 import os
