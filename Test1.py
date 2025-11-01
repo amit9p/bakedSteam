@@ -1,4 +1,48 @@
 
+from pathlib import Path
+import boto3
+
+def main():
+    print("hey there")
+
+    # Step 1: Upload CSV files from local folder to S3
+    get_aws_proxy()
+    cfg = load_config()
+
+    fetch_cloudsentry_credentials(cfg["aws_account"], cfg["ba"])
+
+    # --- Dynamic paths ---
+    project_root = Path(__file__).resolve().parent  # folder containing main.py
+    verify_ssl = project_root / "config" / "ca-certificates-258831.crt"  # dynamic path to cert
+    local_directory = project_root / "input_csv"   # dynamic path to input folder
+
+    # --- AWS profile and S3 client ---
+    PROFILE = os.getenv("AWS_PROFILE", "GR_GG_COF_AWS_592502317603_Developer")
+    s3 = boto3.Session(profile_name=PROFILE).client("s3", verify=str(verify_ssl))
+
+    # --- Bucket info from config ---
+    BUCKET = cfg["bucket"]
+    PREFIX = cfg["prefix"]
+
+    upload_csv_directory(local_directory, BUCKET, PREFIX, s3)
+
+    creds = load_secrets()
+    client_id = creds["auth"]["client_id"]
+    client_secret = creds["auth"]["client_secret"]
+
+    s3_path = f"s3://{cfg['bucket']}/{cfg['prefix']}"
+    file_list = cfg["file_list"]
+
+    collected_ids = []
+    results = []
+
+    # Step 2: Continue with file upload validation, etc.
+
+
+
+------
+
+
 
 import os
 from botocore.exceptions import ClientError, BotoCoreError
