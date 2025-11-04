@@ -1,128 +1,124 @@
 
+
 from pyspark.sql import functions as F
 
-def get_reportable_accounts(calculator_df, credit_bureau_account_df, reporting_override_df, customer_dm_os_df):
-    """
-    This method filters only reportable accounts based on suppression logic.
+def get_reportable_accounts(
+    calculator_df,
+    credit_bureau_account_df,
+    reporting_override_df,
+    customer_dm_os_df,
+):
+    # --- C1: reporting_status == 'S' in credit_bureau_account (per-account) ---
+    c1 = (credit_bureau_account_df
+          .filter(F.col("reporting_status") == "S")
+          .select(F.col("account_id").alias("c1_account_id"))
+          .dropDuplicates())
 
-    Suppression logic:
-    1. Account is suppressed if:
-       - reporting_status == 'S' in credit_bureau_account_df, OR
-       - there is any active override (close_date is NULL) in reporting_override_df, OR
-       - customer/account ID exists in customer_dm_os_df with reporting_status == 'S'
-    2. AND account_status != 'DA' in calculator_df
-    """
+    # --- C2: any active override (close_date IS NULL) ---
+    c2 = (reporting_override_df
+          .filter(F.col("close_date").isNull())
+          .select(F.col("account_id").alias("c2_account_id"))
+          .dropDuplicates())
 
-    # --- Prepare suppression flags ---
+    # --- C3: ALL customers for an account have reporting_status == 'S' ---
+    # all_customers_s = max( nonS_flag ) == 0  -> all S
+    c3_all_s = (customer_dm_os_df
+                .groupBy("account_id")
+                .agg(F.max(F.when(F.col("reporting_status") != "S", 1).otherwise(0)).alias("has_non_s"))
+                .filter(F.col("has_non_s") == 0)
+                .select(F.col("account_id").alias("c3_account_id")))
 
-    # 1. Suppressed based on reporting_status == 'S'
-    suppressed_by_status_df = credit_bureau_account_df.select("account_id", "reporting_status") \
-        .where(F.col("reporting_status") == "S") \
-        .withColumn("is_suppressed_by_status", F.lit(True))
+    # Join flags to calculator
+    joined = (calculator_df.alias("calc")
+              .join(c1, F.col("calc.account_id") == F.col("c1_account_id"), "left")
+              .join(c2, F.col("calc.account_id") == F.col("c2_account_id"), "left")
+              .join(c3_all_s, F.col("calc.account_id") == F.col("c3_account_id"), "left"))
 
-    # 2. Suppressed based on active overrides (close_date is null)
-    suppressed_by_override_df = reporting_override_df.select("account_id", "close_date") \
-        .where(F.col("close_date").isNull()) \
-        .withColumn("is_suppressed_by_override", F.lit(True))
+    # Suppressed if C1 OR C2 OR (C3 AND account_status != 'DA')
+    result = (joined
+              .withColumn(
+                  "is_suppressed",
+                  (F.col("c1_account_id").isNotNull())
+                  | (F.col("c2_account_id").isNotNull())
+                  | ((F.col("c3_account_id").isNotNull()) & (F.col("account_status") != "DA"))
+              )
+              .filter(~F.col("is_suppressed"))
+              .select(*calculator_df.columns))
 
-    # 3. Suppressed if account/customer_id found in customer_dm_os with reporting_status == 'S'
-    suppressed_by_customer_df = customer_dm_os_df.select("account_id", "reporting_status") \
-        .where(F.col("reporting_status") == "S") \
-        .withColumn("is_suppressed_by_customer", F.lit(True))
-
-    # --- Combine all suppression criteria (OR condition) ---
-    combined_suppression_df = calculator_df.alias("calc") \
-        .join(suppressed_by_status_df.alias("status"), F.col("calc.account_id") == F.col("status.account_id"), "left") \
-        .join(suppressed_by_override_df.alias("override"), F.col("calc.account_id") == F.col("override.account_id"), "left") \
-        .join(suppressed_by_customer_df.alias("cust"), F.col("calc.account_id") == F.col("cust.account_id"), "left") \
-        .withColumn(
-            "is_suppressed",
-            F.when(
-                (F.col("is_suppressed_by_status") == True)
-                | (F.col("is_suppressed_by_override") == True)
-                | (F.col("is_suppressed_by_customer") == True),
-                F.lit(True)
-            ).otherwise(F.lit(False))
-        )
-
-    # --- Final filter ---
-    # Keep only accounts that are NOT suppressed and account_status != 'DA'
-    reportable_df = combined_suppression_df.filter(
-        (F.col("is_suppressed") == False)
-        & (F.col("account_status") != "DA")
-    )
-
-    # Return the final set of reportable accounts
-    return reportable_df.select([c for c in calculator_df.columns])
+    return result
 
 
-________
+-----
 import pytest
 from chispa import assert_df_equality
 from pyspark.sql import SparkSession
 from ecb_tenant_card_dfs_li.ecbr_generator.reportable_accounts import get_reportable_accounts
 from ecb_tenant_card_dfs_li.ecbr_calculations.create_partially_filled_dataset import create_partially_filled_dataset
 
-
 @pytest.fixture(scope="module")
 def spark():
-    return SparkSession.builder.master("local[*]").appName("test_reportable_accounts").getOrCreate()
+    return (SparkSession.builder
+            .master("local[*]")
+            .appName("test_reportable_accounts")
+            .getOrCreate())
 
+def test_get_reportable_accounts_core(spark):
+    # calc: A1 ok, A2 DA (only matters for C3), A3 hit C1, A4 hit C2,
+    # A5 hit C3 (all S + not DA) -> suppressed,
+    # A6 all S + DA -> NOT suppressed by C3.
+    calculator_df = create_partially_filled_dataset(spark, [
+        {"account_id": "A1", "account_status": "OP"},
+        {"account_id": "A2", "account_status": "DA"},
+        {"account_id": "A3", "account_status": "OP"},
+        {"account_id": "A4", "account_status": "OP"},
+        {"account_id": "A5", "account_status": "OP"},
+        {"account_id": "A6", "account_status": "DA"},
+    ])
 
-def test_get_reportable_accounts(spark):
-    """
-    Unit test for get_reportable_accounts() using create_partially_filled_dataset() and assert_df_equality().
-    """
+    credit_bureau_account_df = create_partially_filled_dataset(spark, [
+        {"account_id": "A3", "reporting_status": "S"},  # C1
+    ])
 
-    # --- 1. Input DataFrames using create_partially_filled_dataset ---
+    reporting_override_df = create_partially_filled_dataset(spark, [
+        {"account_id": "A4", "close_date": None},       # C2
+    ])
 
-    calculator_df = create_partially_filled_dataset(
-        spark,
-        [
-            {"account_id": "A1", "account_status": "OP"},   # should remain (not suppressed)
-            {"account_id": "A2", "account_status": "DA"},   # filtered out (DA)
-            {"account_id": "A3", "account_status": "OP"},   # suppressed by status
-            {"account_id": "A4", "account_status": "OP"},   # suppressed by override
-            {"account_id": "A5", "account_status": "OP"},   # suppressed by customer
-        ]
+    # C3 grouping:
+    # A5 -> all customers S (suppressed if calc != 'DA') -> suppressed (calc OP)
+    # A6 -> all customers S but calc == 'DA' -> NOT suppressed by C3
+    # A1 -> mix S/other -> not all S
+    customer_dm_os_df = create_partially_filled_dataset(spark, [
+        {"account_id": "A5", "customer_id": "C1", "reporting_status": "S"},
+        {"account_id": "A5", "customer_id": "C2", "reporting_status": "S"},
+        {"account_id": "A6", "customer_id": "C3", "reporting_status": "S"},
+        {"account_id": "A6", "customer_id": "C4", "reporting_status": "S"},
+        {"account_id": "A1", "customer_id": "C5", "reporting_status": "S"},
+        {"account_id": "A1", "customer_id": "C6", "reporting_status": "A"},  # breaks "all S"
+    ])
+
+    out_df = get_reportable_accounts(
+        calculator_df,
+        credit_bureau_account_df,
+        reporting_override_df,
+        customer_dm_os_df
     )
 
-    credit_bureau_account_df = create_partially_filled_dataset(
-        spark,
-        [
-            {"account_id": "A3", "reporting_status": "S"},  # suppressed by status
-        ]
+    # Expected reportable: A1 (not C1/C2; C3 false), A2 (DA doesn't matter for C1/C2; C3 false),
+    # A6 (all S but DA -> C3 not applied)
+    expected_df = create_partially_filled_dataset(spark, [
+        {"account_id": "A1", "account_status": "OP"},
+        {"account_id": "A2", "account_status": "DA"},
+        {"account_id": "A6", "account_status": "DA"},
+    ])
+
+    assert_df_equality(
+        out_df.select("account_id", "account_status").orderBy("account_id"),
+        expected_df.select("account_id", "account_status").orderBy("account_id"),
+        ignore_row_order=True,
+        ignore_nullable=True
     )
 
-    reporting_override_df = create_partially_filled_dataset(
-        spark,
-        [
-            {"account_id": "A4", "close_date": None},  # active override (suppressed)
-        ]
-    )
-
-    customer_dm_os_df = create_partially_filled_dataset(
-        spark,
-        [
-            {"account_id": "A5", "reporting_status": "S"},  # suppressed by customer
-        ]
-    )
-
-    # --- 2. Call the actual method ---
-    result_df = get_reportable_accounts(
-        calculator_df=calculator_df,
-        credit_bureau_account_df=credit_bureau_account_df,
-        reporting_override_df=reporting_override_df,
-        customer_dm_os_df=customer_dm_os_df
-    )
-
-    # --- 3. Expected Output ---
-    expected_df = create_partially_filled_dataset(
-        spark,
-        [
-            {"account_id": "A1", "account_status": "OP"},  # Only A1 is reportable
-        ]
-    )
-
-    # --- 4. Assert equality ---
-    assert_df_equality(result_df.select("account_id", "account_status"), expected_df.select("account_id", "account_status"))
+def test_empty_inputs_yield_empty(spark):
+    empty = create_partially_filled_dataset(spark, [])
+    out = get_reportable_accounts(empty, empty, empty, empty)
+    assert out.count() == 0
