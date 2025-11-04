@@ -1,250 +1,129 @@
-# utils/config_loader.py
-from pathlib import Path
-import os, json
 
-def _project_root() -> Path:
-    # utils/config_loader.py -> <project>/utils/...  -> go up 1 (utils) then to project root
-    return Path(__file__).resolve().parents[1]
 
-def load_config(filename: str = "config.json") -> dict:
-    env_override = os.getenv("CONFIG_PATH")
-    cfg_path = Path(env_override).expanduser().resolve() if env_override \
-               else _project_root() / "config" / filename
-
-    if not cfg_path.exists():
-        raise FileNotFoundError(f"Config file not found at: {cfg_path}")
-
-    with cfg_path.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-# main.py
-from utils.config_loader import load_config
-from token_generator.get_credentials import load_secrets  # your existing loader
-
-def main():
-    cfg = load_config()          # reads <project>/config/config.json (or CONFIG_PATH)
-    secrets = load_secrets()     # reads <project>/config/secrets.yaml (or SECRETS_PATH)
-
-    s3_path   = cfg["s3_path"]
-    file_list = cfg["file_list"]
-    # ... rest of your orchestration
-
-if __name__ == "__main__":
-    main()
-
------
-
-
-from pathlib import Path
-import yaml
-import os
-
-def _project_root() -> Path:
-    # this file is: <project>/token_generator/get_credentials.py
-    # project root is one level up from this file's folder
-    return Path(__file__).resolve().parents[1]
-
-def load_secrets(filename: str = "secrets.yaml") -> dict:
-    # allow override via env var if you ever need it
-    env_override = os.getenv("SECRETS_PATH")
-    if env_override:
-        secrets_path = Path(env_override).expanduser().resolve()
-    else:
-        secrets_path = _project_root() / "config" / filename
-
-    if not secrets_path.exists():
-        raise FileNotFoundError(f"Secrets file not found at: {secrets_path}")
-
-    with secrets_path.open("r") as f:
-        return yaml.safe_load(f) or {}
-
-from token_generator.get_credentials import load_secrets
-
-creds = load_secrets()
-client_id = creds["auth"]["client_id"]
-client_secret = creds["auth"]["client_secret"]
-
-import yaml
-import requests
-import os
-
-def load_secrets():
-    """Loads client credentials from secrets.yaml."""
-    secrets_path = os.path.join("config", "secrets.yaml")
-    with open(secrets_path, "r") as f:
-        secrets = yaml.safe_load(f)
-    return secrets["auth"]
-
-def get_token():
-    """Fetches OAuth token using client credentials."""
-    creds = load_secrets()
-    client_id = creds["client_id"]
-    client_secret = creds["client_secret"]
-    token_url = creds["token_url"]
-
-    payload = {
-        "grant_type": "client_credentials",
-        "client_id": client_id,
-        "client_secret": client_secret
-    }
-
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    response = requests.post(token_url, data=payload, headers=headers)
-    response.raise_for_status()
-
-    return response.json()["access_token"]
-
-
-
-from token_generator.get_credentials import load_secrets
-
-creds = load_secrets()
-client_id = creds["auth"]["client_id"]
-client_secret = creds["auth"]["client_secret"]
-
-
-
-
-
-def get_token():
-    """Fetches OAuth token using client credentials."""
-    creds = load_secrets()
-    client_id = creds["client_id"]
-    client_secret = creds["client_secret"]
-    token_url = creds["token_url"]
-
-    payload = {
-        "grant_type": "client_credentials",
-        "client_id": client_id,
-        "client_secret": client_secret
-    }
-
-    headers = {"Content-Type": "application/x-www-form-urlencoded"}
-    response = requests.post(token_url, data=payload, headers=headers)
-    response.raise_for_status()
-
-    return response.json()["access_token"]
-
-
-auth:
-  client_id: "your-client-id-here"
-  client_secret: "your-client-secret-here"
-  token_url: "https://api.capitalone.com/oauth/token"
-
-{
-  "s3_path": "s3://your-bucket/input/",
-  "file_list": [
-    "file1.csv",
-    "file2.csv",
-    "file3.csv",
-    "file4.csv",
-    "file5.csv",
-    "file6.csv",
-    "file7.csv",
-    "file8.csv"
-  ]
-}
-
-
-
-import json
-import os
-from datetime import datetime
-
-# Import your custom modules
-from publisher.onelake_upload import publish_file
-from validator.file_validator import validate_submission
-from report_generator.report_gen import generate_report  # optional if you create one
-
-CONFIG_PATH = os.path.join("config", "config.json")
-
-
-def load_config(config_path):
-    """Reads the config file to get S3 path and file list."""
-    with open(config_path, "r") as f:
-        config = json.load(f)
-    return config["s3_path"], config["file_list"]
-
-
-def main():
-    s3_path, file_list = load_config(CONFIG_PATH)
-
-    results = []
-
-    for file_name in file_list:
-        print(f"📤 Publishing {file_name} ...")
-
-        # Step 1: Publish API Call
-        try:
-            response = publish_file(s3_path, file_name)
-            file_submission_id = response.get("fileSubmissionId")
-
-            if not file_submission_id:
-                raise ValueError("No fileSubmissionId returned in API response")
-
-            print(f"✅ Published {file_name}, FileSubmissionID: {file_submission_id}")
-
-            # Step 2: Validate the submission
-            validation_status = validate_submission(file_submission_id)
-            print(f"🔍 Validation for {file_name}: {validation_status}")
-
-            results.append({
-                "file_name": file_name,
-                "file_submission_id": file_submission_id,
-                "validation_status": validation_status,
-                "timestamp": datetime.utcnow().isoformat()
-            })
-
-        except Exception as e:
-            print(f"❌ Failed processing {file_name}: {str(e)}")
-            results.append({
-                "file_name": file_name,
-                "file_submission_id": None,
-                "validation_status": "FAILED",
-                "error": str(e)
-            })
-
-    # Step 3: Generate final report
-    report_file = "publish_report.json"
-    with open(report_file, "w") as f:
-        json.dump(results, f, indent=2)
-
-    print(f"\n📄 Report generated: {report_file}")
-
-    # Optional: pretty console summary
-    for r in results:
-        print(f"{r['file_name']} → {r['validation_status']} (ID: {r.get('file_submission_id')})")
-
-
-if __name__ == "__main__":
-    main()
-
-
-
-import requests
-
-def publish_file(s3_path, file_name):
-    """Publishes a file and returns API JSON response."""
-    url = "https://api.capitalone.com/publish"  # example placeholder
-    payload = {"s3Path": f"{s3_path}{file_name}"}
-    headers = {"Content-Type": "application/json"}
-
-    response = requests.post(url, json=payload, headers=headers)
-    response.raise_for_status()
-    return response.json()
-
-
-
-import requests
-
-def validate_submission(file_submission_id):
-    """Checks if file submission succeeded."""
-    url = f"https://api.capitalone.com/validate/{file_submission_id}"
-    response = requests.get(url)
-    response.raise_for_status()
-    result = response.json()
-    return result.get("status", "UNKNOWN")
-
-
-
+import pytest
+from chispa import assert_df_equality
+from pyspark.sql import SparkSession
+from ecb_tenant_card_dfs_li.ecbr_generator.reportable_accounts import get_reportable_accounts
+from ecb_tenant_card_dfs_li.ecbr_calculations.create_partially_filled_dataset import create_partially_filled_dataset
+
+# Import your typed dataset schema classes
+from ecb_tenant_card_dfs_li.schemas.calculator_schema import CalculatorSchema
+from ecb_tenant_card_dfs_li.schemas.credit_bureau_account_schema import CreditBureauAccountSchema
+from ecb_tenant_card_dfs_li.schemas.reporting_override_schema import ReportingOverrideSchema
+from ecb_tenant_card_dfs_li.schemas.customer_dm_os_schema import CustomerDmOsSchema
+
+
+@pytest.fixture(scope="module")
+def spark():
+    return (
+        SparkSession.builder
+        .master("local[*]")
+        .appName("test_reportable_accounts")
+        .getOrCreate()
+    )
+
+
+def test_get_reportable_accounts_core(spark):
+    """
+    Unit test for get_reportable_accounts() using create_partially_filled_dataset() and assert_df_equality().
+    """
+
+    # --- 1️⃣ Create input datasets ---
+    calculator_df = create_partially_filled_dataset(
+        spark,
+        CalculatorSchema,
+        data=[
+            {"account_id": "A1", "account_status": "OP"},
+            {"account_id": "A2", "account_status": "DA"},
+            {"account_id": "A3", "account_status": "OP"},
+            {"account_id": "A4", "account_status": "OP"},
+            {"account_id": "A5", "account_status": "OP"},
+            {"account_id": "A6", "account_status": "DA"},
+        ],
+    )
+
+    credit_bureau_account_df = create_partially_filled_dataset(
+        spark,
+        CreditBureauAccountSchema,
+        data=[
+            {"account_id": "A3", "reporting_status": "S"},  # Suppressed by C1
+        ],
+    )
+
+    reporting_override_df = create_partially_filled_dataset(
+        spark,
+        ReportingOverrideSchema,
+        data=[
+            {"account_id": "A4", "close_date": None},  # Active override (suppressed)
+        ],
+    )
+
+    customer_dm_os_df = create_partially_filled_dataset(
+        spark,
+        CustomerDmOsSchema,
+        data=[
+            # A5 → all S (suppressed if account_status != 'DA')
+            {"account_id": "A5", "customer_id": "C1", "reporting_status": "S"},
+            {"account_id": "A5", "customer_id": "C2", "reporting_status": "S"},
+            # A6 → all S but account_status = 'DA' (NOT suppressed)
+            {"account_id": "A6", "customer_id": "C3", "reporting_status": "S"},
+            {"account_id": "A6", "customer_id": "C4", "reporting_status": "S"},
+            # A1 → mix of statuses (not all S)
+            {"account_id": "A1", "customer_id": "C5", "reporting_status": "S"},
+            {"account_id": "A1", "customer_id": "C6", "reporting_status": "A"},
+        ],
+    )
+
+    # --- 2️⃣ Run the function under test ---
+    result_df = get_reportable_accounts(
+        calculator_df=calculator_df,
+        credit_bureau_account_df=credit_bureau_account_df,
+        reporting_override_df=reporting_override_df,
+        customer_dm_os_df=customer_dm_os_df,
+    )
+
+    # --- 3️⃣ Define expected output ---
+    expected_df = create_partially_filled_dataset(
+        spark,
+        CalculatorSchema,
+        data=[
+            {"account_id": "A1", "account_status": "OP"},
+            {"account_id": "A2", "account_status": "DA"},
+            {"account_id": "A6", "account_status": "DA"},
+        ],
+    )
+
+    # --- 4️⃣ Assert equality ---
+    assert_df_equality(
+        result_df.select("account_id", "account_status").orderBy("account_id"),
+        expected_df.select("account_id", "account_status").orderBy("account_id"),
+        ignore_row_order=True,
+        ignore_nullable=True,
+    )
+
+
+def test_empty_inputs_yield_empty(spark):
+    """
+    Ensures function returns empty DataFrame when given empty inputs.
+    """
+    empty_calculator_df = create_partially_filled_dataset(
+        spark, CalculatorSchema, data=[]
+    )
+    empty_cba_df = create_partially_filled_dataset(
+        spark, CreditBureauAccountSchema, data=[]
+    )
+    empty_override_df = create_partially_filled_dataset(
+        spark, ReportingOverrideSchema, data=[]
+    )
+    empty_customer_df = create_partially_filled_dataset(
+        spark, CustomerDmOsSchema, data=[]
+    )
+
+    result_df = get_reportable_accounts(
+        calculator_df=empty_calculator_df,
+        credit_bureau_account_df=empty_cba_df,
+        reporting_override_df=empty_override_df,
+        customer_dm_os_df=empty_customer_df,
+    )
+
+    assert result_df.count() == 0
