@@ -1,4 +1,24 @@
+# add suppression flags by join, but keep all calculator rows
+joined = (
+    calculator_df.alias("calc")
+    .join(c1, F.col("calc.account_id") == F.col("c1_account_id"), "left")
+    .join(c2, F.col("calc.account_id") == F.col("c2_account_id"), "left")
+    .join(c3, F.col("calc.account_id") == F.col("c3_account_id"), "left")
+    .withColumn(
+        "is_suppressed",
+        (F.col("c1_account_id").isNotNull())
+        | (F.col("c2_account_id").isNotNull())
+        | ((F.col("c3_account_id").isNotNull()) & (F.col("account_status") != "DA"))
+    )
+)
 
+# Now filter from the ORIGINAL calculator_df to preserve duplicates
+result = calculator_df.alias("calc") \
+    .join(joined.select("calc.account_id", "is_suppressed"), on="account_id", how="left") \
+    .filter((F.col("is_suppressed") == False) | F.col("is_suppressed").isNull()) \
+    .select(*calculator_df.columns)
+
+_______________
 
 import pytest
 from chispa import assert_df_equality
