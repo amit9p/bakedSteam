@@ -1,3 +1,9 @@
+
+from datetime import date
+joined_df = joined_df.filter(
+    F.col("date_last_reported") == date(2025, 10, 1)
+)
+
 # add suppression flags by join, but keep all calculator rows
 joined = (
     calculator_df.alias("calc")
