@@ -1,3 +1,7 @@
+
+from pathlib import Path
+SETTINGS_PATH = Path(__file__).resolve().parents[2] / "ivysettings.xml"
+
 import os
 
 settings_path = os.path.join(os.path.dirname(__file__), "settings.xml")
