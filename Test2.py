@@ -1,7 +1,8 @@
 
+
 from pyspark.sql import Row
 from pyspark.sql.functions import col
-from pyspark.sql.types import TimestampType
+from pyspark.sql.types import LongType, TimestampType
 from datetime import datetime
 from chispa.dataframe_comparer import assert_df_equality
 
@@ -11,7 +12,7 @@ from ecbr_tenant_card_dfs_ll.helper_functions import create_partially_filled_dat
 
 
 def test_date_of_account_information_status_13_or_64(spark):
-    # ---------- Prepare input ----------
+    # ---------- Prepare test data ----------
     rows = [
         Row(
             account_id=1,
@@ -54,10 +55,11 @@ def test_date_of_account_information_status_13_or_64(spark):
         ECBrCalculatorOutput.date_of_account_information,
     )
 
-    # ✅ Force expected column to TimestampType
-    expected_df = expected_df.withColumn(
-        ECBrCalculatorOutput.date_of_account_information.name,
-        col(ECBrCalculatorOutput.date_of_account_information.name).cast(TimestampType())
+    # ---------- Fix schema mismatch ----------
+    expected_df = (
+        expected_df
+        .withColumn("customer_id", col("customer_id").cast(LongType()))
+        .withColumn("date_of_account_information", col("date_of_account_information").cast(TimestampType()))
     )
 
     # ---------- Compare ----------
