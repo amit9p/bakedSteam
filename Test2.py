@@ -1,192 +1,20 @@
-def get_spark_session(**kwargs):
-    # Extract params passed from main.py
-    met_clientid = kwargs.get("met_clientid")
-    met_clientsecret = kwargs.get("met_clientsecret")
-    ol_dataset_id = kwargs.get("ol_dataset_id")
-
-    # 1️⃣ Call token_generator to get AWS creds
-    aws_creds = token_generator(met_clientid, met_clientsecret, ol_dataset_id)
-
-    # 2️⃣ Extract creds from returned dict
-    aws_access_key_id = aws_creds["aws_access_key_id"]
-    aws_secret_access_key = aws_creds["aws_secret_access_key"]
-    aws_session_token = aws_creds["aws_session_token"]
-
-    # 3️⃣ Create Spark session
-    spark = (
-        SparkSession.builder
-        .appName("PySpark AWS S3 Example")
-        .config("spark.hadoop.fs.s3a.access.key", aws_access_key_id)
-        .config("spark.hadoop.fs.s3a.secret.key", aws_secret_access_key)
-        .config("spark.hadoop.fs.s3a.session.token", aws_session_token)
-        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-        .config("spark.hadoop.fs.s3a.path.style.access", True)
-        .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com")
-        .config("spark.jars.ivySettings", SPARK_JARS_IVYSETTINGS)
-        .config("spark.jars.packages", SPARK_JARS_PACKAGES)
-        .getOrCreate()
-    )
-
-    return spark
 
 
-from dfs_data_publisher.main import get_spark_session
+{
+  "env": "dev",
+  "log_level": "INFO",
 
-if __name__ == "__main__":
-    spark = get_spark_session(
-        met_clientid="your_client_id_here",
-        met_clientsecret="your_client_secret_here",
-        ol_dataset_id="your_dataset_id_here"
-    )
-
-    # Optional: verify session
-    print("Spark Session created successfully ✅")
-    print(spark)
-
-
-----
-def token_generator(...)-> dict[str, str]:
-    ...
-    aws_access_key_id = AccessKeyId
-    aws_secret_access_key = SecretAccessKey
-    aws_session_token = SessionToken
-
-    # return as key–value pairs
-    return {
-        "aws_access_key_id": aws_access_key_id,
-        "aws_secret_access_key": aws_secret_access_key,
-        "aws_session_token": aws_session_token,
+  "datasets": {
+    "1": {
+      "name": "account_service_account_os",
+      "s3_path": "s3://bucket/path/account_service_account_os/",
+      "catalog_id": "7d2981d5-4a5a-49f7-a937-8f18f5ad0a44"
+    },
+    "2": {
+      "name": "credit_bureau_reporting_card_cl",
+      "s3_path": "s3://bucket/path/credit_bureau_reporting_card_cl/",
+      "catalog_id": "45d27c2e-3b44-4b08-9a2d-b9500a092d68"
     }
-
-
-from pathlib import Path
-SETTINGS_PATH = Path(__file__).resolve().parents[2] / "ivysettings.xml"
-
-import os
-
-settings_path = os.path.join(os.path.dirname(__file__), "settings.xml")
-print(settings_path)
-
-
-
-from datetime import date
-joined_df = joined_df.filter(
-    F.col("date_last_reported") == date(2025, 10, 1)
-)
-
-# add suppression flags by join, but keep all calculator rows
-joined = (
-    calculator_df.alias("calc")
-    .join(c1, F.col("calc.account_id") == F.col("c1_account_id"), "left")
-    .join(c2, F.col("calc.account_id") == F.col("c2_account_id"), "left")
-    .join(c3, F.col("calc.account_id") == F.col("c3_account_id"), "left")
-    .withColumn(
-        "is_suppressed",
-        (F.col("c1_account_id").isNotNull())
-        | (F.col("c2_account_id").isNotNull())
-        | ((F.col("c3_account_id").isNotNull()) & (F.col("account_status") != "DA"))
-    )
-)
-
-# Now filter from the ORIGINAL calculator_df to preserve duplicates
-result = calculator_df.alias("calc") \
-    .join(joined.select("calc.account_id", "is_suppressed"), on="account_id", how="left") \
-    .filter((F.col("is_suppressed") == False) | F.col("is_suppressed").isNull()) \
-    .select(*calculator_df.columns)
-
-_______________
-
-import pytest
-from chispa import assert_df_equality
-from pyspark.sql import SparkSession
-from ecb_tenant_card_dfs_li.ecbr_generator.reportable_accounts import get_reportable_accounts
-from ecb_tenant_card_dfs_li.ecbr_calculations.create_partially_filled_dataset import create_partially_filled_dataset
-
-# typed schemas
-from ecb_tenant_card_dfs_li.schemas.calculator_schema import CalculatorSchema
-from ecb_tenant_card_dfs_li.schemas.credit_bureau_account_schema import CreditBureauAccountSchema
-from ecb_tenant_card_dfs_li.schemas.reporting_override_schema import ReportingOverrideSchema
-from ecb_tenant_card_dfs_li.schemas.customer_dm_os_schema import CustomerDmOsSchema
-
-
-@pytest.fixture(scope="module")
-def spark():
-    return (SparkSession.builder.master("local[*]")
-            .appName("test_reportable_accounts_negative")
-            .getOrCreate())
-
-
-def test_get_reportable_accounts_negative_suppressed_removed(spark):
-    """
-    Negative test:
-      - id=10 -> C3 triggers (ALL customers 'S') AND account_status != 'DA'  -> suppressed
-      - id=11 -> C1 triggers (reporting_status='S' in credit_bureau_account)  -> suppressed
-      - id=12 -> C2 triggers (active override close_date IS NULL)             -> suppressed
-      - id=13 -> ALL customers 'S' but account_status='DA'  -> NOT suppressed (C3 exempt)
-      - id=14 -> mix customers (not all 'S'), no C1/C2      -> NOT suppressed
-    Expect only ids 13 and 14 in the output.
-    """
-
-    calculator_df = create_partially_filled_dataset(
-        spark, CalculatorSchema, data=[
-            {"account_id": 10, "account_status": "OP"},
-            {"account_id": 11, "account_status": "OP"},
-            {"account_id": 12, "account_status": "OP"},
-            {"account_id": 13, "account_status": "DA"},
-            {"account_id": 14, "account_status": "OP"},
-        ],
-    )
-
-    credit_bureau_account_df = create_partially_filled_dataset(
-        spark, CreditBureauAccountSchema, data=[
-            {"account_id": 11, "reporting_status": "S"},  # C1
-        ],
-    )
-
-    reporting_override_df = create_partially_filled_dataset(
-        spark, ReportingOverrideSchema, data=[
-            {"account_id": 12, "close_date": None},       # C2
-        ],
-    )
-
-    customer_dm_os_df = create_partially_filled_dataset(
-        spark, CustomerDmOsSchema, data=[
-            # C3: ALL S for id=10  -> suppressed (since calc != 'DA')
-            {"account_id": 10, "customer_id": 1, "reporting_status": "S"},
-            {"account_id": 10, "customer_id": 2, "reporting_status": "S"},
-
-            # id=13 -> ALL S but calc='DA' -> NOT suppressed by C3
-            {"account_id": 13, "customer_id": 3, "reporting_status": "S"},
-            {"account_id": 13, "customer_id": 4, "reporting_status": "S"},
-
-            # id=14 -> NOT all S (so C3 false)
-            {"account_id": 14, "customer_id": 5, "reporting_status": "S"},
-            {"account_id": 14, "customer_id": 6, "reporting_status": "A"},
-        ],
-    )
-
-    out_df = get_reportable_accounts(
-        calculator_df=calculator_df,
-        credit_bureau_account_df=credit_bureau_account_df,
-        reporting_override_df=reporting_override_df,
-        customer_dm_os_df=customer_dm_os_df,
-    )
-
-    # Expected: only ids 13 (DA) and 14 (OP) remain
-    expected_df = create_partially_filled_dataset(
-        spark, CalculatorSchema, data=[
-            {"account_id": 13, "account_status": "DA"},
-            {"account_id": 14, "account_status": "OP"},
-        ],
-    )
-
-    # Strong negative assertions (suppressed ids must be absent)
-    assert out_df.filter("account_id IN (10,11,12)").count() == 0
-
-    # Equality on survivors
-    assert_df_equality(
-        out_df.select("account_id", "account_status").orderBy("account_id"),
-        expected_df.select("account_id", "account_status").orderBy("account_id"),
-        ignore_row_order=True,
-        ignore_nullable=True,
-    )
+    // add the rest...
+  }
+}
