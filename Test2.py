@@ -1,3 +1,60 @@
+
+
+import yaml
+from pathlib import Path
+
+# -------------------------------------------------------------------
+# 📝 USER INPUT SECTION
+# Provide the dataset number below (choose 1–11)
+# 1 → account_service_account_os
+# 2 → credit_bureau_reporting_card_cl
+# 3 → loan_application_ls
+# etc.
+# -------------------------------------------------------------------
+
+dataset_number = 1  # 👈 user changes this number only
+
+# -------------------------------------------------------------------
+# Load dataset config
+# -------------------------------------------------------------------
+def load_dataset_config(dataset_number: int):
+    config_path = Path(__file__).resolve().parent / "config.yaml"
+
+    with open(config_path, "r") as f:
+        config = yaml.safe_load(f)
+
+    datasets = config.get("datasets", {})
+    dataset_info = datasets.get(dataset_number)
+
+    if not dataset_info:
+        raise ValueError(f"❌ Invalid dataset number: {dataset_number}")
+
+    print(f"✅ Selected Dataset: {dataset_info['name']}")
+    print(f"📦 S3 Path: {dataset_info['s3_path']}")
+    print(f"🪣 Catalog ID: {dataset_info['catalog_id']}")
+    return dataset_info
+
+
+if __name__ == "__main__":
+    dataset = load_dataset_config(dataset_number)
+
+    # Example of how you can use it:
+    s3_path = dataset["s3_path"]
+    catalog_id = dataset["catalog_id"]
+    name = dataset["name"]
+
+    # Here you can call your list_objects or spark job
+    print(f"Now listing objects under: {s3_path}")
+    # get_ol_object_list(sparkContext, s3_path, hconf)
+
+
+
+
+
+
+
+-----
+
 datasets:
   1:
     name: account_service_account_os
