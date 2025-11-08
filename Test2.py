@@ -1,3 +1,9 @@
+import os
+
+settings_path = os.path.join(os.path.dirname(__file__), "settings.xml")
+print(settings_path)
+
+
 
 from datetime import date
 joined_df = joined_df.filter(
