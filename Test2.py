@@ -1,4 +1,18 @@
 
+def token_generator(...)-> dict[str, str]:
+    ...
+    aws_access_key_id = AccessKeyId
+    aws_secret_access_key = SecretAccessKey
+    aws_session_token = SessionToken
+
+    # return as key–value pairs
+    return {
+        "aws_access_key_id": aws_access_key_id,
+        "aws_secret_access_key": aws_secret_access_key,
+        "aws_session_token": aws_session_token,
+    }
+
+
 from pathlib import Path
 SETTINGS_PATH = Path(__file__).resolve().parents[2] / "ivysettings.xml"
 
