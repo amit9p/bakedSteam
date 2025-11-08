@@ -1,4 +1,50 @@
+def get_spark_session(**kwargs):
+    # Extract params passed from main.py
+    met_clientid = kwargs.get("met_clientid")
+    met_clientsecret = kwargs.get("met_clientsecret")
+    ol_dataset_id = kwargs.get("ol_dataset_id")
 
+    # 1️⃣ Call token_generator to get AWS creds
+    aws_creds = token_generator(met_clientid, met_clientsecret, ol_dataset_id)
+
+    # 2️⃣ Extract creds from returned dict
+    aws_access_key_id = aws_creds["aws_access_key_id"]
+    aws_secret_access_key = aws_creds["aws_secret_access_key"]
+    aws_session_token = aws_creds["aws_session_token"]
+
+    # 3️⃣ Create Spark session
+    spark = (
+        SparkSession.builder
+        .appName("PySpark AWS S3 Example")
+        .config("spark.hadoop.fs.s3a.access.key", aws_access_key_id)
+        .config("spark.hadoop.fs.s3a.secret.key", aws_secret_access_key)
+        .config("spark.hadoop.fs.s3a.session.token", aws_session_token)
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .config("spark.hadoop.fs.s3a.path.style.access", True)
+        .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com")
+        .config("spark.jars.ivySettings", SPARK_JARS_IVYSETTINGS)
+        .config("spark.jars.packages", SPARK_JARS_PACKAGES)
+        .getOrCreate()
+    )
+
+    return spark
+
+
+from dfs_data_publisher.main import get_spark_session
+
+if __name__ == "__main__":
+    spark = get_spark_session(
+        met_clientid="your_client_id_here",
+        met_clientsecret="your_client_secret_here",
+        ol_dataset_id="your_dataset_id_here"
+    )
+
+    # Optional: verify session
+    print("Spark Session created successfully ✅")
+    print(spark)
+
+
+----
 def token_generator(...)-> dict[str, str]:
     ...
     aws_access_key_id = AccessKeyId
