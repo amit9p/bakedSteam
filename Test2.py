@@ -1,4 +1,8 @@
 
+input_df.withColumn("is_13_or_64", account_status_13_or_64) \
+    .select("credit_bureau_account_status", "is_13_or_64") \
+    .show(truncate=False)
+
 
 from datetime import datetime, date
 from chispa.dataframe_comparer import assert_df_equality
