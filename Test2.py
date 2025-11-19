@@ -1,4 +1,17 @@
 
+
+from pyspark.sql import functions as F
+
+df_updated = df_input.withColumn("account_id", F.lit("1234"))
+
+(
+    df_updated
+    .coalesce(1)                         # only 1 output file
+    .write
+    .mode("overwrite")
+    .parquet("file:///tmp/output_parquet")
+)
+
 from pyspark.sql import functions as F
 
 # df_input has a column "account_id"
