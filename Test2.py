@@ -1,4 +1,4 @@
-
+"Access is required to read Omega input datasets used by the DFSL1 Card Data Ingest pipeline. This access is needed to validate source data, perform development and testing activities, and ensure accurate processing of reportable, consolidator, and calculator account datasets for the DFSL1 workflow."
 
 Hi
 Our file puller for the joiner_output dataset failed because the output now includes the customer_id field, but the current Exchange registration doesn’t list it.
