@@ -1,5 +1,28 @@
-This dataset contains credit information for secondary account holders from Discover charged-off accounts. The data originates from Omega and includes Enterprise Credit Bureau Reporting Consolidator output J2 segment elements, which serve as inputs to the Enterprise Credit Bureau Reporting Calculator. The primary users of this dataset are Credit Bureau Reporting data analysts, and it supports processing within the Enterprise Credit Bureau Reporting Calculator component.
 
+#!/bin/bash
 
+echo "Cleaning RAM..."
+sudo purge
 
-This dataset contains credit information for primary account holders with Discover charged-off accounts. The data originates from Omega and includes output elements from the Enterprise Credit Bureau Reporting Consolidator. These elements serve as inputs to the Enterprise Credit Bureau Reporting Calculator. The intended users of this dataset are Credit Bureau Reporting data analysts, and the dataset is utilized within the Enterprise Credit Bureau Reporting calculator component.
+echo "Cleaning DNS cache..."
+sudo dscacheutil -flushcache
+sudo killall -HUP mDNSResponder
+
+echo "Cleaning user cache..."
+rm -rf ~/Library/Caches/*
+
+echo "Cleaning system logs..."
+sudo rm -rf /private/var/log/*
+sudo rm -rf /Library/Logs/*
+
+echo "Cleaning old iOS backups..."
+rm -rf ~/Library/Application\ Support/MobileSync/Backup/*
+
+echo "Cleaning trash..."
+rm -rf ~/.Trash/*
+
+echo "Cleaning temp folders..."
+sudo rm -rf /private/var/tmp/*
+sudo rm -rf /private/var/folders/*
+
+echo "Done! Restart your Mac for best results."
