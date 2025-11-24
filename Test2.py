@@ -1,28 +1,2 @@
 
-#!/bin/bash
-
-echo "Cleaning RAM..."
-sudo purge
-
-echo "Cleaning DNS cache..."
-sudo dscacheutil -flushcache
-sudo killall -HUP mDNSResponder
-
-echo "Cleaning user cache..."
-rm -rf ~/Library/Caches/*
-
-echo "Cleaning system logs..."
-sudo rm -rf /private/var/log/*
-sudo rm -rf /Library/Logs/*
-
-echo "Cleaning old iOS backups..."
-rm -rf ~/Library/Application\ Support/MobileSync/Backup/*
-
-echo "Cleaning trash..."
-rm -rf ~/.Trash/*
-
-echo "Cleaning temp folders..."
-sudo rm -rf /private/var/tmp/*
-sudo rm -rf /private/var/folders/*
-
-echo "Done! Restart your Mac for best results."
+The Formatted Fields dataset contains US Card Capital One customer account-level data that has been processed through eCBR and structured according to the Credit Reporting Resource Guide (CRRG) standards. The dataset presents information in an attribute-value format, enabling downstream systems to consume a consistent set of fields across multiple credit reporting formats such as Metro2, SBFE, EWS, and CSV.
