@@ -1,6 +1,5 @@
 
 
+This dataset provides calculated account-level details along with the associated primary customer for U.S. Card accounts. The data is produced by the Enterprise Credit Bureau Reporting (eCBR) pipeline, where raw customer and account data from U.S. Card systems of record is processed, standardized, and transformed according to the Credit Reporting Resource Guide (CRRG) requirements. It applies configured Line-of-Business logic and suppression rules to determine which accounts should be delivered to the credit reporting agencies.
 
-The Calculated Accounts–Primary Customer dataset provides a summary of each account along with the associated primary customer information. It includes Capital One U.S. Card customer account-level data that has been processed through eCBR and structured according to the Credit Reporting Resource Guide (CRRG) standards. The dataset applies Line-of-Business (LOB) configured conditions and suppression logic to determine reportable records for delivery to the credit reporting agencies.
-
-It presents information in an attribute-value format so downstream teams can consume a consistent set of calculated fields across multiple reporting formats, such as Metro2, SBFE, EWS, and CSV. Each record represents one account and its linked primary customer details needed for bureau reporting.
+The dataset is structured in an attribute-value format so downstream teams can consume a consistent set of calculated fields across reporting formats such as Metro2, SBFE, EWS, and CSV. Source: The data originates from U.S. Card operational systems, is processed through eCBR transformation jobs, and is generated as part of the bureau reporting preparation workflow.
