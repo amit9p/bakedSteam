@@ -1,2 +1,3 @@
 
-The calculated accounts base segment summary provides a consolidated view of each charged-off account that is used for Metro2 segment processing. It applies all LOB-configured business rules, suppression logic, and eligibility conditions required before sending data to the credit reporting agencies. The dataset is generated from Omega recoveries data and contains one validated and curated record per account for downstream Metro2 segment calculations.
+
+This field stores the country code for the primary borrower’s mailing address. Values follow the two-letter International Organization for Standardization (ISO) country code standard (for example, US = United States, CA = Canada).
