@@ -1,3 +1,8 @@
 
+Add more rows in this same test where each of the other fields is None (one at a time) to prove that any of them will null out ECOA. E.g.:
 
-This field stores the country code for the primary borrower’s mailing address. Values follow the two-letter International Organization for Standardization (ISO) country code standard (for example, US = United States, CA = Canada).
+row with is_account_holder_deceased = None
+
+row with is_customer_incorrectly_marked_deceased = None
+
+row with has_financial_liability = None
