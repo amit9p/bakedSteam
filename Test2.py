@@ -1,38 +1,13 @@
 
-incidents_df = create_partially_filled_dataset(
-    spark,
-    IncidentService,
-    data=[
-        # 1–10 : FRAUD + IN_PROGRESS  -> TRUE
-        *[
-            {
-                IncidentService.account_id: str(i),
-                IncidentService.incident_type: constants.IncidentType.FRAUD.value,
-                IncidentService.incident_status: constants.IncidentStatus.IN_PROGRESS.value,
-            }
-            for i in range(1, 11)
-        ],
 
-        # 11–20 : FRAUD + RESOLVED -> FALSE
-        *[
-            {
-                IncidentService.account_id: str(i),
-                IncidentService.incident_type: constants.IncidentType.FRAUD.value,
-                IncidentService.incident_status: constants.IncidentStatus.RESOLVED.value,
-            }
-            for i in range(11, 21)
-        ],
+fraud_flag_df = fraud_claimed_flag(incidents_df) \
+    .withColumnRenamed("is_fraud_claimed_on_account", "fraud_claimed_flag")
 
-        # 21–30 : NON-FRAUD -> FALSE
-        *[
-            {
-                IncidentService.account_id: str(i),
-                IncidentService.incident_type: constants.IncidentType.DISPUTE.value,
-                IncidentService.incident_status: constants.IncidentStatus.IN_PROGRESS.value,
-            }
-            for i in range(21, 31)
-        ],
+joined_df = joined_df.join(fraud_flag_df, on=BaseSegment.account_id.str, how="left")
 
-        # 31–39 : intentionally no rows → defaults to FALSE
-    ]
+joined_df = joined_df.fillna({"fraud_claimed_flag": False})
+
+fraud_investigation_notification_true = (
+    col("fraud_claimed_flag").cast("boolean") == True
 )
+
