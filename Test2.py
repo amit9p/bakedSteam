@@ -1,5 +1,5 @@
 
-_______def test_is_fraud_claimed_on_account_helper(spark):
+def test_is_fraud_claimed_on_account_helper(spark):
     # Input incidents: 2 accounts
     # - acct 21 has FRAUD + IN_PROGRESS => should be True
     # - acct 22 has FRAUD + RESOLVED    => should be False
