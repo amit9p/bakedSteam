@@ -1,4 +1,9 @@
 
+fraud_investigation_notification_true = (
+    col("is_fraud_claimed_on_account").cast("boolean") == True
+)
+
+____
 
 # Fraud claimed flag from incidents
 fraud_claimed_df = (
