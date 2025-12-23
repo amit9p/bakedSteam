@@ -1,5 +1,21 @@
 
 
+# Fraud claimed flag from incidents
+fraud_claimed_df = (
+    fraud_claimed_flag(incidents_df)
+    .select(
+        col("account_id").alias(BaseSegment.account_id.str),
+        col("is_fraud_claimed_on_account"),
+    )
+)
+
+joined_df = (
+    joined_df
+    .join(fraud_claimed_df, on=BaseSegment.account_id.str, how="left")
+    .fillna({"is_fraud_claimed_on_account": False})
+)
+
+
 from enum import Enum
 
 
