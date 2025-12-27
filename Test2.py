@@ -1,3 +1,7 @@
+behave tests/ecbr_calculations/features -n "Process calculate_payment_rating from parquet file" -f plain --no-capture
+
+
+
 behave -f plain --no-capture --no-capture-stderr -v tests/ecbr_calculations/features/consumer_features/base.feature -n "Process calculate_payment_rating from parquet file"
 
 
