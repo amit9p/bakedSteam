@@ -1,3 +1,9 @@
+from behave import given
+
+@given(r"the user data is available in the following datasets:?")
+
+
+
 behave tests/ecbr_calculations/features -n "Process calculate_payment_rating from parquet file" -f plain --no-capture
 
 
