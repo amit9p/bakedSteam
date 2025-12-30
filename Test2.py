@@ -1,3 +1,62 @@
+
+def fraud_investigation_notification(incidents_df: DataFrame) -> DataFrame:
+    fraud_row = (
+        lower(trim(col(IncidentService.incident_type))) == constants.IncidentType.FRAUD.value.lower()
+    ) & (
+        lower(trim(col(IncidentService.incident_status))).isin(
+            constants.IncidentStatus.REOPENED.value.lower(),
+            constants.IncidentStatus.REFERRED.value.lower(),
+            constants.IncidentStatus.IN_PROGRESS.value.lower(),
+        )
+    )
+
+    return (
+        incidents_df
+        .select(
+            col(IncidentService.account_id).alias(BaseSegment.account_id_str),
+            when(fraud_row, lit(True)).otherwise(lit(False)).alias(
+                ECBRGeneratedFields.is_identity_fraud_claimed_on_account
+            ),
+        )
+        .groupBy(BaseSegment.account_id_str)
+        .agg(
+            spark_max(ECBRGeneratedFields.is_identity_fraud_claimed_on_account).alias(
+                ECBRGeneratedFields.is_identity_fraud_claimed_on_account
+            )
+        )
+    )
+
+
+
+
+if incidents_df is None:
+    fraud_flag_df = account_df.select(BaseSegment.account_id_str).withColumn(
+        ECBRGeneratedFields.is_identity_fraud_claimed_on_account,
+        F.lit(False),
+    )
+else:
+    fraud_flag_df = fraud_investigation_notification(incidents_df)
+
+
+
+
+joined_df = joined_df.join(fraud_flag_df, on=BaseSegment.account_id_str, how="left")
+
+joined_df = joined_df.fillna(
+    {ECBRGeneratedFields.is_identity_fraud_claimed_on_account: False}
+)
+
+
+
+fraud_investigation_notification_true = (
+    col(ECBRGeneratedFields.is_identity_fraud_claimed_on_account).cast("boolean") == True
+)
+
+
+
+
+--------------××××---------------
+
 from behave import given
 
 @given(r"the user data is available in the following datasets:?")
