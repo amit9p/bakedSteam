@@ -1,3 +1,5 @@
+
+self.assertEqual(error_count, 0)
 common.logger.info.assert_any_call(
     "Detokenization validation passed: No ERROR strings found in formatted column"
 )
