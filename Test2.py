@@ -1,3 +1,16 @@
+optional_args["output_filetype"] = "ALL"
+
+req_args["enable_detokenization"] = True
+optional_args["output_filetype"] = "ALL"
+
+common_utils_instance.get_args_for_job.return_value = (
+    req_args,
+    optional_args
+)
+
+
+
+
 
 mock_validate_detokenized_df.return_value = 0
 
