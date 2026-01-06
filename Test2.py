@@ -1,3 +1,7 @@
+
+mock_validate_detokenized_df.return_value = 0
+
+
 mock_validate_detokenized_df.return_value = error_count
 
 mock_metrics_instance.set_detokenization_error_count.assert_called_once_with(error_count)
