@@ -1,3 +1,10 @@
+common.logger.info.assert_any_call(
+    "Detokenization validation passed: No ERROR strings found in formatted column"
+)
+
+common.logger.error.assert_not_called()
+common.logger.warning.assert_not_called()
+
 
 common.logger.info.assert_any_call(
     "Detokenization validation passed: No ERROR strings found in formatted column"
