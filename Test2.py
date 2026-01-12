@@ -1,3 +1,36 @@
+cond 6
+
+.when(
+    (
+        lower(col(CustomerInformation.bankruptcy_court_case_status_code.str))
+        == constants.BankruptcyStatus.OPEN.value
+    )
+    & (
+        col(CustomerInformation.bankruptcy_chapter_number.str).isin(
+            constants.BankruptcyChapter.TWELVE.value,
+            constants.BankruptcyChapter.THIRTEEN.value,
+        )
+    ),
+    value=0,
+)
+
+---
+
+cond 8
+
+.when(
+    lower(col(CCAccount.reactivation_status.str))
+    == constants.ReactivationNotification.REACTIVATED.value.lower(),
+    value=0,
+)
+
+  cond 5
+
+  .when(
+    col(CCAccount.posted_balance.str) < 0,
+    value=0,
+  )
+
 
 shakuntala.padmanabhuni valid point — the logic does exist today in the calculator.
 The reason for moving it to the consolidator is that this is really an account-level classification (closed_by_consumer vs closed_by_grantor), not something specific to special comment code.
