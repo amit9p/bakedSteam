@@ -1,4 +1,13 @@
 
+shakuntala.padmanabhuni valid point — the logic does exist today in the calculator.
+The reason for moving it to the consolidator is that this is really an account-level classification (closed_by_consumer vs closed_by_grantor), not something specific to special comment code.
+Centralizing it in consolidator lets us derive it once and reuse it across calculators, instead of duplicating the same logic in multiple places. Calculators can then just consume the derived output.
+If you want it even shorter, use this:
+This logic exists today, but we’re moving it to consolidator since it’s an account-level classification meant to be derived once and reused, rather than recalculated inside each calculator.
+Tell me if you want a more assertive or more neutral tone.
+
+
+
 Hi @KabanerTeamLead,
 As part of the SCC calculation, we identified an upstream requirement to roll up Account Closure Reason into a derived status (closed_by_consumer / closed_by_grantor).
 Per the spec, this roll-up is expected to be handled by the Card consolidator, with the calculator consuming only the derived value.
