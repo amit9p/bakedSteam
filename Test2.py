@@ -1,3 +1,45 @@
+
+# Build the rules first (they don't need BK/Reactivation to be non-null)
+current_balance_expr = (
+    when(
+        (col(CCAccount.is_account_paid_in_full.str) == True) |
+        (col(CCAccount.settled_in_full_notification.str) == True) |
+        (col(CCAccount.pre_charge_off_settled_in_full_notification.str) == True) |
+        (col(Recoveries.is_debt_sold.str) == True) |
+        (col(CCAccount.posted_balance.str) < 0),
+        lit(0),
+    )
+    .when(
+        (lower(col(CustomerInformation.bankruptcy_court_case_status_code.str)) == constants.BankruptcyStatus.OPEN.value) &
+        (col(CustomerInformation.bankruptcy_chapter_number.str).isin(
+            constants.BankruptcyChapter.TWELVE.value,
+            constants.BankruptcyChapter.THIRTEEN.value,
+        )),
+        lit(0),
+    )
+    .when(
+        lower(col(CustomerInformation.bankruptcy_court_case_status_code.str)) == constants.BankruptcyStatus.DISCHARGED.value,
+        lit(0),
+    )
+    .when(
+        lower(col(CCAccount.reactivation_status.str)) == constants.ReactivationNotification.REACTIVATED.value.lower(),
+        lit(0),
+    )
+    .otherwise(
+        when(
+            col(CCAccount.posted_balance.str).isNull() |
+            col(CCAccount.reported_1099_amount.str).isNull(),
+            lit(constants.DEFAULT_ERROR_INTEGER),
+        ).otherwise(
+            (col(CCAccount.posted_balance.str) - col(CCAccount.reported_1099_amount.str)).cast("int")
+        )
+    )
+)
+
+calculated_df = calculated_df.withColumn(BaseSegment.current_balance_amount.str, current_balance_expr)
+
+
+
 # 10) Rule 1: PIF Notification = true -> should ZERO
 {
     CCAccount.account_id: "A_PIF",
