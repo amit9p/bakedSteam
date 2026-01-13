@@ -1,222 +1,147 @@
+# 10) Rule 1: PIF Notification = true -> should ZERO
+{
+    CCAccount.account_id: "A_PIF",
+    CCAccount.is_account_paid_in_full: True,     # Rule 1
+    CCAccount.settled_in_full_notification: False,
+    CCAccount.pre_charge_off_settled_in_full_notification: False,
+    CCAccount.posted_balance: 999,
+    CCAccount.reported_1099_amount: 100,
+    CCAccount.reactivation_status: None,
+    CCAccount.is_debt_sold: False,
+},
+
+# 11) Rule 2: Pre-CO SIF Notification = true -> should ZERO
+{
+    CCAccount.account_id: "A_PRECO_SIF",
+    CCAccount.is_account_paid_in_full: False,
+    CCAccount.settled_in_full_notification: True,  # Rule 2
+    CCAccount.pre_charge_off_settled_in_full_notification: False,
+    CCAccount.posted_balance: 888,
+    CCAccount.reported_1099_amount: 10,
+    CCAccount.reactivation_status: None,
+    CCAccount.is_debt_sold: False,
+},
+
+# 12) Rule 3: Post-CO SIF Notification = true -> should ZERO
+{
+    CCAccount.account_id: "A_POSTCO_SIF",
+    CCAccount.is_account_paid_in_full: False,
+    CCAccount.settled_in_full_notification: False,
+    CCAccount.pre_charge_off_settled_in_full_notification: True,  # Rule 3
+    CCAccount.posted_balance: 777,
+    CCAccount.reported_1099_amount: 20,
+    CCAccount.reactivation_status: None,
+    CCAccount.is_debt_sold: False,
+},
+
+# 13) Rule 4: Asset Sales Notification = true -> should ZERO
+# (In your code this is represented by CCAccount.is_debt_sold)
+{
+    CCAccount.account_id: "A_ASSET_SALE",
+    CCAccount.is_account_paid_in_full: False,
+    CCAccount.settled_in_full_notification: False,
+    CCAccount.pre_charge_off_settled_in_full_notification: False,
+    CCAccount.posted_balance: 666,
+    CCAccount.reported_1099_amount: 30,
+    CCAccount.reactivation_status: None,
+    CCAccount.is_debt_sold: True,   # Rule 4
+},
+
+# 14) Rule 9: ELSE -> posted_balance - reported_1099_amount (should be NON-ZERO)
+{
+    CCAccount.account_id: "A_ELSE",
+    CCAccount.is_account_paid_in_full: False,
+    CCAccount.settled_in_full_notification: False,
+    CCAccount.pre_charge_off_settled_in_full_notification: False,
+    CCAccount.posted_balance: 1200,
+    CCAccount.reported_1099_amount: 200,
+    CCAccount.reactivation_status: None,
+    CCAccount.is_debt_sold: False,
+},
+
+# 15) OPEN but chapter NOT 12/13 -> should go ELSE (rule 9), not rule 6
+{
+    CCAccount.account_id: "A_OPEN_11",
+    CCAccount.is_account_paid_in_full: False,
+    CCAccount.settled_in_full_notification: False,
+    CCAccount.pre_charge_off_settled_in_full_notification: False,
+    CCAccount.posted_balance: 900,
+    CCAccount.reported_1099_amount: 100,
+    CCAccount.reactivation_status: None,
+    CCAccount.is_debt_sold: False,
+},
+
+# 16) NULL guard -> should DEFAULT_ERROR_INTEGER
+# (Pick one “required” input and set it to None; earlier you used is_debt_sold: None)
+{
+    CCAccount.account_id: "A_NULL_GUARD",
+    CCAccount.is_account_paid_in_full: False,
+    CCAccount.settled_in_full_notification: False,
+    CCAccount.pre_charge_off_settled_in_full_notification: False,
+    CCAccount.posted_balance: 500,
+    CCAccount.reported_1099_amount: 50,
+    CCAccount.reactivation_status: None,
+    CCAccount.is_debt_sold: None,  # triggers null-guard in your logic
+},
+
+{ Recoveries.account_id: "A_PIF" },
+{ Recoveries.account_id: "A_PRECO_SIF" },
+{ Recoveries.account_id: "A_POSTCO_SIF" },
+{ Recoveries.account_id: "A_ASSET_SALE" },
+{ Recoveries.account_id: "A_ELSE" },
+{ Recoveries.account_id: "A_OPEN_11" },
+{ Recoveries.account_id: "A_NULL_GUARD" },
 
 
 
-# ---------------------------
-# CC_ACCOUNT (covers reactivation values + base fields)
-# ---------------------------
-cc_account_data = [
-    # 1) Negative balance -> should ZERO (rule 5)
-    {
-        CCAccount.account_id: "A_NEG",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: -10,
-        CCAccount.reported_1099_amount: 999,
-        CCAccount.reactivation_status: None,
-        CCAccount.is_debt_sold: False,
-    },
 
-    # 2) Reactivation Notification = Reactivated (Confluence case) -> should ZERO (rule 8)
-    {
-        CCAccount.account_id: "A_REACT_TITLE",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: 600,
-        CCAccount.reported_1099_amount: 50,
-        CCAccount.reactivation_status: "Reactivated",   # <-- matches Confluence UI value
-        CCAccount.is_debt_sold: False,
-    },
+# Not bankruptcy-driven cases
+{
+    CustomerInformation.account_id: "A_PIF",
+    CustomerInformation.bankruptcy_court_case_status_code: None,
+    CustomerInformation.bankruptcy_chapter_number: None,
+},
+{
+    CustomerInformation.account_id: "A_PRECO_SIF",
+    CustomerInformation.bankruptcy_court_case_status_code: None,
+    CustomerInformation.bankruptcy_chapter_number: None,
+},
+{
+    CustomerInformation.account_id: "A_POSTCO_SIF",
+    CustomerInformation.bankruptcy_court_case_status_code: None,
+    CustomerInformation.bankruptcy_chapter_number: None,
+},
+{
+    CustomerInformation.account_id: "A_ASSET_SALE",
+    CustomerInformation.bankruptcy_court_case_status_code: None,
+    CustomerInformation.bankruptcy_chapter_number: None,
+},
 
-    # 3) Reactivation Notification = reactivated (normalized) -> should ZERO (rule 8)
-    {
-        CCAccount.account_id: "A_REACT_LOWER",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: 650,
-        CCAccount.reported_1099_amount: 20,
-        CCAccount.reactivation_status: constants.ReactivationNotification.REACTIVATED.value,  # "reactivated"
-        CCAccount.is_debt_sold: False,
-    },
+# ELSE case: choose any allowed status that doesn't zero out (CLOSED is fine)
+{
+    CustomerInformation.account_id: "A_ELSE",
+    CustomerInformation.bankruptcy_court_case_status_code: "CLOSED",
+    CustomerInformation.bankruptcy_chapter_number: "07",
+},
 
-    # 4) Reactivation Notification = Reactivation Declined -> should go ELSE (not zeroed by rule 8)
-    {
-        CCAccount.account_id: "A_REACT_DECLINED",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: 1000,
-        CCAccount.reported_1099_amount: 100,
-        CCAccount.reactivation_status: "Reactivation Declined",
-        CCAccount.is_debt_sold: False,
-    },
+# OPEN but chapter 11 -> should NOT hit rule 6
+{
+    CustomerInformation.account_id: "A_OPEN_11",
+    CustomerInformation.bankruptcy_court_case_status_code: "OPEN",
+    CustomerInformation.bankruptcy_chapter_number: "11",
+},
 
-    # 5) Bankruptcy OPEN + Chapter 12 -> should ZERO (rule 6)
-    {
-        CCAccount.account_id: "A_OPEN_12",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: 500,
-        CCAccount.reported_1099_amount: 10,
-        CCAccount.reactivation_status: None,
-        CCAccount.is_debt_sold: False,
-    },
-
-    # 6) Bankruptcy OPEN + Chapter 13 -> should ZERO (rule 6)
-    {
-        CCAccount.account_id: "A_OPEN_13",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: 700,
-        CCAccount.reported_1099_amount: 15,
-        CCAccount.reactivation_status: None,
-        CCAccount.is_debt_sold: False,
-    },
-
-    # 7) Bankruptcy DISCHARGED -> should ZERO (rule 7)
-    {
-        CCAccount.account_id: "A_DISCHARGED",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: 800,
-        CCAccount.reported_1099_amount: 5,
-        CCAccount.reactivation_status: None,
-        CCAccount.is_debt_sold: False,
-    },
-
-    # 8) Bankruptcy statuses that are valid but NOT zeroing rules -> should go ELSE
-    {
-        CCAccount.account_id: "A_CLOSED",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: 1200,
-        CCAccount.reported_1099_amount: 200,
-        CCAccount.reactivation_status: None,
-        CCAccount.is_debt_sold: False,
-    },
-    {
-        CCAccount.account_id: "A_DISMISSED",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: 900,
-        CCAccount.reported_1099_amount: 100,
-        CCAccount.reactivation_status: None,
-        CCAccount.is_debt_sold: False,
-    },
-    {
-        CCAccount.account_id: "A_CONVERTED",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: 1000,
-        CCAccount.reported_1099_amount: 0,
-        CCAccount.reactivation_status: None,
-        CCAccount.is_debt_sold: False,
-    },
-
-    # 9) Bankruptcy status NULL -> should go ELSE (unless earlier rules trigger)
-    {
-        CCAccount.account_id: "A_BK_NULL",
-        CCAccount.is_account_paid_in_full: False,
-        CCAccount.settled_in_full_notification: False,
-        CCAccount.pre_charge_off_settled_in_full_notification: False,
-        CCAccount.posted_balance: 1100,
-        CCAccount.reported_1099_amount: 100,
-        CCAccount.reactivation_status: None,
-        CCAccount.is_debt_sold: False,
-    },
-]
+# NULL guard (bankruptcy irrelevant)
+{
+    CustomerInformation.account_id: "A_NULL_GUARD",
+    CustomerInformation.bankruptcy_court_case_status_code: None,
+    CustomerInformation.bankruptcy_chapter_number: None,
+},
 
 
-# ---------------------------
-# RECOVERIES (just to satisfy join)
-# ---------------------------
-recoveries_data = [{Recoveries.account_id: row[CCAccount.account_id]} for row in cc_account_data]
 
 
-# ---------------------------
-# CUSTOMER_INFORMATION (covers bankruptcy statuses + chapters list)
-# ---------------------------
-customer_information_data = [
-    # For A_NEG (negative balance) - bankruptcy irrelevant
-    {
-        CustomerInformation.account_id: "A_NEG",
-        CustomerInformation.bankruptcy_court_case_status_code: None,
-        CustomerInformation.bankruptcy_chapter_number: None,
-    },
-
-    # Reactivation cases - bankruptcy irrelevant
-    {
-        CustomerInformation.account_id: "A_REACT_TITLE",
-        CustomerInformation.bankruptcy_court_case_status_code: None,
-        CustomerInformation.bankruptcy_chapter_number: None,
-    },
-    {
-        CustomerInformation.account_id: "A_REACT_LOWER",
-        CustomerInformation.bankruptcy_court_case_status_code: None,
-        CustomerInformation.bankruptcy_chapter_number: None,
-    },
-    {
-        CustomerInformation.account_id: "A_REACT_DECLINED",
-        CustomerInformation.bankruptcy_court_case_status_code: None,
-        CustomerInformation.bankruptcy_chapter_number: None,
-    },
-
-    # OPEN + Chapter 12/13 (rule 6)
-    {
-        CustomerInformation.account_id: "A_OPEN_12",
-        CustomerInformation.bankruptcy_court_case_status_code: "OPEN",
-        CustomerInformation.bankruptcy_chapter_number: "12",
-    },
-    {
-        CustomerInformation.account_id: "A_OPEN_13",
-        CustomerInformation.bankruptcy_court_case_status_code: "OPEN",
-        CustomerInformation.bankruptcy_chapter_number: "13",
-    },
-
-    # DISCHARGED (rule 7)
-    {
-        CustomerInformation.account_id: "A_DISCHARGED",
-        CustomerInformation.bankruptcy_court_case_status_code: "DISCHARGED",
-        CustomerInformation.bankruptcy_chapter_number: "11",   # chapter irrelevant for discharged rule
-    },
-
-    # Other allowed bankruptcy statuses (should go ELSE)
-    {
-        CustomerInformation.account_id: "A_CLOSED",
-        CustomerInformation.bankruptcy_court_case_status_code: "CLOSED",
-        CustomerInformation.bankruptcy_chapter_number: "07",
-    },
-    {
-        CustomerInformation.account_id: "A_DISMISSED",
-        CustomerInformation.bankruptcy_court_case_status_code: "DISMISSED",
-        CustomerInformation.bankruptcy_chapter_number: "11",
-    },
-    {
-        CustomerInformation.account_id: "A_CONVERTED",
-        CustomerInformation.bankruptcy_court_case_status_code: "CONVERTED_BK_ACCT_NO_DATA_AVAIL",
-        CustomerInformation.bankruptcy_chapter_number: None,
-    },
-
-    # BK status NULL (explicit)
-    {
-        CustomerInformation.account_id: "A_BK_NULL",
-        CustomerInformation.bankruptcy_court_case_status_code: None,
-        CustomerInformation.bankruptcy_chapter_number: None,
-    },
-]
 
 
-# ---------------------------
-# Build DataFrames
-# ---------------------------
-account_df = create_partially_filled_dataset(spark, CCAccount, data=cc_account_data)
-recoveries_df = create_partially_filled_dataset(spark, Recoveries, data=recoveries_data)
-customer_df = create_partially_filled_dataset(spark, CustomerInformation, data=customer_information_data)
+
+
