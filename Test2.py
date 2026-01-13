@@ -1,3 +1,7 @@
+pipenv run behave -n "Process calculate_current_balance from parquet file" --no-capture --no-capture-stderr --show-timings
+
+
+
 cond 6
 
 .when(
