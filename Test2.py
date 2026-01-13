@@ -1,4 +1,13 @@
 
+df.coalesce(1) \
+  .write \
+  .mode("overwrite") \
+  .option("header", "true") \
+  .csv("/tmp/output_csv")
+
+
+
+
 {
   CCAccount.account_id: "IA_NULL_GUARD",
   CCAccount.posted_balance: None,
