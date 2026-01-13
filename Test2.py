@@ -1,4 +1,14 @@
 
+{
+  CCAccount.account_id: "IA_NULL_GUARD",
+  CCAccount.posted_balance: None,
+  CCAccount.reported_1099_amount: None,
+  CustomerInformation.bankruptcy_court_case_status_code: None,
+  CustomerInformation.bankruptcy_chapter_number: None,
+}
+
+
+
 # Build the rules first (they don't need BK/Reactivation to be non-null)
 current_balance_expr = (
     when(
