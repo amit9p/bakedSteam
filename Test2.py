@@ -1,208 +1,117 @@
 
-df.coalesce(1) \
-  .write \
-  .mode("overwrite") \
-  .option("header", "true") \
-  .csv("/tmp/output_csv")
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import col, lit, lower, trim, to_date, when
 
+def date_of_first_delinquency(account_df: DataFrame, customer_df: DataFrame) -> DataFrame:
+    """
+    Intent logic (in order):
+      1) If Reactivation Notification = Reactivated -> NULL
+      2) If Bankruptcy Status != blank AND Bankruptcy File Date exists AND Bankruptcy File Date < Most Recent 30dpd Date
+         -> Bankruptcy File Date
+      3) If Bankruptcy Status != blank AND Bankruptcy File Date exists AND Bankruptcy File Date >= Most Recent 30dpd Date
+         -> Most Recent 30dpd Date
+      4) If Most Recent 30dpd Date is NULL AND Account Open Date != NULL -> Account Open Date
+      5) If Most Recent 30dpd Date is NULL AND Account Open Date is NULL -> DEFAULT_ERROR_DATE
+      6) Else -> Most Recent 30dpd Date
+    """
 
+    joined_df = account_df.join(customer_df, on=BaseSegment.account_id.str, how="left")
 
-
-{
-  CCAccount.account_id: "IA_NULL_GUARD",
-  CCAccount.posted_balance: None,
-  CCAccount.reported_1099_amount: None,
-  CustomerInformation.bankruptcy_court_case_status_code: None,
-  CustomerInformation.bankruptcy_chapter_number: None,
-}
-
-
-
-# Build the rules first (they don't need BK/Reactivation to be non-null)
-current_balance_expr = (
-    when(
-        (col(CCAccount.is_account_paid_in_full.str) == True) |
-        (col(CCAccount.settled_in_full_notification.str) == True) |
-        (col(CCAccount.pre_charge_off_settled_in_full_notification.str) == True) |
-        (col(Recoveries.is_debt_sold.str) == True) |
-        (col(CCAccount.posted_balance.str) < 0),
-        lit(0),
+    # Most recent date customer became 30 days past due
+    # (mapped to CCAccount.date_of_first_delinquency as per Betsy)
+    most_recent_30dpd_date = to_date(
+        col(CCAccount.date_of_first_delinquency.str),
+        format=constants.DATE_FORMAT,
     )
-    .when(
-        (lower(col(CustomerInformation.bankruptcy_court_case_status_code.str)) == constants.BankruptcyStatus.OPEN.value) &
-        (col(CustomerInformation.bankruptcy_chapter_number.str).isin(
-            constants.BankruptcyChapter.TWELVE.value,
-            constants.BankruptcyChapter.THIRTEEN.value,
-        )),
-        lit(0),
+
+    bankruptcy_file_date = to_date(
+        col(CustomerInformation.bankruptcy_case_file_date),
+        format=constants.DATE_FORMAT,
     )
-    .when(
-        lower(col(CustomerInformation.bankruptcy_court_case_status_code.str)) == constants.BankruptcyStatus.DISCHARGED.value,
-        lit(0),
+
+    account_open_date = to_date(
+        col(CCAccount.account_open_date),
+        format=constants.DATE_FORMAT,
     )
-    .when(
-        lower(col(CCAccount.reactivation_status.str)) == constants.ReactivationNotification.REACTIVATED.value.lower(),
-        lit(0),
+
+    # --- Presence / blank checks ---
+    bankruptcy_status_is_present = (
+        col(CustomerInformation.bankruptcy_court_case_status_code).isNotNull()
+        & (trim(col(CustomerInformation.bankruptcy_court_case_status_code)) != "")
     )
-    .otherwise(
-        when(
-            col(CCAccount.posted_balance.str).isNull() |
-            col(CCAccount.reported_1099_amount.str).isNull(),
-            lit(constants.DEFAULT_ERROR_INTEGER),
-        ).otherwise(
-            (col(CCAccount.posted_balance.str) - col(CCAccount.reported_1099_amount.str)).cast("int")
+
+    bankruptcy_file_date_is_present = (
+        col(CustomerInformation.bankruptcy_case_file_date).isNotNull()
+        & (trim(col(CustomerInformation.bankruptcy_case_file_date)) != "")
+    )
+
+    most_recent_30dpd_is_null_or_blank = (
+        col(CCAccount.date_of_first_delinquency.str).isNull()
+        | (trim(col(CCAccount.date_of_first_delinquency.str)) == "")
+    )
+
+    account_open_is_present = (
+        col(CCAccount.account_open_date).isNotNull()
+        & (trim(col(CCAccount.account_open_date)) != "")
+    )
+
+    account_open_is_null_or_blank = (
+        col(CCAccount.account_open_date).isNull()
+        | (trim(col(CCAccount.account_open_date)) == "")
+    )
+
+    # --- Reactivation rule ---
+    reactivation_is_reactivated = (
+        lower(trim(col(CCAccount.reactivation_status.str)))
+        == constants.ReactivationNotification.REACTIVATED.value
+    )
+
+    # --- Date comparisons (only meaningful when both dates exist) ---
+    bankruptcy_file_is_earlier_than_30dpd = bankruptcy_file_date < most_recent_30dpd_date
+    bankruptcy_file_is_later_or_same_as_30dpd = bankruptcy_file_date >= most_recent_30dpd_date
+
+    output_expr = (
+        # Rule 1
+        when(reactivation_is_reactivated, lit(None))
+
+        # Rule 2
+        .when(
+            bankruptcy_status_is_present
+            & bankruptcy_file_date_is_present
+            & (~most_recent_30dpd_is_null_or_blank)
+            & bankruptcy_file_is_earlier_than_30dpd,
+            bankruptcy_file_date,
         )
+
+        # Rule 3
+        .when(
+            bankruptcy_status_is_present
+            & bankruptcy_file_date_is_present
+            & (~most_recent_30dpd_is_null_or_blank)
+            & bankruptcy_file_is_later_or_same_as_30dpd,
+            most_recent_30dpd_date,
+        )
+
+        # Rule 4
+        .when(
+            most_recent_30dpd_is_null_or_blank & account_open_is_present,
+            account_open_date,
+        )
+
+        # Rule 5
+        .when(
+            most_recent_30dpd_is_null_or_blank & account_open_is_null_or_blank,
+            lit(constants.DEFAULT_ERROR_DATE),
+        )
+
+        # Rule 6
+        .otherwise(most_recent_30dpd_date)
     )
-)
 
-calculated_df = calculated_df.withColumn(BaseSegment.current_balance_amount.str, current_balance_expr)
+    result_df = (
+        joined_df
+        .withColumn(BaseSegment.date_of_first_delinquency.str, output_expr)
+        .select(BaseSegment.account_id, BaseSegment.date_of_first_delinquency)
+    )
 
-
-
-# 10) Rule 1: PIF Notification = true -> should ZERO
-{
-    CCAccount.account_id: "A_PIF",
-    CCAccount.is_account_paid_in_full: True,     # Rule 1
-    CCAccount.settled_in_full_notification: False,
-    CCAccount.pre_charge_off_settled_in_full_notification: False,
-    CCAccount.posted_balance: 999,
-    CCAccount.reported_1099_amount: 100,
-    CCAccount.reactivation_status: None,
-    CCAccount.is_debt_sold: False,
-},
-
-# 11) Rule 2: Pre-CO SIF Notification = true -> should ZERO
-{
-    CCAccount.account_id: "A_PRECO_SIF",
-    CCAccount.is_account_paid_in_full: False,
-    CCAccount.settled_in_full_notification: True,  # Rule 2
-    CCAccount.pre_charge_off_settled_in_full_notification: False,
-    CCAccount.posted_balance: 888,
-    CCAccount.reported_1099_amount: 10,
-    CCAccount.reactivation_status: None,
-    CCAccount.is_debt_sold: False,
-},
-
-# 12) Rule 3: Post-CO SIF Notification = true -> should ZERO
-{
-    CCAccount.account_id: "A_POSTCO_SIF",
-    CCAccount.is_account_paid_in_full: False,
-    CCAccount.settled_in_full_notification: False,
-    CCAccount.pre_charge_off_settled_in_full_notification: True,  # Rule 3
-    CCAccount.posted_balance: 777,
-    CCAccount.reported_1099_amount: 20,
-    CCAccount.reactivation_status: None,
-    CCAccount.is_debt_sold: False,
-},
-
-# 13) Rule 4: Asset Sales Notification = true -> should ZERO
-# (In your code this is represented by CCAccount.is_debt_sold)
-{
-    CCAccount.account_id: "A_ASSET_SALE",
-    CCAccount.is_account_paid_in_full: False,
-    CCAccount.settled_in_full_notification: False,
-    CCAccount.pre_charge_off_settled_in_full_notification: False,
-    CCAccount.posted_balance: 666,
-    CCAccount.reported_1099_amount: 30,
-    CCAccount.reactivation_status: None,
-    CCAccount.is_debt_sold: True,   # Rule 4
-},
-
-# 14) Rule 9: ELSE -> posted_balance - reported_1099_amount (should be NON-ZERO)
-{
-    CCAccount.account_id: "A_ELSE",
-    CCAccount.is_account_paid_in_full: False,
-    CCAccount.settled_in_full_notification: False,
-    CCAccount.pre_charge_off_settled_in_full_notification: False,
-    CCAccount.posted_balance: 1200,
-    CCAccount.reported_1099_amount: 200,
-    CCAccount.reactivation_status: None,
-    CCAccount.is_debt_sold: False,
-},
-
-# 15) OPEN but chapter NOT 12/13 -> should go ELSE (rule 9), not rule 6
-{
-    CCAccount.account_id: "A_OPEN_11",
-    CCAccount.is_account_paid_in_full: False,
-    CCAccount.settled_in_full_notification: False,
-    CCAccount.pre_charge_off_settled_in_full_notification: False,
-    CCAccount.posted_balance: 900,
-    CCAccount.reported_1099_amount: 100,
-    CCAccount.reactivation_status: None,
-    CCAccount.is_debt_sold: False,
-},
-
-# 16) NULL guard -> should DEFAULT_ERROR_INTEGER
-# (Pick one “required” input and set it to None; earlier you used is_debt_sold: None)
-{
-    CCAccount.account_id: "A_NULL_GUARD",
-    CCAccount.is_account_paid_in_full: False,
-    CCAccount.settled_in_full_notification: False,
-    CCAccount.pre_charge_off_settled_in_full_notification: False,
-    CCAccount.posted_balance: 500,
-    CCAccount.reported_1099_amount: 50,
-    CCAccount.reactivation_status: None,
-    CCAccount.is_debt_sold: None,  # triggers null-guard in your logic
-},
-
-{ Recoveries.account_id: "A_PIF" },
-{ Recoveries.account_id: "A_PRECO_SIF" },
-{ Recoveries.account_id: "A_POSTCO_SIF" },
-{ Recoveries.account_id: "A_ASSET_SALE" },
-{ Recoveries.account_id: "A_ELSE" },
-{ Recoveries.account_id: "A_OPEN_11" },
-{ Recoveries.account_id: "A_NULL_GUARD" },
-
-
-
-
-# Not bankruptcy-driven cases
-{
-    CustomerInformation.account_id: "A_PIF",
-    CustomerInformation.bankruptcy_court_case_status_code: None,
-    CustomerInformation.bankruptcy_chapter_number: None,
-},
-{
-    CustomerInformation.account_id: "A_PRECO_SIF",
-    CustomerInformation.bankruptcy_court_case_status_code: None,
-    CustomerInformation.bankruptcy_chapter_number: None,
-},
-{
-    CustomerInformation.account_id: "A_POSTCO_SIF",
-    CustomerInformation.bankruptcy_court_case_status_code: None,
-    CustomerInformation.bankruptcy_chapter_number: None,
-},
-{
-    CustomerInformation.account_id: "A_ASSET_SALE",
-    CustomerInformation.bankruptcy_court_case_status_code: None,
-    CustomerInformation.bankruptcy_chapter_number: None,
-},
-
-# ELSE case: choose any allowed status that doesn't zero out (CLOSED is fine)
-{
-    CustomerInformation.account_id: "A_ELSE",
-    CustomerInformation.bankruptcy_court_case_status_code: "CLOSED",
-    CustomerInformation.bankruptcy_chapter_number: "07",
-},
-
-# OPEN but chapter 11 -> should NOT hit rule 6
-{
-    CustomerInformation.account_id: "A_OPEN_11",
-    CustomerInformation.bankruptcy_court_case_status_code: "OPEN",
-    CustomerInformation.bankruptcy_chapter_number: "11",
-},
-
-# NULL guard (bankruptcy irrelevant)
-{
-    CustomerInformation.account_id: "A_NULL_GUARD",
-    CustomerInformation.bankruptcy_court_case_status_code: None,
-    CustomerInformation.bankruptcy_chapter_number: None,
-},
-
-
-
-
-
-
-
-
+    return result_df
