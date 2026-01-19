@@ -1,4 +1,16 @@
 
+
+output_path = "/tmp/customer_df_csv"
+
+(
+    customer_df
+        .coalesce(1)          # force single output file
+        .write
+        .mode("overwrite")    # overwrite if exists
+        .option("header", "true")
+        .csv(output_path)
+)
+_____
 from datetime import datetime
 
 expected_data = create_partially_filled_dataset(
