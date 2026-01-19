@@ -1,4 +1,83 @@
 
+
+from datetime import datetime
+
+ccaccount_data = create_partially_filled_dataset(
+    spark,
+    CCAccount,
+    data={
+        CCAccount.account_id: ["R1", "R2", "R3", "R4", "R5", "R6"],
+        # most recent date customer became 30dpd (mapped to CCAccount.date_of_first_delinquency)
+        CCAccount.date_of_first_delinquency: [
+            datetime(2024, 1, 13).date(),  # R1 (won't matter, reactivated wins)
+            datetime(2024, 1, 20).date(),  # R2
+            datetime(2024, 1, 20).date(),  # R3
+            None,                          # R4
+            None,                          # R5 (ERROR)
+            datetime(2024, 2, 10).date(),   # R6
+        ],
+        CCAccount.account_open_date: [
+            datetime(2020, 1, 1).date(),    # R1
+            datetime(2020, 1, 1).date(),    # R2
+            datetime(2020, 1, 1).date(),    # R3
+            datetime(2021, 5, 5).date(),    # R4 (used)
+            None,                           # R5 (ERROR)
+            datetime(2022, 7, 7).date(),    # R6 (unused)
+        ],
+        CCAccount.reactivation_status: [
+            constants.ReactivationNotification.REACTIVATED.value,  # R1
+            None,                                                  # R2
+            None,                                                  # R3
+            None,                                                  # R4
+            None,                                                  # R5
+            None,                                                  # R6
+        ],
+    },
+)
+
+
+
+
+customer_data = create_partially_filled_dataset(
+    spark,
+    CustomerInformation,
+    data={
+        CustomerInformation.account_id: ["R1", "R2", "R3", "R4", "R5", "R6"],
+        CustomerInformation.bankruptcy_court_case_status_code: [
+            None,                                  # R1 (not needed)
+            constants.BankruptcyStatus.OPEN.value, # R2 (not blank)
+            constants.BankruptcyStatus.OPEN.value, # R3 (not blank)
+            None,                                  # R4
+            None,                                  # R5
+            None,                                  # R6
+        ],
+        CustomerInformation.bankruptcy_case_file_date: [
+            None,                         # R1
+            datetime(2024, 1, 10).date(), # R2: bk_file_date (Jan10) < 30dpd (Jan20) => Rule2
+            datetime(2024, 1, 25).date(), # R3: bk_file_date (Jan25) >= 30dpd (Jan20) => Rule3
+            None,                         # R4
+            None,                         # R5
+            None,                         # R6
+        ],
+    },
+)
+
+
+
+
+expected = {
+    "R1": None,                              # Rule 1
+    "R2": datetime(2024, 1, 10).date(),      # Rule 2
+    "R3": datetime(2024, 1, 20).date(),      # Rule 3
+    "R4": datetime(2021, 5, 5).date(),       # Rule 4
+    "R5": constants.DEFAULT_ERROR_DATE,      # Rule 5 (ERROR)
+    "R6": datetime(2024, 2, 10).date(),      # Rule 6
+}
+
+
+
+
+___________
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import col, lit, lower, trim, to_date, when
 
