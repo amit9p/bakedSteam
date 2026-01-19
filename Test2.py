@@ -1,4 +1,65 @@
 
+from datetime import datetime
+
+expected_data = create_partially_filled_dataset(
+    spark,
+    BaseSegment,
+    data={
+        BaseSegment.account_id: [
+            "1",
+            "3",
+            "2",
+            "5",
+            "4",
+            "6",
+            "7",
+            "8",
+            "999",
+            "9",
+            "8888",
+            "R2",
+            "R1",
+            "R3",
+            "R4",
+            "R6",
+            "R5",
+        ],
+        BaseSegment.date_of_first_delinquency: [
+            None,                               # 1
+            datetime(2024, 1, 13).date(),        # 3
+            datetime(2023, 12, 31).date(),       # 2
+            datetime(2024, 1, 1).date(),         # 5
+            datetime(2000, 1, 1).date(),         # 4
+            datetime(2024, 1, 12).date(),        # 6
+            datetime(2024, 1, 13).date(),        # 7
+            datetime(2024, 1, 12).date(),        # 8
+            constants.DEFAULT_ERROR_DATE,        # 999  -> 1900-01-01
+            datetime(2024, 1, 13).date(),        # 9
+            datetime(2025, 7, 2).date(),         # 8888
+            datetime(2024, 1, 10).date(),        # R2
+            None,                               # R1
+            datetime(2024, 1, 20).date(),        # R3
+            datetime(2021, 5, 5).date(),         # R4
+            datetime(2024, 2, 10).date(),        # R6
+            constants.DEFAULT_ERROR_DATE,        # R5  -> 1900-01-01
+        ],
+    },
+).select(BaseSegment.account_id, BaseSegment.date_of_first_delinquency)
+
+
+
+actual_df = result_df.select(BaseSegment.account_id, BaseSegment.date_of_first_delinquency).orderBy(BaseSegment.account_id)
+expected_df = expected_data.orderBy(BaseSegment.account_id)
+
+assert_df_equality(actual_df, expected_df, ignore_row_order=True)
+```0
+
+
+xxxxxxxxx
+
+
+
+
 
 from datetime import datetime
 
