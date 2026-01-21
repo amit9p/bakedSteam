@@ -1,4 +1,7 @@
 
+lsof -nP -iTCP:1337 -sTCP:LISTEN
+
+
 (
     df
     .coalesce(1)                 # force single output file
