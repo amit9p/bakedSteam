@@ -1,4 +1,13 @@
 
+(
+    df
+    .coalesce(1)                 # force single output file
+    .write
+    .mode("overwrite")           # or "append"
+    .option("header", "true")
+    .csv("/path/to/output/dir")
+)
+
 from datetime import datetime
 
 from chispa import assert_df_equality
