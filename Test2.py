@@ -1,4 +1,20 @@
 
+nvm install 20
+nvm use 20
+node -v
+
+
+rm -rf node_modules
+rm -f yarn.lock   # only if your repo allows; if not, skip
+yarn install
+yarn bootstrap
+yarn serve
+
+
+
+
+
+
 lsof -nP -iTCP:1337 -sTCP:LISTEN
 
 
