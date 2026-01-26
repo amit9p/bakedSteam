@@ -1,4 +1,5 @@
-
+nvm use 20 || nvm install 20 && nvm use 20
+node -v
 nvm install 20
 nvm use 20
 node -v
