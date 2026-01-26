@@ -1,3 +1,16 @@
+yarn add-container \
+  -g cof-primary/credit_credit-bureau-disputes \
+  --domain credit \
+  --container credit-bureau-disputes
+
+
+yarn add-container \
+  cof-primary/credit_credit-bureau-disputes \
+  credit \
+  credit-bureau-disputes
+
+
+
 nvm use 20 || nvm install 20 && nvm use 20
 node -v
 nvm install 20
