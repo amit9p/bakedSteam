@@ -1,3 +1,11 @@
+
+Hi team — I’ve re-raised the All Access request for GR_GG_COF_AWS_106608546225_ReadOnly needed for DFS L1 CTE validation.
+The earlier request expired due to inactivity (approver was on leave in Dec), and the current approver Pavan is on medical leave until Feb, so re-raising today.
+Could someone please help route this to an alternate approver so we can unblock CTE testing?
+Access Request ID: 14837979
+cc: @Kunal
+
+
 yarn add-container \
   -g cof-primary/credit_credit-bureau-disputes \
   --domain credit \
