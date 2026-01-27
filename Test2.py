@@ -1,4 +1,4 @@
-
+open -a Notes ~/.zshrc
 
 
 export NVM_DIR="$HOME/.nvm"
