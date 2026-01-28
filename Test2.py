@@ -1,5 +1,9 @@
 
 
+
+curl -I http://localhost:3001/
+curl -I http://localhost:3000/tutorial/example/vue-header/
+
 git config --global credential.helper osxkeychain
 
 # remove any bad cached creds
