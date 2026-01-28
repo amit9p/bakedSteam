@@ -1,4 +1,13 @@
 
+
+git config --global credential.helper osxkeychain
+
+# remove any bad cached creds
+printf "protocol=https\nhost=github.com\n" | git credential-osxkeychain erase
+
+# now run a normal clone (no token in URL)
+git clone https://github.com/cof-sandbox/credit_credit-bureau-report.git
+
 git clone git@github.com:cof-sandbox/credit_credit-bureau-report.git
 
 open -a Notes ~/.zshrc
