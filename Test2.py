@@ -1,3 +1,6 @@
+
+git clone git@github.com:cof-sandbox/credit_credit-bureau-report.git
+
 open -a Notes ~/.zshrc
 
 
