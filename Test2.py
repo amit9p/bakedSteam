@@ -1,4 +1,6 @@
-
+curl -i http://localhost:3010/
+curl -i http://localhost:3010/tutorial/example/vue/
+curl -i http://localhost:3000/tutorial/example/vue/
 
 curl -I http://localhost:3010/
 curl -I http://127.0.0.1:3010/
