@@ -1,3 +1,12 @@
+
+
+curl -I http://localhost:3010/
+curl -I http://127.0.0.1:3010/
+curl -I http://[::1]:3010/
+
+
+
+
 yarn add-container \
   -g cof-sandbox/credit_credit-bureau-report#initial_setup \
   --domain tutorial \
