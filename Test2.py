@@ -1,4 +1,7 @@
-
+yarn add-container \
+  -g cof-sandbox/credit_credit-bureau-report#initial_setup \
+  --domain tutorial \
+  --container example
 
 
 curl -I http://localhost:3001/
