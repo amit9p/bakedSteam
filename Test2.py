@@ -1,3 +1,12 @@
+Hi ECBR team — quick clarification needed to unblock DFS L1 feedback loop testing.
+We’re trying to validate the feedback loop (Omega → reportable accounts load) while the EFG routes are still being finalized.
+Could you please help confirm: 1️⃣ Are the EFG routes ready in QA/CTE yet (or is there an ETA)?
+2️⃣ If the routes are not ready, what is the recommended process to test the feedback loop without EFG — for example, skipping EFG and manually triggering the write/load to the reportable accounts dataset after a DFS run?
+Goal is to validate the platform feedback behavior independent of file delivery, so we don’t block DFS L1 testing on route readiness.
+Thanks — happy to coordinate or provide more details if needed.
+
+
+
 curl -i http://localhost:3010/
 curl -i http://localhost:3010/tutorial/example/vue/
 curl -i http://localhost:3000/tutorial/example/vue/
