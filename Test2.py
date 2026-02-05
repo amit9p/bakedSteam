@@ -1,4 +1,7 @@
-
+yarn add-container \
+  -g cof-sandbox/credit_credit-bureau-report#feature/j2-container-fix \
+  --domain tutorial \
+  --container example
 
 
 yarn add container https://github.com/your-org/empath-containers.git#feature/my-container-setupThis dataset produces a calculated account-level summary for each reportable United States Card account and its associated Joint Account Holder (J2 customer). It applies configured Line of Business rules and suppression criteria to determine which accounts are eligible for credit bureau reporting and ensures that only one finalized record is created per account. The output is structured to support Metro 2 segment field population and related downstream reporting formats.
