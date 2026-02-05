@@ -1,18 +1,1 @@
-
-from pyspark.sql import SparkSession
-
-spark = SparkSession.builder.getOrCreate()
-sc = spark.sparkContext
-
-fs = sc._jvm.org.apache.hadoop.fs.FileSystem.get(
-    sc._jsc.hadoopConfiguration()
-)
-
-path = sc._jvm.org.apache.hadoop.fs.Path("s3://my-bucket/input/")
-
-files = fs.listStatus(path)
-
-for f in files:
-    print(f.getPath().toString(), f.getLen())
-
-
+The Reportable Accounts Base dataset provides an account-level summary for accounts that qualify under configured Line of Business (LOB) conditions and suppression rules across J2, K2, and Level 1 (L1) segments in the Quality Assurance (QA) environment. Its primary purpose is to generate a single consolidated record per account, formatted to meet Metro 2 credit reporting segment field requirements for submission to credit reporting agencies. The dataset integrates data from multiple internal source systems, including customer information systems, recoveries platforms, fraud detection systems, and Enterprise Data Quality (EDQ) results, to ensure accurate and compliant reporting.
