@@ -1,3 +1,24 @@
+
+
+
+spark = (
+    SparkSession.builder
+    .appName("testing")
+    .config(
+        "spark.jars",
+        ",".join([
+            "/opt/spark/jars/hadoop-aws-3.3.3.jar",
+            "/opt/spark/jars/aws-java-sdk-bundle-1.12.481.jar",
+            "/opt/spark/jars/onelake-s3-client_hadoop-3.3.3_2.12-2.12.2.jar"
+        ])
+    )
+    .getOrCreate()
+)
+
+
+
+
+
 yarn add-container \
   -g cof-sandbox/credit_credit-bureau-report#feature/j2-container-fix \
   --domain tutorial \
