@@ -1,6 +1,14 @@
 
 
 
+
+
+Hi team — quick confirmation needed.
+In QA reporting config we see 7 datasets, but in OneLake only joiner_output is getting written.
+j2_customer and primary_customer look like intermediate calculator outputs, and we don’t see Glue jobs triggered or data present for them under the unpartitioned/calculator_outputs path in S3.
+Can you confirm if only joiner_output is supported for OneLake reporting, and intermediate calculator outputs are not expected to be materialized?
+Thanks!
+
 spark = (
     SparkSession.builder
     .appName("testing")
