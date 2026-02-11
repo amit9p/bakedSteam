@@ -1,4 +1,7 @@
-
+Hi ECBR team,
+Can you confirm whether the Exchange Datasets API is required for our tenant app? We want to verify usage before requesting Prod access.
+Also, is there documentation listing required APIs for the tenant app?
+Thanks.
 
 
 
