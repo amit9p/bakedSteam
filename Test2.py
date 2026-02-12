@@ -1,3 +1,31 @@
+payment_history
+It stores monthly payment status codes for up to 24 consecutive months
+Each position represents one reporting month
+Values are standard credit-bureau status codes, not raw dates or identifiers
+Typical sample values (industry standard – Metro2 style)
+Code
+Meaning
+0
+Current / Paid as agreed
+1
+30 days past due
+2
+60 days past due
+3
+90 days past due
+4
+120+ days past due
+C
+Current
+L
+Paid late
+B
+No payment history available
+D
+Default
+X
+Not reported / unknown
+
 This field represents the country associated with the consumer’s address. It stores a standardized country code (for example, ISO country codes) indicating the country of residence for the borrower or associated consumer.
 
 
