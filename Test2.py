@@ -1,3 +1,6 @@
+Represents the monetary amount of a single transaction applied to a charged-off account in the Omega system of record. This value reflects the amount associated with the transaction event (e.g., payment, adjustment, fee, or recovery activity).
+
+
 payment_history
 It stores monthly payment status codes for up to 24 consecutive months
 Each position represents one reporting month
