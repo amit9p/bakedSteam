@@ -1,3 +1,7 @@
+This field represents the country associated with the consumer’s address. It stores a standardized country code (for example, ISO country codes) indicating the country of residence for the borrower or associated consumer.
+
+
+
 The formatted field is a generic formatted output column and its values vary based on the attribute type.
 For the ssn attribute specifically, the formatted value contains only tokenized SSN values. No other data types are populated for this attribute.
 The tokenization occurs upstream, and the dataset stores only the tokenized representation (as indicated by tokenization = USTAXID).
