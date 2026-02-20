@@ -1,3 +1,7 @@
+From the schema description, date_of_account_information represents the Base Segment “as of date,” which I believe aligns with the effective date being referenced.
+I’ve checked the dataset and the field is populated.
+Please let me know if a different field is expected in the Metro2 output.
+
 Hi Srini,
 From the dataset schema, my understanding is that the “effective date” being referred to should align with date_of_account_information, since this field represents the Base Segment “as-of” reporting date for account status and balance.
 I’ve validated the data, and we do see values populated for date_of_account_information in the dataset.
