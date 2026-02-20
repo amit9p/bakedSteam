@@ -1,3 +1,11 @@
+Hi Srini,
+From the dataset schema, my understanding is that the “effective date” being referred to should align with date_of_account_information, since this field represents the Base Segment “as-of” reporting date for account status and balance.
+I’ve validated the data, and we do see values populated for date_of_account_information in the dataset.
+Could you please confirm if this is the field expected for the effective date in the Metro2 output, or if another field is being referenced?
+Thanks,
+Amit
+
+
 Represents the monetary amount of a single transaction applied to a charged-off account in the Omega system of record. This value reflects the amount associated with the transaction event (e.g., payment, adjustment, fee, or recovery activity).
 
 
