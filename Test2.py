@@ -1,3 +1,30 @@
+
+SELECT
+    attribute,
+    formatted AS formatted_value
+FROM CARD_DB.QHDP_CARD_NPI.enterprise_credit_bureau_reporting_card_formatted_field_qa
+WHERE SF_LOAD_TIMESTAMP >= '2026-02-18 00:00:00'
+  AND SF_LOAD_TIMESTAMP <  '2026-02-19 00:00:00'
+GROUP BY attribute, formatted
+ORDER BY attribute, formatted;
+
+
+SELECT
+    attribute,
+    formatted AS formatted_value
+FROM CARD_DB.QHDP_CARD_NPI.enterprise_credit_bureau_reporting_card_formatted_field_qa
+WHERE SF_LOAD_TIMESTAMP >= '2026-02-18 00:00:00'
+  AND SF_LOAD_TIMESTAMP <  '2026-02-19 00:00:00'
+  AND (
+        formatted IS NULL
+     OR TRIM(formatted) = ''
+     OR REGEXP_LIKE(formatted, '^0+$')
+  )
+GROUP BY attribute, formatted
+ORDER BY attribute;
+
+
+
 Formatter expects DATE, but we’re sending TIMESTAMP — conversion fails and results in 00000000. Needs upstream cast to DATE.
 
 
