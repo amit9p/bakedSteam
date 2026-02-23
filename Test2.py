@@ -1,3 +1,14 @@
+
+SELECT
+    DATE(SF_LOAD_TIMESTAMP) AS load_date,
+    COUNT(*) AS total_records,
+    COUNT(date_of_account_information) AS non_null_date_of_account_information,
+    COUNT(*) - COUNT(date_of_account_information) AS null_date_of_account_information
+FROM CARD_DB.QHDP_CARD_NPI.enterprise_credit_bureau_reporting_card_calculated_accounts_customers_qa
+WHERE DATE(SF_LOAD_TIMESTAMP) = '2026-02-18'
+GROUP BY DATE(SF_LOAD_TIMESTAMP);
+
+
 SELECT
     account_id,
     customer_id,
