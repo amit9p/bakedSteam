@@ -1,3 +1,6 @@
+It’s not a specific Metro2 field on our side. From the TransUnion thread, they’re using “effective date” to refer to the DFS L1 Base Segment “as-of” date, which today is populated from transaction-derived dates (date_of_account_information / consolidated transactions). I’m confirming with them if they expect a different Metro2 field or definition.
+
+
 Looking into an issue where the effective date is missing in the DFS L1 outbound file. Initial review shows the date is currently derived from transaction data (latest payment) rather than account info. Also validating expected L1 reporting code behavior (Credit Card vs Recovery). Will update once confirmed.
 
 From the schema description, date_of_account_information represents the Base Segment “as of date,” which I believe aligns with the effective date being referenced.
