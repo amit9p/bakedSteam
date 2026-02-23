@@ -1,3 +1,4 @@
+I’m summarizing and conveying the findings to Srini as well — code and data checks confirm date_of_account_information is populated and there’s no issue on our side.
 
 SELECT
     DATE(SF_LOAD_TIMESTAMP) AS load_date,
