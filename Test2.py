@@ -1,3 +1,6 @@
+No, we are not calculating NULL for date_of_account_information. It’s populated from transaction_date when applicable, otherwise defaults to current timestamp.
+
+
 It’s not a specific Metro2 field on our side. From the TransUnion thread, they’re using “effective date” to refer to the DFS L1 Base Segment “as-of” date, which today is populated from transaction-derived dates (date_of_account_information / consolidated transactions). I’m confirming with them if they expect a different Metro2 field or definition.
 
 
