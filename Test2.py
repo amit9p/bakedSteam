@@ -1,3 +1,6 @@
+Formatter expects DATE, but we’re sending TIMESTAMP — conversion fails and results in 00000000. Needs upstream cast to DATE.
+
+
 Hi Srini, sharing the findings from our side after reviewing code, data, and the TU thread.
 • In DFS L1, we do not calculate a field called “effective date”.
 • The field being referenced aligns with date_of_account_information, which represents the Base Segment “as-of” date.
