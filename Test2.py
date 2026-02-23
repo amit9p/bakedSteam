@@ -1,3 +1,5 @@
+Looking into an issue where the effective date is missing in the DFS L1 outbound file. Initial review shows the date is currently derived from transaction data (latest payment) rather than account info. Also validating expected L1 reporting code behavior (Credit Card vs Recovery). Will update once confirmed.
+
 From the schema description, date_of_account_information represents the Base Segment “as of date,” which I believe aligns with the effective date being referenced.
 I’ve checked the dataset and the field is populated.
 Please let me know if a different field is expected in the Metro2 output.
