@@ -1,3 +1,11 @@
+Hi Srini, sharing the findings from our side after reviewing code, data, and the TU thread.
+• In DFS L1, we do not calculate a field called “effective date”.
+• The field being referenced aligns with date_of_account_information, which represents the Base Segment “as-of” date.
+• This field is populated via calculation logic using transaction_date (and defaults to current timestamp when applicable), so it should never be null.
+• We validated this with data checks for the 02/18/2026 load — ~143k records, and all records have date_of_account_information populated (no nulls).
+Based on this, there doesn’t appear to be a data or calculation issue on our side. The concern seems to stem from a definition / expectation mismatch on what TransUnion is referring to as “effective date”. Happy to sync further if a different field or definition is expected.
+
+
 I’m summarizing and conveying the findings to Srini as well — code and data checks confirm date_of_account_information is populated and there’s no issue on our side.
 
 SELECT
