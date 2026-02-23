@@ -1,3 +1,19 @@
+SELECT
+    account_id,
+    customer_id,
+    date_of_account_information,
+    SF_LOAD_TIMESTAMP
+FROM CARD_DB.QHDP_CARD_NPI.enterprise_credit_bureau_reporting_card_calculated_accounts_customers_qa
+WHERE DATE(SF_LOAD_TIMESTAMP) = '2026-02-18'
+  AND date_of_account_information IS NULL
+ORDER BY SF_LOAD_TIMESTAMP DESC;
+
+
+WHERE SF_LOAD_TIMESTAMP >= '2026-02-18 00:00:00'
+  AND SF_LOAD_TIMESTAMP <  '2026-02-19 00:00:00'
+
+
+
 No, we are not calculating NULL for date_of_account_information. It’s populated from transaction_date when applicable, otherwise defaults to current timestamp.
 
 
