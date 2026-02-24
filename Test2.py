@@ -1,4 +1,20 @@
+from pyspark.sql.functions import to_date
 
+result_df = input_df.withColumn(
+    EcbrCalculatorOutput.formatted_date_of_account_information.str,
+    when(
+        account_status_13_or_64,
+        to_date(EcbCardDFSAccountsPrimary.transaction_date)
+    ).otherwise(
+        datetime.date.today()
+    )
+)
+
+
+
+
+
+‐----------'x
 SELECT
     attribute,
     formatted AS formatted_value
