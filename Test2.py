@@ -1,4 +1,48 @@
 
+def passthrough_field(
+    self,
+    df: DataFrame,
+    account_id_column: str,
+    customer_id_column: str,
+    target_field_name: str,
+    *,
+    source_field_name: Optional[str] = None,
+    hardcoded_value: Optional[Union[str, int, float, bool, date]] = None,
+    date_format_str: Optional[str] = None,
+) -> DataFrame:
+
+    if source_field_name and hardcoded_value is not None:
+        raise ValueError(
+            "Provide either source_field_name OR hardcoded_value, not both"
+        )
+
+    # -----------------------
+    # Build target column
+    # -----------------------
+    if source_field_name:
+        value_col = col(source_field_name)
+
+        if date_format_str:
+            value_col = date_format(value_col, date_format_str)
+
+    elif hardcoded_value is not None:
+        value_col = lit(hardcoded_value)
+
+    else:
+        raise ValueError(
+            "Either source_field_name or hardcoded_value must be provided"
+        )
+
+    # -----------------------
+    # FINAL projection (single exit)
+    # -----------------------
+    return df.select(
+        col(account_id_column).alias("account_id"),
+        col(customer_id_column).alias("customer_id"),
+        value_col.alias(target_field_name),
+    )
+
+
 from typing import Optional, Union
 from datetime import date
 
