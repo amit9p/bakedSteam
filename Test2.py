@@ -1,3 +1,19 @@
+from pyspark.sql.functions import date_format, col
+
+def closed_date(ecbr_accounts_primary_df: DataFrame) -> DataFrame:
+
+    result_df = ecbr_accounts_primary_df.select(
+        col(ECBRCardDFSAccountsPrimary.account_id.str).alias(EcbrCalculatorOutput.account_id.str),
+        col(ECBRCardDFSAccountsPrimary.customer_id.str).alias(EcbrCalculatorOutput.customer_id.str),
+        date_format(
+            col(ECBRCardDFSAccountsPrimary.account_closed_date.str),
+            "ddMMyyyy"
+        ).alias(EcbrCalculatorOutput.closed_date.str)
+    )
+
+    return result_df
+_____
+
 expected_df = create_partially_filled_dataset(
     spark,
     EcbrCalculatorOutput,
