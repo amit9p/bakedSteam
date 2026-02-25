@@ -1,189 +1,70 @@
-from pyspark.sql.functions import to_date
+from pyspark.sql import DataFrame
+from pyspark.sql.functions import when, date_format, to_date, current_date
 
-result_df = input_df.withColumn(
-    EcbrCalculatorOutput.formatted_date_of_account_information.str,
-    when(
-        account_status_13_or_64,
-        to_date(EcbCardDFSAccountsPrimary.transaction_date)
-    ).otherwise(
-        datetime.date.today()
+def date_of_account_information(input_df: DataFrame) -> DataFrame:
+
+    account_status_13_or_64 = (
+        ECBRCardDFSAccountsPrimary.credit_bureau_account_status
+        .isin(CREDIT_BUREAU_ACCOUNT_STATUS_13, CREDIT_BUREAU_ACCOUNT_STATUS_64)
     )
-)
 
-
-
-
-
-‐----------'x
-SELECT
-    attribute,
-    formatted AS formatted_value
-FROM CARD_DB.QHDP_CARD_NPI.enterprise_credit_bureau_reporting_card_formatted_field_qa
-WHERE SF_LOAD_TIMESTAMP >= '2026-02-18 00:00:00'
-  AND SF_LOAD_TIMESTAMP <  '2026-02-19 00:00:00'
-GROUP BY attribute, formatted
-ORDER BY attribute, formatted;
-
-
-SELECT
-    attribute,
-    formatted AS formatted_value
-FROM CARD_DB.QHDP_CARD_NPI.enterprise_credit_bureau_reporting_card_formatted_field_qa
-WHERE SF_LOAD_TIMESTAMP >= '2026-02-18 00:00:00'
-  AND SF_LOAD_TIMESTAMP <  '2026-02-19 00:00:00'
-  AND (
-        formatted IS NULL
-     OR TRIM(formatted) = ''
-     OR REGEXP_LIKE(formatted, '^0+$')
-  )
-GROUP BY attribute, formatted
-ORDER BY attribute;
-
-
-
-Formatter expects DATE, but we’re sending TIMESTAMP — conversion fails and results in 00000000. Needs upstream cast to DATE.
-
-
-Hi Srini, sharing the findings from our side after reviewing code, data, and the TU thread.
-• In DFS L1, we do not calculate a field called “effective date”.
-• The field being referenced aligns with date_of_account_information, which represents the Base Segment “as-of” date.
-• This field is populated via calculation logic using transaction_date (and defaults to current timestamp when applicable), so it should never be null.
-• We validated this with data checks for the 02/18/2026 load — ~143k records, and all records have date_of_account_information populated (no nulls).
-Based on this, there doesn’t appear to be a data or calculation issue on our side. The concern seems to stem from a definition / expectation mismatch on what TransUnion is referring to as “effective date”. Happy to sync further if a different field or definition is expected.
-
-
-I’m summarizing and conveying the findings to Srini as well — code and data checks confirm date_of_account_information is populated and there’s no issue on our side.
-
-SELECT
-    DATE(SF_LOAD_TIMESTAMP) AS load_date,
-    COUNT(*) AS total_records,
-    COUNT(date_of_account_information) AS non_null_date_of_account_information,
-    COUNT(*) - COUNT(date_of_account_information) AS null_date_of_account_information
-FROM CARD_DB.QHDP_CARD_NPI.enterprise_credit_bureau_reporting_card_calculated_accounts_customers_qa
-WHERE DATE(SF_LOAD_TIMESTAMP) = '2026-02-18'
-GROUP BY DATE(SF_LOAD_TIMESTAMP);
-
-
-SELECT
-    account_id,
-    customer_id,
-    date_of_account_information,
-    SF_LOAD_TIMESTAMP
-FROM CARD_DB.QHDP_CARD_NPI.enterprise_credit_bureau_reporting_card_calculated_accounts_customers_qa
-WHERE DATE(SF_LOAD_TIMESTAMP) = '2026-02-18'
-  AND date_of_account_information IS NULL
-ORDER BY SF_LOAD_TIMESTAMP DESC;
-
-
-WHERE SF_LOAD_TIMESTAMP >= '2026-02-18 00:00:00'
-  AND SF_LOAD_TIMESTAMP <  '2026-02-19 00:00:00'
-
-
-
-No, we are not calculating NULL for date_of_account_information. It’s populated from transaction_date when applicable, otherwise defaults to current timestamp.
-
-
-It’s not a specific Metro2 field on our side. From the TransUnion thread, they’re using “effective date” to refer to the DFS L1 Base Segment “as-of” date, which today is populated from transaction-derived dates (date_of_account_information / consolidated transactions). I’m confirming with them if they expect a different Metro2 field or definition.
-
-
-Looking into an issue where the effective date is missing in the DFS L1 outbound file. Initial review shows the date is currently derived from transaction data (latest payment) rather than account info. Also validating expected L1 reporting code behavior (Credit Card vs Recovery). Will update once confirmed.
-
-From the schema description, date_of_account_information represents the Base Segment “as of date,” which I believe aligns with the effective date being referenced.
-I’ve checked the dataset and the field is populated.
-Please let me know if a different field is expected in the Metro2 output.
-
-Hi Srini,
-From the dataset schema, my understanding is that the “effective date” being referred to should align with date_of_account_information, since this field represents the Base Segment “as-of” reporting date for account status and balance.
-I’ve validated the data, and we do see values populated for date_of_account_information in the dataset.
-Could you please confirm if this is the field expected for the effective date in the Metro2 output, or if another field is being referenced?
-Thanks,
-Amit
-
-
-Represents the monetary amount of a single transaction applied to a charged-off account in the Omega system of record. This value reflects the amount associated with the transaction event (e.g., payment, adjustment, fee, or recovery activity).
-
-
-payment_history
-It stores monthly payment status codes for up to 24 consecutive months
-Each position represents one reporting month
-Values are standard credit-bureau status codes, not raw dates or identifiers
-Typical sample values (industry standard – Metro2 style)
-Code
-Meaning
-0
-Current / Paid as agreed
-1
-30 days past due
-2
-60 days past due
-3
-90 days past due
-4
-120+ days past due
-C
-Current
-L
-Paid late
-B
-No payment history available
-D
-Default
-X
-Not reported / unknown
-
-This field represents the country associated with the consumer’s address. It stores a standardized country code (for example, ISO country codes) indicating the country of residence for the borrower or associated consumer.
-
-
-
-The formatted field is a generic formatted output column and its values vary based on the attribute type.
-For the ssn attribute specifically, the formatted value contains only tokenized SSN values. No other data types are populated for this attribute.
-The tokenization occurs upstream, and the dataset stores only the tokenized representation (as indicated by tokenization = USTAXID).
-Based on this, we will update the human data category to Government Identifiers and remove the PII tag, since the value is tokenized (HSHD).
-
-
-
-This dataset captures credit-related details for secondary account holders associated with Discover charged-off accounts. The data is sourced from Omega and includes J2 segment outputs generated by the Enterprise Credit Bureau Reporting Consolidator. These elements are used as inputs for downstream processing in the Enterprise Credit Bureau Reporting Calculator. The dataset is primarily consumed by Credit Bureau Reporting analysts and supports core processing within the Enterprise Credit Bureau Reporting Calculator workflow.
-
-
-
-Hi ECBR team,
-Can you confirm whether the Exchange Datasets API is required for our tenant app? We want to verify usage before requesting Prod access.
-Also, is there documentation listing required APIs for the tenant app?
-Thanks.
-
-
-
-
-Hi team — quick confirmation needed.
-In QA reporting config we see 7 datasets, but in OneLake only joiner_output is getting written.
-j2_customer and primary_customer look like intermediate calculator outputs, and we don’t see Glue jobs triggered or data present for them under the unpartitioned/calculator_outputs path in S3.
-Can you confirm if only joiner_output is supported for OneLake reporting, and intermediate calculator outputs are not expected to be materialized?
-Thanks!
-
-spark = (
-    SparkSession.builder
-    .appName("testing")
-    .config(
-        "spark.jars",
-        ",".join([
-            "/opt/spark/jars/hadoop-aws-3.3.3.jar",
-            "/opt/spark/jars/aws-java-sdk-bundle-1.12.481.jar",
-            "/opt/spark/jars/onelake-s3-client_hadoop-3.3.3_2.12-2.12.2.jar"
-        ])
+    result_df = input_df.withColumn(
+        EcbrCalculatorOutput.formatted_date_of_account_information.str,
+        when(
+            account_status_13_or_64,
+            # transaction_date can be timestamp → format directly
+            date_format(
+                ECBRCardDFSAccountsPrimary.transaction_date,
+                "ddMMyyyy"
+            )
+        ).otherwise(
+            # fallback date, still Spark-native
+            date_format(current_date(), "ddMMyyyy")
+        )
     )
-    .getOrCreate()
+
+    return result_df.select(
+        EcbrCalculatorOutput.account_id,
+        EcbrCalculatorOutput.customer_id,
+        EcbrCalculatorOutput.formatted_date_of_account_information
+    )
+
+
+
+rows = [
+    Row(
+        account_id=1,
+        customer_id=100,
+        credit_bureau_account_status=CREDIT_BUREAU_ACCOUNT_STATUS_13,
+        transaction_date=datetime.datetime(2024, 6, 1, 10, 30, 0)
+    ),
+    Row(
+        account_id=2,
+        customer_id=200,
+        credit_bureau_account_status=CREDIT_BUREAU_ACCOUNT_STATUS_64,
+        transaction_date=datetime.datetime(2024, 6, 2, 15, 45, 0)
+    ),
+]
+df = spark.createDataFrame(rows)
+
+
+expected_df = create_partially_filled_dataset(
+    spark,
+    EcbrCalculatorOutput,
+    data=[
+        {
+            EcbrCalculatorOutput.account_id: 1,
+            EcbrCalculatorOutput.customer_id: 100,
+            EcbrCalculatorOutput.formatted_date_of_account_information: "01062024",
+        },
+        {
+            EcbrCalculatorOutput.account_id: 2,
+            EcbrCalculatorOutput.customer_id: 200,
+            EcbrCalculatorOutput.formatted_date_of_account_information: "02062024",
+        },
+    ],
+).select(
+    EcbrCalculatorOutput.account_id,
+    EcbrCalculatorOutput.customer_id,
+    EcbrCalculatorOutput.formatted_date_of_account_information,
 )
-
-
-
-
-
-yarn add-container \
-  -g cof-sandbox/credit_credit-bureau-report#feature/j2-container-fix \
-  --domain tutorial \
-  --container example
-
-
-yarn add container https://github.com/your-org/empath-containers.git#feature/my-container-setupThis dataset produces a calculated account-level summary for each reportable United States Card account and its associated Joint Account Holder (J2 customer). It applies configured Line of Business rules and suppression criteria to determine which accounts are eligible for credit bureau reporting and ensures that only one finalized record is created per account. The output is structured to support Metro 2 segment field population and related downstream reporting formats.
-The dataset is primarily used by credit bureau reporting teams, credit risk partners, data engineering teams, and audit stakeholders who require a reliable and repeatable view of calculated account and customer attributes. It supports operational reporting, reconciliation activities, monitoring, and validation of bureau-ready outputs prior to submission. The data enables consumers to trace how reporting values were derived for compliance and accuracy checks.
-Source data is obtained from United States Card systems of record, including account servicing platforms and joint customer reference data. The data is processed through Enterprise Credit Bureau Reporting transformation workflows, where records are validated, standardized, and aligned to Credit Reporting Resource Guide requirements before final delivery. These steps ensure consistency and readiness for external bureau submission.
