@@ -1,3 +1,8 @@
+
+
+behave tests/ecbr_calculations/features/consumer_features/base_passthrough.feature \
+  --name "Process account_type from parquet file primary"
+
 from pyspark.sql.functions import when, to_date, current_date
 
 result_df = input_df.withColumn(
