@@ -1,3 +1,21 @@
+expected_df = create_partially_filled_dataset(
+    spark,
+    EcbrCalculatorOutput,
+    data={
+        EcbrCalculatorOutput.account_id: [1, 2],
+        EcbrCalculatorOutput.customer_id: [11, 22],
+        EcbrCalculatorOutput.closed_date: [
+            "01012023",
+            "02012023",
+        ],
+    },
+).select(
+    EcbrCalculatorOutput.account_id,
+    EcbrCalculatorOutput.customer_id,
+    EcbrCalculatorOutput.closed_date,
+)
+
+
 
 schema = StructType([
     StructField("account_id", IntegerType(), True),
