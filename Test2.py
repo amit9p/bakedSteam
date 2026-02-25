@@ -1,5 +1,45 @@
 
 
+def test_date_of_account_information_otherwise_condition(spark):
+    rows = [
+        Row(
+            account_id=3,
+            customer_id=300,
+            credit_bureau_account_status=99,  # NOT 13 or 64
+            transaction_date=datetime.datetime(
+                year=2024, month=6, day=10, hour=12, minute=0, second=0
+            ),
+        )
+    ]
+
+    df = spark.createDataFrame(rows)
+
+    result_df = date_of_account_information(df)
+
+    today_str = datetime.date.today().strftime("%d%m%Y")
+
+    expected_df = create_partially_filled_dataset(
+        spark,
+        EcbrCalculatorOutput,
+        data=[
+            {
+                EcbrCalculatorOutput.account_id: 3,
+                EcbrCalculatorOutput.customer_id: 300,
+                EcbrCalculatorOutput.formatted_date_of_account_information: today_str,
+            }
+        ],
+    ).select(
+        EcbrCalculatorOutput.account_id,
+        EcbrCalculatorOutput.customer_id,
+        EcbrCalculatorOutput.formatted_date_of_account_information,
+    )
+
+    assert_df_equality(result_df, expected_df, ignore_row_order=True)
+
+
+
+______
+
 
 
 from pyspark.sql import DataFrame
