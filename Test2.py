@@ -1,3 +1,42 @@
+
+from pyspark.sql.functions import date_format, col
+
+class DataFramePassthrough:
+
+    def passthrough_date_formatted(
+        self,
+        df,
+        account_id_column,
+        customer_id_column,
+        target_field_name,
+        source_field_name,
+        date_format_str="ddMMyyyy"
+    ):
+        return df.select(
+            col(account_id_column).alias("account_id"),
+            col(customer_id_column).alias("customer_id"),
+            date_format(
+                col(source_field_name),
+                date_format_str
+            ).alias(target_field_name)
+        )
+
+
+
+
+def closed_date(ecbr_accounts_primary_df: DataFrame) -> DataFrame:
+
+    result_df = DataFramePassthrough().passthrough_date_formatted(
+        df=ecbr_accounts_primary_df,
+        account_id_column=ECBRCardDFSAccountsPrimary.account_id.str,
+        customer_id_column=EcbrCalculatorOutput.customer_id.str,
+        target_field_name=EcbrCalculatorOutput.closed_date.str,
+        source_field_name=ECBRCardDFSAccountsPrimary.account_closed_date.str,
+        date_format_str="ddMMyyyy"
+    )
+
+    return result_df
+-----
 from pyspark.sql.functions import date_format, col
 
 def closed_date(ecbr_accounts_primary_df: DataFrame) -> DataFrame:
