@@ -1,3 +1,7 @@
+
+
+
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import when, date_format, to_date, current_date
 
@@ -67,4 +71,10 @@ expected_df = create_partially_filled_dataset(
     EcbrCalculatorOutput.account_id,
     EcbrCalculatorOutput.customer_id,
     EcbrCalculatorOutput.formatted_date_of_account_information,
+)
+
+assert_df_equality(
+    result_df,
+    expected_df,
+    ignore_row_order=True
 )
