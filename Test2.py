@@ -1,4 +1,14 @@
 
+schema = StructType([
+    StructField("account_id", IntegerType(), True),
+    StructField("customer_id", IntegerType(), True),
+    StructField("credit_bureau_account_status", IntegerType(), True),
+    StructField("transaction_date", TimestampType(), True),
+])
+
+df = spark.createDataFrame(rows, schema=schema)
+
+
 
 def test_date_of_account_information_otherwise_condition(spark):
     rows = [
