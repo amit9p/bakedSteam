@@ -6,6 +6,69 @@ SUFFIX_SEVEN = ["7", "vii"]
 SUFFIX_EIGHT = ["8", "viii"]
 SUFFIX_NINE = ["9", "ix"]
 
+from pyspark.sql.functions import lower, col, lit, when
+
+def j2_gen_code(df: DataFrame) -> DataFrame:
+    result_df = df.withColumn(
+        EcbrCalculatorOutput.j2_gen_code.str,
+        when(
+            lower(col(ECBRCrdDFSAccountsSecondary.gen_code.str))
+            .isin(constants.SUFFIX_JUNIOR),
+            lit(constants.GENERATION_CODE_J.upper()),
+        )
+        .when(
+            lower(col(ECBRCrdDFSAccountsSecondary.gen_code.str))
+            .isin(constants.SUFFIX_SENIOR),
+            lit(constants.GENERATION_CODE_S.upper()),
+        )
+        .when(
+            lower(col(ECBRCrdDFSAccountsSecondary.gen_code.str))
+            .isin(constants.SUFFIX_THREE),
+            lit(constants.GENERATION_CODE_THREE),
+        )
+        .when(
+            lower(col(ECBRCrdDFSAccountsSecondary.gen_code.str))
+            .isin(constants.SUFFIX_FOUR),
+            lit(constants.GENERATION_CODE_FOUR),
+        )
+        .when(
+            lower(col(ECBRCrdDFSAccountsSecondary.gen_code.str))
+            .isin(constants.SUFFIX_FIVE),
+            lit(constants.GENERATION_CODE_FIVE),
+        )
+        .when(
+            lower(col(ECBRCrdDFSAccountsSecondary.gen_code.str))
+            .isin(constants.SUFFIX_SIX),
+            lit(constants.GENERATION_CODE_SIX),
+        )
+        .when(
+            lower(col(ECBRCrdDFSAccountsSecondary.gen_code.str))
+            .isin(constants.SUFFIX_SEVEN),
+            lit(constants.GENERATION_CODE_SEVEN),
+        )
+        .when(
+            lower(col(ECBRCrdDFSAccountsSecondary.gen_code.str))
+            .isin(constants.SUFFIX_EIGHT),
+            lit(constants.GENERATION_CODE_EIGHT),
+        )
+        .when(
+            lower(col(ECBRCrdDFSAccountsSecondary.gen_code.str))
+            .isin(constants.SUFFIX_NINE),
+            lit(constants.GENERATION_CODE_NINE),
+        )
+        .otherwise(lit(constants.GENERATION_CODE_DEFAULT))
+    )
+
+    return result_df.select(
+        EcbrCalculatorOutput.account_id,
+        EcbrCalculatorOutput.customer_id,
+        EcbrCalculatorOutput.j2_gen_code,
+    )
+
+
+
+------
+
 
 
 
