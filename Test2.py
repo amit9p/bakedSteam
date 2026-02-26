@@ -1,3 +1,13 @@
+SUFFIX_THREE = ["3", "iii"]
+SUFFIX_FOUR = ["4", "iv"]
+SUFFIX_FIVE = ["5", "v"]
+SUFFIX_SIX = ["6", "vi"]
+SUFFIX_SEVEN = ["7", "vii"]
+SUFFIX_EIGHT = ["8", "viii"]
+SUFFIX_NINE = ["9", "ix"]
+
+
+
 
 
 behave tests/ecbr_calculations/features/consumer_features/base_passthrough.feature \
