@@ -1,3 +1,10 @@
+
+df.coalesce(1) \
+  .write \
+  .mode("overwrite") \
+  .option("header", "true") \
+  .csv("/path/to/output_dir")
+
 from pyspark.sql import DataFrame
 from pyspark.sql.functions import when, lower, col, lit
 
