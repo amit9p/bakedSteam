@@ -1,4 +1,27 @@
 
+from pyspark.sql import functions as F
+
+def j2_residence_code(df: DataFrame) -> DataFrame:
+    """
+    Set j2_residence_code as empty string.
+    """
+
+    df_with_blank = df.withColumn(
+        "blank_residence_code",
+        F.lit("")
+    )
+
+    return DataFramePassthrough().passthrough_field(
+        df=df_with_blank,
+        account_id_column=EcbrCalculatorOutput.account_id.str,
+        customer_id_column=EcbrCalculatorOutput.customer_id.str,
+        target_field_name=EcbrCalculatorOutput.j2_residence_code.str,
+        source_field_name="blank_residence_code",
+    )
+
+
+
+
 def create_spark_session(aws_creds: Dict[str, str]):
 
     spark = (
