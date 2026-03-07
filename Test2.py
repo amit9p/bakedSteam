@@ -1,6 +1,14 @@
 
 from pyspark.sql import functions as F
 
+df_with_blank = df.withColumn(
+    "blank_residence_code",
+    F.coalesce(F.lit(""), F.lit(""))
+)
+
+
+from pyspark.sql import functions as F
+
 def j2_residence_code(df: DataFrame) -> DataFrame:
     """
     Set j2_residence_code as empty string.
