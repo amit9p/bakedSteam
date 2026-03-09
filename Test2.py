@@ -1,3 +1,6 @@
+Kunal, CT / pre-prod is not in sync right now and is not ready for DFS dry run. Per earlier team alignment, we are skipping CT to streamline the production path, so the current plan is production dry run first and then live.
+
+
 
 from pyspark.sql import functions as F
 
