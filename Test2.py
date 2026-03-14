@@ -1,4 +1,35 @@
 
+import yaml
+
+
+def extract_field_names(yaml_file_path: str) -> list:
+    # Open YAML file
+    with open(yaml_file_path, "r") as file_pointer:
+        yaml_data = yaml.safe_load(file_pointer)
+
+    # Read rules list
+    rules_list = yaml_data.get("rules", [])
+
+    # Store field names here
+    field_names = []
+
+    # Loop through rules
+    for single_rule in rules_list:
+        # Check if ruleTags exists and is not empty
+        if single_rule.get("ruleTags"):
+            field_names.append(single_rule.get("fieldName"))
+
+    return field_names
+
+
+# Example usage
+yaml_file = "rules.yaml"
+
+field_name_list = extract_field_names(yaml_file)
+
+print(field_name_list)
+
+----
 import yaml  # Used to read YAML file
 
 
