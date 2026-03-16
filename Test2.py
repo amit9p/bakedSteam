@@ -1,4 +1,36 @@
 
+import json
+import csv
+
+# Load the JSON file
+with open("schema.json", "r") as file_pointer:
+    json_data = json.load(file_pointer)
+
+# Extract fields
+fields = json_data["fields"]
+
+output = []
+
+for field in fields:
+
+    field_name = field["name"]
+    field_type = field["type"]
+
+    # Avro stores types like ["null","string"]
+    if isinstance(field_type, list):
+        actual_type = [t for t in field_type if t != "null"]
+        data_type = actual_type[0] if actual_type else "null"
+    else:
+        data_type = field_type
+
+    output.append((field_name, data_type))
+
+# Print results
+for row in output:
+    print(row[0], row[1])
+
+
+
 
 
 from fastavro import reader
