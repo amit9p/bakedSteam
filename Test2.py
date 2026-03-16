@@ -1,3 +1,6 @@
+
+
+
 from fastavro import reader
 
 avro_file = "file.avro"
