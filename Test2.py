@@ -1,3 +1,15 @@
+select
+    column_name,
+    data_type,
+    ordinal_position,
+    is_nullable
+from your_database.information_schema.columns
+where table_schema = 'YOUR_SCHEMA'
+  and table_name = 'YOUR_TABLE'
+order by ordinal_position;
+
+
+
 
 import yaml
 
