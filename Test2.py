@@ -1,5 +1,30 @@
 
 import json
+
+# Load the JSON file
+with open("schema.json", "r") as file_pointer:
+    json_data = json.load(file_pointer)
+
+# Extract fields
+fields = json_data["fields"]
+
+for field in fields:
+    field_name = field["name"]
+    field_type = field["type"]
+
+    # Handle Avro type like ["null", "string"]
+    if isinstance(field_type, list):
+        actual_type = [single_type for single_type in field_type if single_type != "null"]
+        data_type = actual_type[0] if actual_type else "null"
+    else:
+        data_type = field_type
+
+    print(f"{field_name} : {data_type}")
+
+
+
+
+import json
 import csv
 
 # Load the JSON file
