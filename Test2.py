@@ -1,3 +1,17 @@
+from fastavro import reader
+
+avro_file = "file.avro"
+
+with open(avro_file, "rb") as f:
+    avro_reader = reader(f)
+    schema = avro_reader.writer_schema
+
+fields = schema["fields"]
+
+for field in fields:
+    print(field["name"], field["type"])
+
+
 select
     column_name,
     data_type,
