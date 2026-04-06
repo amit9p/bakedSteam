@@ -1,77 +1,50 @@
-
+import os
 import json
-import csv
 
-input_file = "input.json"
-output_file = "rules_output.csv"
+# Input folder containing original JSON files
+input_folder = "/path/to/input/rules"
 
-# Load JSON
-with open(input_file, "r", encoding="utf-8") as f:
-    data = json.load(f)
+# Output folder where updated JSON files will be written
+output_folder = "/path/to/output/rules_swapped"
 
-rules_list = data.get("rulesList", [])
+# Create output folder if it does not exist
+os.makedirs(output_folder, exist_ok=True)
 
-with open(output_file, "w", newline="", encoding="utf-8") as f:
-    writer = csv.writer(f)
 
-    # Header
-    writer.writerow(["fieldName", "ruleType", "ruleDetails"])
+def swap_suppression_tags(input_file_path, output_file_path):
+    try:
+        # Read original JSON
+        with open(input_file_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
 
-    for rule in rules_list:
-        field_name = rule.get("fieldName", "")
-        rule_type = rule.get("ruleType", "")
-        rule_detail = rule.get("ruleDetail") or {}
+        # Check if "rules" section exists
+        if "rules" in data:
+            rules = data["rules"]
 
-        rule_details_str = ""
+            # Read both keys safely
+            non_suppressed = rules.get("non_suppressed", [])
+            suppressed = rules.get("suppressed", [])
 
-        # -----------------------------
-        # REGEX
-        # -----------------------------
-        if rule_type == "REGEX":
-            rule_details_str = rule_detail.get("ruleRegexPattern", "")
+            # Swap values
+            rules["non_suppressed"] = suppressed
+            rules["suppressed"] = non_suppressed
 
-        # -----------------------------
-        # DATE RANGE
-        # -----------------------------
-        elif rule_type == "DATE_RANGE":
-            date_range = rule_detail.get("dateRange") or {}
+        # Write updated JSON to output folder
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2)
 
-            lower_bound = date_range.get("lowerDateBound") or {}
-            upper_bound = date_range.get("upperDateBound") or {}
+        print(f"Created: {output_file_path}")
 
-            lower = lower_bound.get("date", "")
-            upper = upper_bound.get("date", "")
+    except Exception as e:
+        print(f"Error processing {input_file_path}: {e}")
 
-            rule_details_str = f"lowerDate={lower}, upperDate={upper}"
 
-        # -----------------------------
-        # INTEGER / VALUE RANGE
-        # -----------------------------
-        elif rule_type in ["INTEGER_RANGE", "VALUE_RANGE"]:
-            value_range = rule_detail.get("valueRange") or {}
+# Process all JSON files from input folder
+for filename in os.listdir(input_folder):
+    if filename.endswith(".json"):
+        input_file_path = os.path.join(input_folder, filename)
+        output_file_path = os.path.join(output_folder, filename)
 
-            lower_bound = value_range.get("lowerThresholdBound") or {}
-            upper_bound = value_range.get("upperThresholdBound") or {}
+        swap_suppression_tags(input_file_path, output_file_path)
 
-            lower = lower_bound.get("boundValue", "")
-            upper = upper_bound.get("boundValue", "")
-
-            rule_details_str = f"lowerValue={lower}, upperValue={upper}"
-
-        # -----------------------------
-        # VALID VALUES
-        # -----------------------------
-        elif rule_type == "VALID_VALUES":
-            values = rule_detail.get("validDataComparisonValues") or []
-            rule_details_str = ",".join(str(v) for v in values)
-
-        # -----------------------------
-        # DEFAULT (UNKNOWN TYPES)
-        # -----------------------------
-        else:
-            rule_details_str = json.dumps(rule_detail)
-
-        # Write row
-        writer.writerow([field_name, rule_type, rule_details_str])
-
-print("✅ CSV created successfully (null-safe)!")
+print("Done 👍")
