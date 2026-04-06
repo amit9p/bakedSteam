@@ -1,3 +1,6 @@
+^[a-zA-Z]+(?: [a-zA-Z]+)*$
+
+
 import os
 import json
 
