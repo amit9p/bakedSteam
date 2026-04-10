@@ -1,4 +1,21 @@
 
+
+from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.appName("parquet_to_single_file").getOrCreate()
+
+# Read local parquet file/folder
+input_path = "/path/to/input_parquet"
+
+df = spark.read.parquet(input_path)
+
+# Write as single output file
+output_path = "/path/to/output_folder"
+
+df.coalesce(1).write.mode("overwrite").parquet(output_path)
+
+spark.stop()
+__________
 def get_reportable_accounts(
     calculated_dataset: DataFrame,
     consolidated_dataset: DataFrame,
