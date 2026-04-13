@@ -1,4 +1,13 @@
 
+from pyspark.sql.functions import broadcast
+
+reportable_accounts_df = reportable_accounts_df.join(
+    broadcast(edq_accounts_df),
+    "account_id",
+    "left_anti"
+)
+
+
 class TestReportableAccounts:
 
     def test_without_edq(self, calculated_df, consolidated_df):
