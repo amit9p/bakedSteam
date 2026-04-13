@@ -1,3 +1,44 @@
+
+from pyspark.sql import SparkSession
+
+def before_scenario(context, scenario):
+    # Stop existing Spark (safe cleanup)
+    if hasattr(context, "spark") and context.spark is not None:
+        try:
+            context.spark.stop()
+        except:
+            pass
+
+    # Create fresh Spark
+    context.spark = (
+        SparkSession.builder
+        .appName("Reportable Accounts Component Test")
+        .master("local[1]")
+        .config("spark.driver.bindAddress", "127.0.0.1")
+        .config("spark.sql.shuffle.partitions", "1")
+        .config("spark.ui.enabled", "false")
+        .getOrCreate()
+    )
+
+    context.spark.sparkContext.setLogLevel("ERROR")
+
+    # Reset context
+    context.error_raised = None
+    context.result = None
+    context.consolidated_df = None
+    context.calculated_df = None
+
+
+def after_scenario(context, scenario):
+    if hasattr(context, "spark") and context.spark is not None:
+        try:
+            context.spark.stop()
+        except:
+            pass
+
+
+
+---------------
 def before_scenario(context, scenario):
     # Stop existing Spark (if any)
     if hasattr(context, "spark") and context.spark is not None:
