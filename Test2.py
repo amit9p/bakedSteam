@@ -1,3 +1,10 @@
+
+print("consolidated schema type:", type(consolidated_schema))
+print("calculated schema type:", type(calculated_schema))
+print("consolidated structtype:", consolidated_schema.get_structtype())
+print("calculated structtype:", calculated_schema.get_structtype())
+
+
 print("Spark alive:", context.spark.sparkContext._jsc is not None)
 print("Spark type:", type(context.spark))
 
