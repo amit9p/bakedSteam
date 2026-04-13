@@ -1,4 +1,19 @@
+print("consolidated_data type:", type(consolidated_data))
+print("unified_data type:", type(unified_data))
 
+print("first consolidated record type:", type(consolidated_data[0]))
+print("first unified record type:", type(unified_data[0]))
+
+print("first consolidated record:", consolidated_data[0])
+print("first unified record:", unified_data[0])
+
+print("consolidated key types:", {type(k) for k in consolidated_data[0].keys()})
+print("unified key types:", {type(k) for k in unified_data[0].keys()})
+
+print("consolidated value types:", {type(v) for v in consolidated_data[0].values()})
+print("unified value types:", {type(v) for v in unified_data[0].values()})
+
+______________
 print("consolidated schema type:", type(consolidated_schema))
 print("calculated schema type:", type(calculated_schema))
 print("consolidated structtype:", consolidated_schema.get_structtype())
