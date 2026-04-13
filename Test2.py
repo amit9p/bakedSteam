@@ -1,4 +1,28 @@
 
+class TestReportableAccounts:
+
+    def test_without_edq(self, calculated_df, consolidated_df):
+        result_df = get_reportable_accounts(
+            calculated_dataset=calculated_df,
+            consolidated_dataset=consolidated_df
+        )
+
+        assert result_df.count() > 0
+
+
+    def test_edq_suppression(self, calculated_df, consolidated_df, edq_suppressions_df):
+        result_df = get_reportable_accounts(
+            calculated_dataset=calculated_df,
+            consolidated_dataset=consolidated_df,
+            edq_suppressions_df=edq_suppressions_df
+        )
+
+        result_accounts = [r.account_id for r in result_df.collect()]
+
+        assert "2" not in result_accounts
+
+
+
 @pytest.fixture
 def edq_suppressions_df(spark):
     """
