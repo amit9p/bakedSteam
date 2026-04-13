@@ -1,5 +1,92 @@
 
+@pytest.fixture
+def edq_suppressions_df(spark):
+    """
+    Provides EDQ suppression DataFrame.
+    """
+    data = [
+        {"account_id": "2"},   # this account should get suppressed
+    ]
 
+    return spark.createDataFrame(data)
+
+
+
+@pytest.fixture
+def empty_edq_df(spark):
+    return spark.createDataFrame([], "account_id string")
+
+
+
+
+def test_without_edq(calculated_df, consolidated_df):
+    result_df = get_reportable_accounts(
+        calculated_dataset=calculated_df,
+        consolidated_dataset=consolidated_df
+    )
+
+    assert result_df.count() > 0
+
+
+
+def test_edq_suppression(
+    calculated_df,
+    consolidated_df,
+    edq_suppressions_df
+):
+    result_df = get_reportable_accounts(
+        calculated_dataset=calculated_df,
+        consolidated_dataset=consolidated_df,
+        edq_suppressions_df=edq_suppressions_df
+    )
+
+    result_accounts = [row.account_id for row in result_df.collect()]
+
+    # account_id = "2" should be removed
+    assert "2" not in result_accounts
+
+
+
+
+def test_empty_edq(
+    calculated_df,
+    consolidated_df,
+    empty_edq_df
+):
+    result_df = get_reportable_accounts(
+        calculated_dataset=calculated_df,
+        consolidated_dataset=consolidated_df,
+        edq_suppressions_df=empty_edq_df
+    )
+
+    assert result_df.count() > 0
+
+
+
+def test_edq_reduces_count(
+    calculated_df,
+    consolidated_df,
+    edq_suppressions_df
+):
+    df_without = get_reportable_accounts(
+        calculated_dataset=calculated_df,
+        consolidated_dataset=consolidated_df
+    )
+
+    df_with = get_reportable_accounts(
+        calculated_dataset=calculated_df,
+        consolidated_dataset=consolidated_df,
+        edq_suppressions_df=edq_suppressions_df
+    )
+
+    assert df_with.count() < df_without.count()
+
+
+
+
+
+
+__________________
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.appName("parquet_to_single_file").getOrCreate()
