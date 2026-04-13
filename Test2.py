@@ -1,3 +1,9 @@
+print("Spark alive:", context.spark.sparkContext._jsc is not None)
+print("Spark type:", type(context.spark))
+
+context.consolidated_df = context.spark.createDataFrame(...)
+
+
 
 from pyspark.sql import SparkSession
 
