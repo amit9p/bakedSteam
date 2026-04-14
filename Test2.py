@@ -1,3 +1,43 @@
+def normalize_row(row: dict) -> dict:
+    cleaned = {}
+
+    for key, value in row.items():
+        clean_key = str(key)
+
+        if value == "None":
+            cleaned[clean_key] = None
+        elif isinstance(value, tuple):
+            # if schema expects string, safest temporary conversion
+            cleaned[clean_key] = str(value)
+        else:
+            cleaned[clean_key] = value
+
+    return cleaned
+
+
+consolidated_data = [normalize_row(dict(CLEAN_NON_REPORTABLE_ACCOUNT_CONSOLIDATED))]
+unified_data = [normalize_row(dict(CLEAN_NON_REPORTABLE_ACCOUNT_UNIFIED))]
+
+
+consolidated_records, unified_records = generate_clean_records(count)
+
+consolidated_records = [normalize_row(row) for row in consolidated_records]
+unified_records = [normalize_row(row) for row in unified_records]
+
+
+consolidated_records, unified_records = generate_clean_records(count)
+
+consolidated_records = [normalize_row(row) for row in consolidated_records]
+unified_records = [normalize_row(row) for row in unified_records]
+
+
+print("normalized consolidated row:", consolidated_data[0])
+print("normalized unified row:", unified_data[0])
+
+
+---->>>>>
+
+
 print("consolidated_data type:", type(consolidated_data))
 print("unified_data type:", type(unified_data))
 
