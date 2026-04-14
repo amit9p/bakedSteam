@@ -1,3 +1,21 @@
+
+from pyspark.sql import SparkSession
+
+spark = (
+    SparkSession.builder
+    .appName("smoke")
+    .master("local[1]")
+    .config("spark.driver.bindAddress", "127.0.0.1")
+    .config("spark.sql.shuffle.partitions", "1")
+    .config("spark.ui.enabled", "false")
+    .getOrCreate()
+)
+
+df = spark.createDataFrame([{"account_id": "A1"}])
+print(df.count())
+spark.stop()
+
+
 python3.11 --version
 cd /Users/vmq634/Desktop/EDQ/starship/ecbr-tenant-card
 pipenv --rm
