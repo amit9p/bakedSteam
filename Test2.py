@@ -1,4 +1,16 @@
 
+
+python3.11 --version
+cd /Users/vmq634/Desktop/EDQ/starship/ecbr-tenant-card
+pipenv --rm
+pipenv --python 3.11
+pipenv install --dev
+pipenv run python --version
+pipenv run python -c "import pyspark; print(pyspark.__version__)"
+pipenv run pytest tests/ecbr_generator/unit_tests/test_reportable_accounts.py -q
+pipenv run behave tests/ecbr_generator/features/reportable_accounts.feature
+
+
 from pyspark.sql import SparkSession
 
 spark = (
