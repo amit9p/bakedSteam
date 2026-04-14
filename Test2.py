@@ -1,4 +1,137 @@
+def get_reportable_accounts(
+    calculated_dataset: DataFrame,
+    consolidated_dataset: DataFrame,
+    context: dict = None,
+    edq_suppressions_df: DataFrame = None,
+) -> DataFrame:
 
+
+if edq_suppressions_df is not None:
+    edq_accounts_df = (
+        edq_suppressions_df
+        .select("account_id")
+        .dropDuplicates()
+    )
+
+    reportable_accounts_df = reportable_accounts_df.join(
+        F.broadcast(edq_accounts_df),
+        on="account_id",
+        how="left_anti"
+    )
+
+
+
+
+context.result = get_reportable_accounts(
+    context.calculated_df,
+    context.consolidated_df,
+    context={"product_type": product_type},
+    edq_suppressions_df=None,
+)
+
+def test_reportable_account_without_edq_suppression(
+    clean_calculator_input,
+    clean_consolidator_input,
+):
+    result = get_reportable_accounts(
+        clean_calculator_input,
+        clean_consolidator_input,
+        context={"product_type": "consumer"},
+        edq_suppressions_df=None,
+    )
+
+    assert result.count() == 1
+
+    account_ids = [row.account_id for row in result.select("account_id").collect()]
+    assert "ACC001" in account_ids
+
+
+
+import pytest
+
+@pytest.fixture
+def edq_suppressions_df(spark):
+    data = [
+        {
+            "account_id": "ACC001",
+            "enterprise_servicing_customer_id": "CUST001",
+            "run_id": "run_123",
+            "run_date": "2026-01-01",
+            "ecbr_suppressing_component": "edq_test",
+            "run_id_utc_timestamp": "2026-01-01T00:00:00Z",
+            "run_id_date": "2026-01-01",
+        }
+    ]
+    return spark.createDataFrame(data)
+
+
+
+
+
+def test_reportable_account_removed_by_edq_suppression(
+    clean_calculator_input,
+    clean_consolidator_input,
+    edq_suppressions_df,
+):
+    result = get_reportable_accounts(
+        clean_calculator_input,
+        clean_consolidator_input,
+        context={"product_type": "consumer"},
+        edq_suppressions_df=edq_suppressions_df,
+    )
+
+    assert result.count() == 0
+
+
+
+
+
+def test_non_matching_edq_suppression_does_not_remove_reportable_account(
+    spark,
+    clean_calculator_input,
+    clean_consolidator_input,
+):
+    edq_data = [
+        {
+            "account_id": "SOME_OTHER_ACCOUNT",
+            "enterprise_servicing_customer_id": "CUST999",
+            "run_id": "run_456",
+            "run_date": "2026-01-01",
+            "ecbr_suppressing_component": "edq_test",
+            "run_id_utc_timestamp": "2026-01-01T00:00:00Z",
+            "run_id_date": "2026-01-01",
+        }
+    ]
+    edq_df = spark.createDataFrame(edq_data)
+
+    result = get_reportable_accounts(
+        clean_calculator_input,
+        clean_consolidator_input,
+        context={"product_type": "consumer"},
+        edq_suppressions_df=edq_df,
+    )
+
+    assert result.count() == 1
+
+    account_ids = [row.account_id for row in result.select("account_id").collect()]
+    assert "ACC001" in account_ids
+
+
+
+
+
+%%%%%%%%%%%%%%%%%%%
+
+
+
+
+
+
+
+
+
+
+    
 
 python3.11 --version
 cd /Users/vmq634/Desktop/EDQ/starship/ecbr-tenant-card
