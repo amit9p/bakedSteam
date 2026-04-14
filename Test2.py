@@ -1,3 +1,4 @@
+
 consolidated_data = [{
     "account_id": "ACC001",
     "sor_id": "SOR001",
