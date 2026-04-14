@@ -1,3 +1,33 @@
+def test_without_edq(self, calculated_df, consolidated_df):
+    result_df = get_reportable_accounts(
+        calculated_dataset=calculated_df,
+        consolidated_dataset=consolidated_df,
+        context={"product_type": "consumer"},
+        edq_suppressions_df=None,
+    )
+
+    result_accounts = [r.account_id for r in result_df.select("account_id").collect()]
+
+    assert result_df.count() > 0
+    assert "1" in result_accounts
+    assert "2" in result_accounts
+
+
+def test_edq_suppression(self, calculated_df, consolidated_df, edq_suppressions_df):
+    result_df = get_reportable_accounts(
+        calculated_dataset=calculated_df,
+        consolidated_dataset=consolidated_df,
+        context={"product_type": "consumer"},
+        edq_suppressions_df=edq_suppressions_df,
+    )
+
+    result_accounts = [r.account_id for r in result_df.select("account_id").collect()]
+
+    assert "1" in result_accounts
+    assert "2" not in result_accounts
+
+<><><><><><><
+
 def get_reportable_accounts(
     calculated_dataset: DataFrame,
     consolidated_dataset: DataFrame,
