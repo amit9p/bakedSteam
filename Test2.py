@@ -1,102 +1,81 @@
-def normalize_row(row: dict) -> dict:
-    cleaned = {}
+consolidated_data = [{
+    "account_id": "ACC001",
+    "sor_id": "SOR001",
+    "sor_customer_id": "CUST001",
+    "account_as_of_date_of_data": None,
+    "last_reported_compliance_condition_code": None,
+    "is_account_paid_in_full": False,
+    "is_account_terminal": False,
+    "is_account_aged_debt": False,
+    "settled_in_full_notification": False,
+    "is_account_holder_deceased": False,
+    "status_desc": "ACTIVE",
+    "is_debt_sold": False,
+    "is_credit_bureau_manual_reporting": False,
+    "pre_charge_off_settled_in_full_notification": False,
+    "account_open_date": None,
+    "financial_portfolio_id": None,
+    "reactivation_status": None,
+    "is_identity_fraud_claimed_on_account": False,
+    "block_notification": False,
+}]
 
-    for key, value in row.items():
-        clean_key = str(key)
+unified_data = [{
+    "account_id": "ACC001",
+    "sor_id": "SOR001",
+    "sor_customer_id": "CUST001",
+    "account_status": "11",
+    "compliance_condition_code": None,
+}]
 
-        if value == "None":
-            cleaned[clean_key] = None
-        elif isinstance(value, tuple):
-            # if schema expects string, safest temporary conversion
-            cleaned[clean_key] = str(value)
-        else:
-            cleaned[clean_key] = value
+consolidated_records = []
+unified_records = []
 
-    return cleaned
+for idx in range(1, count + 1):
+    account_id = f"ACC{idx:03d}"
+    sor_id = f"SOR{idx:03d}"
+    customer_id = f"CUST{idx:03d}"
 
+    consolidated_records.append({
+        "account_id": account_id,
+        "sor_id": sor_id,
+        "sor_customer_id": customer_id,
+        "account_as_of_date_of_data": None,
+        "last_reported_compliance_condition_code": None,
+        "is_account_paid_in_full": False,
+        "is_account_terminal": False,
+        "is_account_aged_debt": False,
+        "settled_in_full_notification": False,
+        "is_account_holder_deceased": False,
+        "status_desc": "ACTIVE",
+        "is_debt_sold": False,
+        "is_credit_bureau_manual_reporting": False,
+        "pre_charge_off_settled_in_full_notification": False,
+        "account_open_date": None,
+        "financial_portfolio_id": None,
+        "reactivation_status": None,
+        "is_identity_fraud_claimed_on_account": False,
+        "block_notification": False,
+    })
 
-consolidated_data = [normalize_row(dict(CLEAN_NON_REPORTABLE_ACCOUNT_CONSOLIDATED))]
-unified_data = [normalize_row(dict(CLEAN_NON_REPORTABLE_ACCOUNT_UNIFIED))]
-
-
-consolidated_records, unified_records = generate_clean_records(count)
-
-consolidated_records = [normalize_row(row) for row in consolidated_records]
-unified_records = [normalize_row(row) for row in unified_records]
-
-
-consolidated_records, unified_records = generate_clean_records(count)
-
-consolidated_records = [normalize_row(row) for row in consolidated_records]
-unified_records = [normalize_row(row) for row in unified_records]
-
-
-print("normalized consolidated row:", consolidated_data[0])
-print("normalized unified row:", unified_data[0])
-
-
----->>>>>
-
-
-print("consolidated_data type:", type(consolidated_data))
-print("unified_data type:", type(unified_data))
-
-print("first consolidated record type:", type(consolidated_data[0]))
-print("first unified record type:", type(unified_data[0]))
-
-print("first consolidated record:", consolidated_data[0])
-print("first unified record:", unified_data[0])
-
-print("consolidated key types:", {type(k) for k in consolidated_data[0].keys()})
-print("unified key types:", {type(k) for k in unified_data[0].keys()})
-
-print("consolidated value types:", {type(v) for v in consolidated_data[0].values()})
-print("unified value types:", {type(v) for v in unified_data[0].values()})
-
-______________
-print("consolidated schema type:", type(consolidated_schema))
-print("calculated schema type:", type(calculated_schema))
-print("consolidated structtype:", consolidated_schema.get_structtype())
-print("calculated structtype:", calculated_schema.get_structtype())
-
-
-print("Spark alive:", context.spark.sparkContext._jsc is not None)
-print("Spark type:", type(context.spark))
-
-context.consolidated_df = context.spark.createDataFrame(...)
-
-
-
-from pyspark.sql import SparkSession
-
-def before_all(context):
-    context.spark = (
-        SparkSession.builder
-        .appName("Reportable Accounts Component Test")
-        .master("local[1]")
-        .config("spark.driver.bindAddress", "127.0.0.1")
-        .config("spark.sql.shuffle.partitions", "1")
-        .config("spark.ui.enabled", "false")
-        .getOrCreate()
-    )
-
-    context.spark.sparkContext.setLogLevel("ERROR")
+    unified_records.append({
+        "account_id": account_id,
+        "sor_id": sor_id,
+        "sor_customer_id": customer_id,
+        "account_status": "11",
+        "compliance_condition_code": None,
+    })
 
 
-def before_scenario(context, scenario):
-    # Only reset data, NOT Spark
-    context.error_raised = None
-    context.result = None
-    context.consolidated_df = None
-    context.calculated_df = None
 
-    # Clear cache safely
-    context.spark.catalog.clearCache()
+context.consolidated_df = context.spark.createDataFrame(
+    consolidated_records,
+    schema=consolidated_schema.get_structtype()
+)
+
+context.calculated_df = context.spark.createDataFrame(
+    unified_records,
+    schema=calculated_schema.get_structtype()
+)
 
 
-def after_all(context):
-    if hasattr(context, "spark") and context.spark is not None:
-        try:
-            context.spark.stop()
-        except:
-            pass
