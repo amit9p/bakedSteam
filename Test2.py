@@ -1,4 +1,50 @@
-def test_without_edq(self, calculated_df, consolidated_df):
+d
+Summary
+
+Implemented EDQ suppression handling in "get_reportable_accounts" so reportable accounts can be filtered using the optional "edq_suppressions_df" input.
+
+Changes made
+
+- Added optional "edq_suppressions_df" argument to "get_reportable_accounts"
+- Applied EDQ suppression after trigger, exclusion, and override processing
+- Used "account_id" from EDQ suppression dataset to remove suppressed accounts from final reportable set
+- Kept suppression logic inside "reportable_accounts.py" since this is final reportability filtering logic, not rule evaluation logic
+- Left existing exclusion/override logic in "rules.py" unchanged
+
+Logic
+
+Current flow is:
+
+1. Select required fields
+2. Identify triggered accounts
+3. Apply exclusions
+4. Apply overrides on excluded accounts where applicable
+5. Union clean + overridden reportable accounts
+6. Apply EDQ suppression on resulting reportable accounts
+7. Join back with calculated dataset to return full reportable output
+
+Why this approach
+
+- EDQ suppression is a final suppression step, not an exclusion rule
+- This keeps business rule evaluation and final suppression concerns separate
+- Optional input keeps backward compatibility for existing callers
+
+Testing
+
+- Verified existing behavior when "edq_suppressions_df=None"
+- Added/updated unit test for suppression scenario
+- Confirmed suppressed "account_id" is excluded from final output
+- Confirmed non-suppressed accounts continue to be reported
+
+Notes
+
+- Suppression logic is based on "account_id"
+- EDQ input is treated as optional to reduce impact on existing flows
+
+
+
+=================
+ef test_without_edq(self, calculated_df, consolidated_df):
     result_df = get_reportable_accounts(
         calculated_dataset=calculated_df,
         consolidated_dataset=consolidated_df,
