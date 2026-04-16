@@ -1,60 +1,64 @@
-1. Account DOFD > 10 years
-H Notes: Implemented in generator exclusion rules
-I Logic: Excluded when aged debt / DOFD > 7 years rule condition is met per generator exclusion logic
-2. Account is Live Test Account
-H Notes: Implemented in generator exclusion rules
-I Logic: Excluded when is_live_test_account = true
-3. Account is Canadian
-H Notes: Implemented in generator exclusion rules
-I Logic: Excluded when financial_portfolio_id indicates Canada
-4. Non-active subscriber code
-H Notes: Implemented using subscriber code based exclusion logic
-I Logic: Excluded based on bureau/subscriber code conditions
-5. 3rd Thursday of month
-H Notes: Implemented in trigger rules
-I Logic: Triggered when account_as_of_date_of_data falls on the third Thursday of the month
-6. CCC is changed
-H Notes: Implemented in trigger rules; confirm business intent if needed
-I Logic: Triggered when calculated CCC differs from last reported CCC
-7. Account is Sold
-H Notes: Implemented in trigger rules
-I Logic: Triggered when is_debt_sold = true
-8. Manual trigger applied by CBR Business
-H Notes: Implemented in trigger rules
-I Logic: Triggered when manual credit bureau reporting indicator = true
-9. Account moves to a Final Status attribute
-H Notes: Implemented in trigger rules
-I Logic: Triggered when account status / related final-status fields satisfy final status trigger condition
-10. Account deleted
-H Notes: Implemented as exclusion / status-based logic
-I Logic: Excluded when account status indicates deleted
-11. Account is Reactivated
-H Notes: Implemented in trigger/exclusion rules
-I Logic: Triggered or excluded based on reactivation status and prior reported state
-12. Account under non-605B Fraud Investigation
-H Notes: Implemented in trigger rules
-I Logic: Triggered when fraud claimed on account and not blocked condition is met
-13. Account is manually suppressed
-H Notes: Implemented in exclusion rules
-I Logic: Excluded when credit bureau manual suppression indicator = true
-14. Account is in a final status
-H Notes: Implemented in exclusion logic
-I Logic: Excluded based on final account status condition
-15. Account is <30 days old
-H Notes: Implemented in exclusion rules
-I Logic: Excluded when account_open_date is within 30 days of current date
-16. Account has already reported under non-605B Fraud Investigation
-H Notes: Implemented in exclusion rules
-I Logic: Excluded when prior reported fraud status already exists
-17. Account under 605B Fraud Investigation
-H Notes: Implemented in exclusion rules
-I Logic: Excluded when fraud claimed and blocked condition is met
-18. Account has already reported deleted
-H Notes: Implemented in exclusion rules
-I Logic: Excluded when previously reported deleted status is present
-19. Account has already reported Reactivated
-H Notes: Implemented in exclusion rules
-I Logic: Excluded when prior reactivation has already been reported
-20. Account fails eDQ Check
-H Notes: EDQ work completed in CT4018T-491
-I Logic: Final EDQ suppression applied by left anti join on account_id
+
+Account DOFD > 10 years
+H: Not fully implemented in current generator logic
+I: DOFD-based exclusion is still pending; DOFD_7LESS is present as TODO / placeholder and not finalized in active rule logic
+Account is Live Test Account
+H: Implemented in generator exclusion rules
+I: Excluded when is_live_test_account == True
+Account is Canadian
+H: Implemented in generator exclusion rules
+I: Excluded when upper(financial_portfolio_id) == "CA"
+Non-active subscriber code
+H: Not implemented in current generator rules; needs ECBR / upstream clarification
+I: No explicit rule found in current generator logic for subscriber code fields
+3rd Thursday of month
+H: Implemented in generator trigger rules
+I: Triggered when dayofweek(account_as_of_date) == 5 and dayofmonth(account_as_of_date) is between 15 and 21
+CCC is changed
+H: Implemented in generator trigger rules
+I: Triggered when calculated_ccc != last_reported_ccc
+Account is Sold
+H: Implemented in generator trigger rules
+I: Triggered when is_debt_sold == True
+Manual trigger applied by CBR Business
+H: Implemented in generator trigger rules
+I: Triggered when is_credit_bureau_manual_reporting == True
+Account moves to a Final Status attribute
+H: Implemented in generator trigger rules
+I: Triggered when account_status == "DA"
+Account deleted
+H: Not clearly implemented in current generator logic
+I: No explicit delete trigger rule found in current rules.py
+Account is Reactivated
+H: Implemented in generator exclusion rules
+I: Excluded when upper(reactivation_status) == "REACTIVATED"
+Account under non-605B Fraud Investigation
+H: Implemented in generator exclusion rules
+I: Excluded when is_identity_fraud_claimed_on_account == True and block_notification != True
+Account is manually suppressed
+H: Implemented in generator exclusion rules
+I: Excluded when is_credit_bureau_manual_suppressed == True
+Account is in a final status
+H: Implemented in generator trigger logic
+I: Final-status handling is covered through account_status == "DA" trigger logic
+Account is <30 days old
+H: Implemented in generator exclusion rules
+I: Excluded when datediff(current_date(), account_open_date) < 30
+Account has already reported under non-605B Fraud Investigation
+H: Implemented through current non-605B fraud exclusion logic
+I: Exclusion is driven by is_identity_fraud_claimed_on_account == True and block_notification != True
+Account under 605B Fraud investigation
+H: Implemented in generator exclusion rules
+I: Excluded when is_identity_fraud_claimed_on_account == True and block_notification == True
+Account has already reported deleted
+H: Not clearly implemented in current generator logic
+I: No explicit already-reported-deleted exclusion rule found in current rules.py
+Account has already reported Reactivated
+H: Implemented through current reactivation exclusion logic
+I: Excluded when upper(reactivation_status) == "REACTIVATED"
+Account fails eDQ Check
+H: EDQ suppression completed in generator
+I: Final EDQ suppression is implemented in reportable_accounts.py by excluding accounts present in edq_suppressions_df using account_id
+Also, for Katie, send this after sheet update:
+Message
+Updated the Generator I/P Readiness sheet based on the current generator implementation. I marked the items that are already implemented in generator rules and noted the ones still pending or not explicitly present in the current logic, like DOFD, non-active subscriber code, and delete-related handling.
