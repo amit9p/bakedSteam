@@ -1,4 +1,4 @@
-
+Hi team, I have a pediatric appointment for my child today, so I may miss the retrospective scheduled at 11:30. Please continue without me if needed.
 
 
 A2 – Account DOFD > 10 years
