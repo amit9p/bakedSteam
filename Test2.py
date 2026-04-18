@@ -1,11 +1,4 @@
-Hi team, I have a pediatric appointment for my child today, so I may miss the retrospective scheduled at 11:30. Please continue without me if needed.
 
-
-A2 – Account DOFD > 10 years
-F: Yes
-G: No
-I: Not fully implemented in current generator logic
-J: DOFD-based exclusion is still pending; DOFD_7LESS is present as TODO / placeholder and not finalized
 A3 – Account is Live Test Account
 F: Yes
 G: Yes
