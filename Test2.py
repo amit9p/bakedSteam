@@ -1,3 +1,14 @@
+A6 – I (Notes):
+Dependent on generator run-date/context work. See CT4018T-525
+A6 – J (Logic):
+Third-Thursday condition uses generator date/context logic and should be finalized after CT4018T-525 is completed
+For A7, you can keep:
+I (Notes):
+Awaiting final generator condition / tracking confirmation
+J (Logic):
+CCC-change condition tracking is still being confirmed in current generator implementation
+
+_______
 
 A3 – Account is Live Test Account
 F: Yes
