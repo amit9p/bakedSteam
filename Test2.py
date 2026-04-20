@@ -1,3 +1,10 @@
+
+Reordered "get_reportable_accounts" parameters so all three DataFrame inputs are passed first ("calculated_dataset", "consolidated_dataset", "edq_suppressions_df") and "context" is passed last.
+
+This change was made to avoid incorrect positional mapping, where the EDQ suppression DataFrame could be interpreted as "context". Since "context" is a config/runtime dictionary and not a DataFrame, that mismatch could cause runtime failures in Glue/job execution.
+
+Also updated related call sites and tests to match the new method signature.
+
 Resolution Answer → leave blank for now, or say
 Current generator logic uses deceased indicator/status, not explicit date-based logic
 Comments / Follow-up questions →
