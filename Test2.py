@@ -1,3 +1,8 @@
+
+Got it — I’ll go through the outstanding items tracker and focus on the generator-related open items first. I’ll update the sheet where I can confidently map things to current implementation and call out anything that still needs intent or upstream clarification.
+
+
+
 A6 – I (Notes):
 Dependent on generator run-date/context work. See CT4018T-525
 A6 – J (Logic):
