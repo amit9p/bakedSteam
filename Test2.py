@@ -1,4 +1,6 @@
 
+Current generator exclusion logic checks datediff(current_date(), account_open_date) < 30
+
 Got it — I’ll go through the outstanding items tracker and focus on the generator-related open items first. I’ll update the sheet where I can confidently map things to current implementation and call out anything that still needs intent or upstream clarification.
 
 
