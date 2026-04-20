@@ -1,4 +1,7 @@
-
+Resolution Answer → leave blank for now, or say
+Current generator logic uses deceased indicator/status, not explicit date-based logic
+Comments / Follow-up questions →
+Current generator trigger appears to rely on is_account_holder_deceased / deceased status condition. No explicit logic found choosing between customer_deceased_date and deceased notification date. Business intent clarification still needed.
 Current generator exclusion logic checks datediff(current_date(), account_open_date) < 30
 
 Got it — I’ll go through the outstanding items tracker and focus on the generator-related open items first. I’ll update the sheet where I can confidently map things to current implementation and call out anything that still needs intent or upstream clarification.
