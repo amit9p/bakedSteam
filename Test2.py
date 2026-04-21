@@ -1,3 +1,21 @@
+from pyspark.sql import functions as F
+
+joiner_ids = joiner_output_df.select("account_id").dropDuplicates()
+consolidator_ids = consolidator_output_df.select("account_id").dropDuplicates()
+edq_ids = edq_suppressions_df.select("account_id").dropDuplicates()
+
+base_reportable_ids = joiner_ids.join(consolidator_ids, on="account_id", how="inner")
+
+print("base_reportable_ids:", base_reportable_ids.count())
+print("edq_ids:", edq_ids.count())
+
+matched_with_edq = base_reportable_ids.join(edq_ids, on="account_id", how="inner")
+print("base ids matched in edq:", matched_with_edq.count())
+
+remaining_after_edq = base_reportable_ids.join(edq_ids, on="account_id", how="left_anti")
+print("remaining after edq:", remaining_after_edq.count())
+
+
 
 Title
 Create generator output testing strategy and readiness tracking for ECBR reportable account logic
