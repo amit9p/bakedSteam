@@ -1,4 +1,7 @@
 
+my_data_df.coalesce(1).write.mode("overwrite").parquet(temp_output_path)
+
+
 Reordered "get_reportable_accounts" parameters so all three DataFrame inputs are passed first ("calculated_dataset", "consolidated_dataset", "edq_suppressions_df") and "context" is passed last.
 
 This change was made to avoid incorrect positional mapping, where the EDQ suppression DataFrame could be interpreted as "context". Since "context" is a config/runtime dictionary and not a DataFrame, that mismatch could cause runtime failures in Glue/job execution.
