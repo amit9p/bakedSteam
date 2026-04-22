@@ -1,3 +1,77 @@
+def test_context_passed_as_third_argument(self, calculated_df, consolidated_df):
+    """
+    Validates backward compatibility when context is passed as the
+    3rd positional argument instead of edq_suppressions_df.
+    """
+
+    result_df = get_reportable_accounts(
+        calculated_df,
+        consolidated_df,
+        CONSUMER_THIRD_THURSDAY_CONTEXT,
+    )
+
+    result_accounts = [row.account_id for row in result_df.select("account_id").collect()]
+
+    assert result_df.count() > 0
+    assert "1" in result_accounts
+
+
+
+_____________
+
+
+def get_reportable_accounts(
+    calculated_dataset: DataFrame,
+    consolidated_dataset: DataFrame,
+    edq_suppressions_df: DataFrame = None,
+    context: dict = None,
+) -> DataFrame:
+    """
+    Args:
+        calculated_dataset: DataFrame with calculated fields
+        consolidated_dataset: DataFrame with consolidated fields
+        edq_suppressions_df: DataFrame with edq suppression fields
+        context: job_context dict from the platform framework (optional)
+    """
+
+    # Backward compatibility fix:
+    # if framework passes context as 3rd positional argument,
+    # it lands in edq_suppressions_df by mistake.
+    if isinstance(edq_suppressions_df, dict) and context is None:
+        context = edq_suppressions_df
+        edq_suppressions_df = None
+
+    # normal context handling
+    if context is None:
+        context = {}
+
+    product_type = context.get("product_type", "consumer")
+    reporting_date = context.get("reporting_date")
+
+    if product_type.lower() == "consumer":
+        override_rules_dict = CONSUMER_OVERRIDE_RULES
+    elif product_type.lower() == "sbfe":
+        override_rules_dict = SBFE_OVERRIDE_RULES
+    else:
+        logger.error(f"Invalid product_type: {product_type}")
+        raise ValueError(f"Invalid product_type: {product_type}")
+
+    spark = SparkSession.getActiveSession()
+
+    # if EDQ df not passed, use empty df
+    if edq_suppressions_df is None:
+        edq_suppressions_df = spark.createDataFrame([], "account_id string")
+
+    # rest of your existing code...
+
+
+<><><><><><<
+
+
+
+
+
+
 from pyspark.sql import functions as F
 
 joiner_ids = joiner_output_df.select("account_id").dropDuplicates()
