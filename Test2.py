@@ -1,3 +1,20 @@
+Updated `get_reportable_accounts` to support backward-compatible positional argument handling.
+
+Issue:
+When `edq.suppressions` is removed from config, the platform passes `context` as the 3rd positional argument. Because the current method signature expects `edq_suppressions_df` as the 3rd argument, the context dict gets bound there and causes `'dict' object has no attribute 'select'`.
+
+Fix:
+Added a guard inside `get_reportable_accounts` to detect this case:
+- if the 3rd argument is a dict and `context` is `None`, treat it as `context`
+- set `edq_suppressions_df` to `None`
+
+Also added a unit test to validate this backward compatibility path.
+
+This keeps existing behavior intact for valid EDQ suppression dataframe inputs while preventing runtime failure when config does not include EDQ suppression.
+
+
+
+
 def test_context_passed_as_third_argument(self, calculated_df, consolidated_df):
     """
     Validates backward compatibility when context is passed as the
