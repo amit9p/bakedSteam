@@ -1,3 +1,12 @@
+
+Hi all, I raised a PR for the backward-compatibility fix in "get_reportable_accounts".
+
+This handles the case where "edq.suppressions" is not in config and "context" gets passed as the 3rd positional argument. I also added unit test coverage for it.
+
+Please review when you get a chance. Thanks.
+
+
+
 Updated `get_reportable_accounts` to support backward-compatible positional argument handling.
 
 Issue:
