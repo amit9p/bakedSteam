@@ -1,4 +1,8 @@
 
+Since the platform is calling this method positionally, "**kwargs" does not really help unless the platform also changes its code to pass named arguments. For the current issue, the guard-based fix makes more sense because it handles the existing platform behavior directly and gives us backward compatibility without requiring platform-side changes.
+
+
+
 Hi all, I raised a PR for the backward-compatibility fix in "get_reportable_accounts".
 
 This handles the case where "edq.suppressions" is not in config and "context" gets passed as the 3rd positional argument. I also added unit test coverage for it.
