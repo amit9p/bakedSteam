@@ -1,4 +1,13 @@
 
+SELECT c.customer_id,
+       c.customer_name,
+       o.order_id,
+       o.amount
+FROM customers c
+INNER JOIN orders o
+    ON c.customer_id = o.customer_id;
+
+
 Since the platform is calling this method positionally, "**kwargs" does not really help unless the platform also changes its code to pass named arguments. For the current issue, the guard-based fix makes more sense because it handles the existing platform behavior directly and gives us backward compatibility without requiring platform-side changes.
 
 
