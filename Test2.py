@@ -1,3 +1,25 @@
+SELECT
+    q1.snapshot_date,
+    COUNT(DISTINCT CASE
+        WHEN (q2.enterprise_servicing_customer_id IS NOT NULL
+              OR q3.enterprise_servicing_customer_id IS NOT NULL)
+         AND q4.account_id IS NOT NULL
+        THEN q1.account_id
+    END) AS matching_records
+FROM CUST_DB.QHDP_CUST_RA_NPI.enterprise_customer_and_reported_account_full_file_v4_v11 q1
+LEFT JOIN ENTERPRISE_SERVICES.ENTERPRISE_PRODUCT_AND_EXPERIENCE.ENTERPRISE_CUSTOMER_ESTATES_RESTRICTIONS_FULL_FILE_QHDP_CUST_RA_NON_NPI_VW q2
+    ON q1.enterprise_servicing_customer_id = q2.enterprise_servicing_customer_id
+LEFT JOIN ENTERPRISE_SERVICES.ENTERPRISE_PRODUCT_AND_EXPERIENCE.ENTERPRISE_CUSTOMER_BANKRUPTCY_RESTRICTIONS_FULL_FILE_V4_QHDP_CUST_RA_NPI_VW q3
+    ON q1.enterprise_servicing_customer_id = q3.enterprise_servicing_customer_id
+LEFT JOIN CARD_DB.QHDP_CARD.charged_off_credit_card_account_pt_beta_v5 q4
+    ON q1.account_id = q4.account_id
+WHERE q1.snapshot_date BETWEEN '2026-03-30' AND '2026-04-05'
+GROUP BY q1.snapshot_date
+ORDER BY q1.snapshot_date;
+
+
+
+
 <><><><><
 SELECT COUNT(DISTINCT o1.account_id) AS distinct_account_count
 FROM US_CARD_CORE.CREDIT_CARD_TRANSACTIONS_AND_FINANCIAL_LEDGER_PARTICIPANTS_END_OF_DAY_PT_V2_QHDP_CARD_VW o1
