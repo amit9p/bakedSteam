@@ -1,4 +1,12 @@
 
+
+
+Yes, I’ll compare it against the actual consolidator join path. Your query is checking how many charged-off accounts have matching RA/customer records using an inner join on "account_id + sor_id".
+
+In consolidator, the comparable step is "CCAccount + Fraud" left joined with "CustomerInformation" on "account_id + sor_id". I’ll run that join using the calculated temp views and capture total records, matched customer records, and missing customer records. I’ll also align the snapshot dates before comparing with the 22,426 count.
+
+
+
 %sql
 
 SELECT
