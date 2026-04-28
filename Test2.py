@@ -1,382 +1,294 @@
+
+%sql
+
+-- =========================================================
+-- cc_account calculation SQL
+-- Based on:
+-- config.yaml -> cc_account input datasets
+-- pre_process.py -> main() logic
+-- constants.py -> constants/mappings
+-- =========================================================
+
+WITH constants AS (
+    SELECT
+        '6' AS OMEGA_SOR_ID,
+        'SettlementPaid' AS SETTLEMENT_PAID,
+        30 AS NEW_ACCOUNT_LOOKBACK_DAYS,
+        10 AS DELINQUENCY_LOOKBACK_YEARS
+),
+
+-- =========================================================
+-- 1. Input dataset 1:
+-- credit_card_transaction_and_financial_ledger
+-- =========================================================
+credit_card_transaction_and_financial_ledger AS (
+    SELECT *
+    FROM your_catalog.your_schema.credit_card_transaction_and_financial_ledger
+),
+
+-- =========================================================
+-- 2. Input dataset 2:
+-- charged_off_credit_card_account_pt
+-- =========================================================
+charged_off_credit_card_account_pt AS (
+    SELECT *
+    FROM your_catalog.your_schema.charged_off_credit_card_account_pt
+),
+
+-- =========================================================
+-- 3. Input dataset 3:
+-- characteristics_service_characteristics
+-- Config has date_range ["20260111", "20260111"]
+-- Uncomment correct date filter if available in your table
+-- =========================================================
+characteristics_service_characteristics AS (
+    SELECT *
+    FROM your_catalog.your_schema.characteristics_service_characteristics
+    -- WHERE business_date = '20260111'
+    -- WHERE snapshot_date = DATE '2026-01-11'
+),
+
+-- =========================================================
+-- 4. Apply exclusion rules on base account dataset
+-- This happens BEFORE joins in PySpark code
+-- =========================================================
+account_snapshot_filtered AS (
+    SELECT a.*
+    FROM charged_off_credit_card_account_pt a
+    CROSS JOIN constants c
+    WHERE COALESCE(a.is_live_test_account, false) = false
+
+      AND datediff(current_date(), CAST(a.account_open_date AS DATE))
+            >= c.NEW_ACCOUNT_LOOKBACK_DAYS
+
+      AND COALESCE(a.account_alpha_2_country_code, '') <> 'CA'
+
+      AND (
+            a.most_recent_delinquency_start_date IS NULL
+            OR CAST(a.most_recent_delinquency_start_date AS DATE)
+                >= add_months(
+                       current_date(),
+                       -1 * c.DELINQUENCY_LOOKBACK_YEARS * 12
+                   )
+          )
+),
+
+-- =========================================================
+-- 5. Convert characteristics rows into flags/dates
+-- Based on CHARACTERISTIC_MAPPING
+-- TERMINAL     -> is_account_terminal, terminal_effective_date
+-- SETTLED      -> is_account_settled, sif_effective_date
+-- AGED_DEBT    -> is_account_aged_debt, aged_debt_effective_date
+-- PAID_IN_FULL -> is_account_paid_in_full, pif_effective_date
+-- =========================================================
+characteristics_flags AS (
+    SELECT
+        ch.account_id,
+        c.OMEGA_SOR_ID AS sor_id,
+
+        MAX(CASE WHEN ch.characteristic = 'TERMINAL'
+                 THEN true ELSE false END) AS is_account_terminal,
+
+        MAX(CASE WHEN ch.characteristic = 'TERMINAL'
+                 THEN CAST(ch.characteristic_entered_date AS DATE) END) AS terminal_effective_date,
+
+        MAX(CASE WHEN ch.characteristic = 'SETTLED'
+                 THEN true ELSE false END) AS is_account_settled,
+
+        MAX(CASE WHEN ch.characteristic = 'SETTLED'
+                 THEN CAST(ch.characteristic_entered_date AS DATE) END) AS sif_effective_date,
+
+        MAX(CASE WHEN ch.characteristic = 'AGED_DEBT'
+                 THEN true ELSE false END) AS is_account_aged_debt,
+
+        MAX(CASE WHEN ch.characteristic = 'AGED_DEBT'
+                 THEN CAST(ch.characteristic_entered_date AS DATE) END) AS aged_debt_effective_date,
+
+        MAX(CASE WHEN ch.characteristic = 'PAID_IN_FULL'
+                 THEN true ELSE false END) AS is_account_paid_in_full,
+
+        MAX(CASE WHEN ch.characteristic = 'PAID_IN_FULL'
+                 THEN CAST(ch.characteristic_entered_date AS DATE) END) AS pif_effective_date
+
+    FROM characteristics_service_characteristics ch
+    CROSS JOIN constants c
+    GROUP BY
+        ch.account_id,
+        c.OMEGA_SOR_ID
+),
+
+-- =========================================================
+-- 6. Get latest PAYMENT transaction date
+-- PySpark:
+-- transactions.filter(category = 'PAYMENT')
+--             .groupBy(account_id, sor_id)
+--             .max(transaction_effective_date)
+-- =========================================================
+latest_payment_posted_dates AS (
+    SELECT
+        t.account_id,
+        t.sor_id,
+        MAX(CAST(t.transaction_effective_date AS DATE)) AS transaction_effective_date
+    FROM credit_card_transaction_and_financial_ledger t
+    WHERE t.credit_card_transaction_category_class = 'PAYMENT'
+    GROUP BY
+        t.account_id,
+        t.sor_id
+),
+
+-- =========================================================
+-- 7. Join account snapshot with latest payment and characteristics
+-- =========================================================
+cc_account_joined AS (
+    SELECT
+        a.*,
+
+        lp.transaction_effective_date,
+
+        COALESCE(cf.is_account_terminal, false) AS is_account_terminal,
+        cf.terminal_effective_date,
+
+        COALESCE(cf.is_account_settled, false) AS is_account_settled,
+        cf.sif_effective_date,
+
+        COALESCE(cf.is_account_aged_debt, false) AS is_account_aged_debt,
+        cf.aged_debt_effective_date,
+
+        COALESCE(cf.is_account_paid_in_full, false) AS is_account_paid_in_full,
+        cf.pif_effective_date
+
+    FROM account_snapshot_filtered a
+
+    LEFT JOIN latest_payment_posted_dates lp
+        ON a.account_id = lp.account_id
+       AND a.sor_id = lp.sor_id
+
+    LEFT JOIN characteristics_flags cf
+        ON a.account_id = cf.account_id
+       AND a.sor_id = cf.sor_id
+),
+
+-- =========================================================
+-- 8. Settlement notification flags
+-- Based on SETTLEMENT_PAID = 'SettlementPaid'
+-- =========================================================
+cc_account_with_settlement AS (
+    SELECT
+        j.*,
+
+        CASE
+            WHEN j.is_account_settled = true
+             AND j.charged_off_status_reason <> c.SETTLEMENT_PAID
+            THEN true
+            ELSE false
+        END AS post_charge_off_settled_in_full_notification,
+
+        CASE
+            WHEN j.is_account_settled = true
+             AND j.charged_off_status_reason = c.SETTLEMENT_PAID
+            THEN true
+            ELSE false
+        END AS pre_charge_off_settled_in_full_notification
+
+    FROM cc_account_joined j
+    CROSS JOIN constants c
+),
+
+-- =========================================================
+-- 9. Account closure reason mapping
+-- Based on constants.py
+-- =========================================================
+cc_account_with_closure_reason AS (
+    SELECT
+        s.*,
+
+        CASE
+            WHEN s.account_lifecycle_status_reason IN (
+                'ClosedPerConsumerZeroBalance',
+                'ClosedPerConsumerWithBalance'
+            )
+            THEN 'closed_by_consumer'
+
+            WHEN s.account_lifecycle_status_reason IN (
+                'ClosedByBankZeroBalance',
+                'ClosedDueToFirstPartyFraud',
+                'ClosedDueToAutomatedFeeRuleUp',
+                'ClosedDueToExtremelyLowBalance',
+                'ClosedByBankWithBalance'
+            )
+            THEN 'closed_by_grantor'
+
+            ELSE NULL
+        END AS account_closure_reason
+
+    FROM cc_account_with_settlement s
+)
+
+-- =========================================================
+-- 10. Final cc_account frame
+-- Based on build_cc_account_frame()
+-- =========================================================
 SELECT
-    q1.snapshot_date,
-    COUNT(DISTINCT CASE
-        WHEN (q2.enterprise_servicing_customer_id IS NOT NULL
-              OR q3.enterprise_servicing_customer_id IS NOT NULL)
-         AND q4.account_id IS NOT NULL
-        THEN q1.account_id
-    END) AS matching_records
-FROM CUST_DB.QHDP_CUST_RA_NPI.enterprise_customer_and_reported_account_full_file_v4_v11 q1
-LEFT JOIN ENTERPRISE_SERVICES.ENTERPRISE_PRODUCT_AND_EXPERIENCE.ENTERPRISE_CUSTOMER_ESTATES_RESTRICTIONS_FULL_FILE_QHDP_CUST_RA_NON_NPI_VW q2
-    ON q1.enterprise_servicing_customer_id = q2.enterprise_servicing_customer_id
-LEFT JOIN ENTERPRISE_SERVICES.ENTERPRISE_PRODUCT_AND_EXPERIENCE.ENTERPRISE_CUSTOMER_BANKRUPTCY_RESTRICTIONS_FULL_FILE_V4_QHDP_CUST_RA_NPI_VW q3
-    ON q1.enterprise_servicing_customer_id = q3.enterprise_servicing_customer_id
-LEFT JOIN CARD_DB.QHDP_CARD.charged_off_credit_card_account_pt_beta_v5 q4
-    ON q1.account_id = q4.account_id
-WHERE q1.snapshot_date BETWEEN '2026-03-30' AND '2026-04-05'
-GROUP BY q1.snapshot_date
-ORDER BY q1.snapshot_date;
+    account_id,
 
+    CAST(account_open_date AS DATE) AS account_open_date,
 
+    CAST(most_recent_delinquency_start_date AS DATE)
+        AS most_recent_delinquency_start_date,
 
+    CAST(posted_balance AS INT) AS posted_balance,
 
-<><><><><
-SELECT COUNT(DISTINCT o1.account_id) AS distinct_account_count
-FROM US_CARD_CORE.CREDIT_CARD_TRANSACTIONS_AND_FINANCIAL_LEDGER_PARTICIPANTS_END_OF_DAY_PT_V2_QHDP_CARD_VW o1
-INNER JOIN ENTERPRISE_SERVICES.ENTERPRISE_PRODUCT_AND_EXPERIENCE.ENTERPRISE_CUSTOMER_AND_REPORTED_ACCOUNT_FULL_FILE_V4_V11_QHDP_CUST_RA_NPI_VW o2
-    ON o1.account_id = o2.account_id
-WHERE o1.snapshot_date = '2026-04-22';
+    CAST(ROUND(charged_off_balance) AS INT)
+        AS charged_off_balance,
 
+    is_debt_sold,
 
+    CAST(ROUND(credit_limit) AS INT)
+        AS credit_limit,
 
-SELECT DISTINCT
-       o1.account_id
-FROM US_CARD_CORE.CREDIT_CARD_TRANSACTIONS_AND_FINANCIAL_LEDGER_PARTICIPANTS_END_OF_DAY_PT_V2_QHDP_CARD_VW o1
-INNER JOIN ENTERPRISE_SERVICES.ENTERPRISE_PRODUCT_AND_EXPERIENCE.ENTERPRISE_CUSTOMER_AND_REPORTED_ACCOUNT_FULL_FILE_V4_V11_QHDP_CUST_RA_NPI_VW o2
-    ON o1.account_id = o2.account_id
-WHERE o1.snapshot_date = '2026-04-22';
+    CAST(ROUND(account_highest_lifetime_balance_amount) AS INT)
+        AS account_highest_lifetime_balance_amount,
 
+    CAST(charged_off_date AS DATE) AS charged_off_date,
 
+    CAST(account_close_date AS DATE) AS account_close_date,
 
-SELECT c.customer_id,
-       c.customer_name,
-       o.order_id,
-       o.amount
-FROM customers c
-INNER JOIN orders o
-    ON c.customer_id = o.customer_id;
+    transaction_effective_date,
 
+    is_account_terminal,
+    terminal_effective_date,
 
-Since the platform is calling this method positionally, "**kwargs" does not really help unless the platform also changes its code to pass named arguments. For the current issue, the guard-based fix makes more sense because it handles the existing platform behavior directly and gives us backward compatibility without requiring platform-side changes.
+    is_account_aged_debt,
+    aged_debt_effective_date,
 
+    is_account_paid_in_full,
+    pif_effective_date,
 
+    is_account_settled,
+    sif_effective_date,
 
-Hi all, I raised a PR for the backward-compatibility fix in "get_reportable_accounts".
+    post_charge_off_settled_in_full_notification,
+    pre_charge_off_settled_in_full_notification,
 
-This handles the case where "edq.suppressions" is not in config and "context" gets passed as the 3rd positional argument. I also added unit test coverage for it.
+    financial_portfolio_id,
+    has_no_preset_spending_limit,
+    past_due_status_reason,
 
-Please review when you get a chance. Thanks.
+    account_lifecycle_status_code,
+    account_lifecycle_status_reason,
 
+    sor_id,
+    is_live_test_account,
+    reactivation_status,
 
+    previous_sor_account_id,
+    charged_off_status_reason,
+    previous_sor_id,
+    service_owner_code,
 
-Updated `get_reportable_accounts` to support backward-compatible positional argument handling.
+    account_closure_reason,
 
-Issue:
-When `edq.suppressions` is removed from config, the platform passes `context` as the 3rd positional argument. Because the current method signature expects `edq_suppressions_df` as the 3rd argument, the context dict gets bound there and causes `'dict' object has no attribute 'select'`.
+    false AS tsys_pre_co_suppression_indicator,
+    '' AS tsys_pre_co_suppression_reason_code
 
-Fix:
-Added a guard inside `get_reportable_accounts` to detect this case:
-- if the 3rd argument is a dict and `context` is `None`, treat it as `context`
-- set `edq_suppressions_df` to `None`
-
-Also added a unit test to validate this backward compatibility path.
-
-This keeps existing behavior intact for valid EDQ suppression dataframe inputs while preventing runtime failure when config does not include EDQ suppression.
-
-
-
-
-def test_context_passed_as_third_argument(self, calculated_df, consolidated_df):
-    """
-    Validates backward compatibility when context is passed as the
-    3rd positional argument instead of edq_suppressions_df.
-    """
-
-    result_df = get_reportable_accounts(
-        calculated_df,
-        consolidated_df,
-        CONSUMER_THIRD_THURSDAY_CONTEXT,
-    )
-
-    result_accounts = [row.account_id for row in result_df.select("account_id").collect()]
-
-    assert result_df.count() > 0
-    assert "1" in result_accounts
-
-
-
-_____________
-
-
-def get_reportable_accounts(
-    calculated_dataset: DataFrame,
-    consolidated_dataset: DataFrame,
-    edq_suppressions_df: DataFrame = None,
-    context: dict = None,
-) -> DataFrame:
-    """
-    Args:
-        calculated_dataset: DataFrame with calculated fields
-        consolidated_dataset: DataFrame with consolidated fields
-        edq_suppressions_df: DataFrame with edq suppression fields
-        context: job_context dict from the platform framework (optional)
-    """
-
-    # Backward compatibility fix:
-    # if framework passes context as 3rd positional argument,
-    # it lands in edq_suppressions_df by mistake.
-    if isinstance(edq_suppressions_df, dict) and context is None:
-        context = edq_suppressions_df
-        edq_suppressions_df = None
-
-    # normal context handling
-    if context is None:
-        context = {}
-
-    product_type = context.get("product_type", "consumer")
-    reporting_date = context.get("reporting_date")
-
-    if product_type.lower() == "consumer":
-        override_rules_dict = CONSUMER_OVERRIDE_RULES
-    elif product_type.lower() == "sbfe":
-        override_rules_dict = SBFE_OVERRIDE_RULES
-    else:
-        logger.error(f"Invalid product_type: {product_type}")
-        raise ValueError(f"Invalid product_type: {product_type}")
-
-    spark = SparkSession.getActiveSession()
-
-    # if EDQ df not passed, use empty df
-    if edq_suppressions_df is None:
-        edq_suppressions_df = spark.createDataFrame([], "account_id string")
-
-    # rest of your existing code...
-
-
-<><><><><><<
-
-
-
-
-
-
-from pyspark.sql import functions as F
-
-joiner_ids = joiner_output_df.select("account_id").dropDuplicates()
-consolidator_ids = consolidator_output_df.select("account_id").dropDuplicates()
-edq_ids = edq_suppressions_df.select("account_id").dropDuplicates()
-
-base_reportable_ids = joiner_ids.join(consolidator_ids, on="account_id", how="inner")
-
-print("base_reportable_ids:", base_reportable_ids.count())
-print("edq_ids:", edq_ids.count())
-
-matched_with_edq = base_reportable_ids.join(edq_ids, on="account_id", how="inner")
-print("base ids matched in edq:", matched_with_edq.count())
-
-remaining_after_edq = base_reportable_ids.join(edq_ids, on="account_id", how="left_anti")
-print("remaining after edq:", remaining_after_edq.count())
-
-
-
-Title
-Create generator output testing strategy and readiness tracking for ECBR reportable account logic
-Story / Background
-As part of generator output readiness, we need a structured testing strategy for the reportable accounts logic so that all finalized intents can be validated in a consistent and traceable way.
-This effort will use the Generator O/P Readiness sheet as the central tracker for different test scenarios, including single-rule cases, exclusion and override combinations, many-exclusion/many-override cases, EDQ failure scenarios, and report/do-not-report outcomes.
-The goal is to ensure that finalized business intent is mapped to test coverage, test execution status, and implementation readiness, so the team has clear visibility into what is ready, what is pending, and what requires follow-up before E2E validation.
-Scope
-This story covers creation of the generator testing strategy and readiness process for:
-single reporting and exclusion rules
-one exclusion plus one override combinations
-many exclusions with one override
-one exclusion with many overrides
-many exclusions with many overrides
-EDQ failure / suppression-related scenarios
-validation of expected report vs do-not-report behavior
-linkage of each scenario to feature test availability, test execution, result tracking, and follow-up actions
-Acceptance Criteria
-A generator output test strategy is documented for all major scenario groups in the readiness sheet.
-Each scenario clearly identifies expected outcome as report or do not report.
-Finalized intents are marked and separated from non-finalized items.
-Test coverage status is tracked for each scenario, including whether test is added to feature tests.
-Execution fields are available for tested status, result, date tested, and tester name.
-Follow-up items are captured for scenarios where intent is unclear, fields are unavailable, or implementation is pending.
-Readiness can be determined using tracker columns such as intent finalized, implemented, all required fields available, and test execution result.
-The tracker can be used as a one-stop reference during QA, dev sync, and E2E discussions.
-Deliverables
-Generator O/P Readiness sheet updated with scenario-based testing strategy
-Mapping of scenarios to expected output behavior
-Test readiness status for each scenario
-Follow-up notes for pending intent / implementation gaps
-Out of Scope
-fixing generator code defects
-changing business intent itself
-downstream consolidator or calculator logic changes unless required for generator test input readiness
-Definition of Done
-test strategy is documented in the sheet
-major generator scenarios are captured
-expected outcomes are defined
-pending vs ready scenarios are clearly visible
-team can use the sheet for test execution planning and readiness review
-
-
-
-
-Title
-Create generator output testing strategy and readiness tracking for ECBR reportable account logic
-Story / Background
-As part of generator output readiness, we need a structured testing strategy for the reportable accounts logic so that all finalized intents can be validated in a consistent and traceable way.
-This effort will use the Generator O/P Readiness sheet as the central tracker for different test scenarios, including single-rule cases, exclusion and override combinations, many-exclusion/many-override cases, EDQ failure scenarios, and report/do-not-report outcomes.
-The goal is to ensure that finalized business intent is mapped to test coverage, test execution status, and implementation readiness, so the team has clear visibility into what is ready, what is pending, and what requires follow-up before E2E validation.
-Scope
-This story covers creation of the generator testing strategy and readiness process for:
-single reporting and exclusion rules
-one exclusion plus one override combinations
-many exclusions with one override
-one exclusion with many overrides
-many exclusions with many overrides
-EDQ failure / suppression-related scenarios
-validation of expected report vs do-not-report behavior
-linkage of each scenario to feature test availability, test execution, result tracking, and follow-up actions
-Acceptance Criteria
-A generator output test strategy is documented for all major scenario groups in the readiness sheet.
-Each scenario clearly identifies expected outcome as report or do not report.
-Finalized intents are marked and separated from non-finalized items.
-Test coverage status is tracked for each scenario, including whether test is added to feature tests.
-Execution fields are available for tested status, result, date tested, and tester name.
-Follow-up items are captured for scenarios where intent is unclear, fields are unavailable, or implementation is pending.
-Readiness can be determined using tracker columns such as intent finalized, implemented, all required fields available, and test execution result.
-The tracker can be used as a one-stop reference during QA, dev sync, and E2E discussions.
-Deliverables
-Generator O/P Readiness sheet updated with scenario-based testing strategy
-Mapping of scenarios to expected output behavior
-Test readiness status for each scenario
-Follow-up notes for pending intent / implementation gaps
-Out of Scope
-fixing generator code defects
-changing business intent itself
-downstream consolidator or calculator logic changes unless required for generator test input readiness
-Definition of Done
-test strategy is documented in the sheet
-major generator scenarios are captured
-expected outcomes are defined
-pending vs ready scenarios are clearly visible
-team can use the sheet for test execution planning and readiness review
-
-
-
-________
-
-
-my_data_df.coalesce(1).write.mode("overwrite").parquet(temp_output_path)
-
-
-Reordered "get_reportable_accounts" parameters so all three DataFrame inputs are passed first ("calculated_dataset", "consolidated_dataset", "edq_suppressions_df") and "context" is passed last.
-
-This change was made to avoid incorrect positional mapping, where the EDQ suppression DataFrame could be interpreted as "context". Since "context" is a config/runtime dictionary and not a DataFrame, that mismatch could cause runtime failures in Glue/job execution.
-
-Also updated related call sites and tests to match the new method signature.
-
-Resolution Answer → leave blank for now, or say
-Current generator logic uses deceased indicator/status, not explicit date-based logic
-Comments / Follow-up questions →
-Current generator trigger appears to rely on is_account_holder_deceased / deceased status condition. No explicit logic found choosing between customer_deceased_date and deceased notification date. Business intent clarification still needed.
-Current generator exclusion logic checks datediff(current_date(), account_open_date) < 30
-
-Got it — I’ll go through the outstanding items tracker and focus on the generator-related open items first. I’ll update the sheet where I can confidently map things to current implementation and call out anything that still needs intent or upstream clarification.
-
-
-
-A6 – I (Notes):
-Dependent on generator run-date/context work. See CT4018T-525
-A6 – J (Logic):
-Third-Thursday condition uses generator date/context logic and should be finalized after CT4018T-525 is completed
-For A7, you can keep:
-I (Notes):
-Awaiting final generator condition / tracking confirmation
-J (Logic):
-CCC-change condition tracking is still being confirmed in current generator implementation
-
-_______
-
-A3 – Account is Live Test Account
-F: Yes
-G: Yes
-I: Implemented in generator conditions
-J: Excluded when is_live_test_account = True
-A4 – Account is Canadian
-F: Yes
-G: Yes
-I: Implemented in generator conditions
-J: Excluded when upper(financial_portfolio_id) = "CA"
-A5 – Non-active subscriber code
-F: Yes
-G: No
-I: Not implemented in current generator rules; needs ECBR / upstream clarification
-J: No explicit condition found in current generator logic for subscriber code fields
-A6 – 3rd Thursday of month
-F: Yes
-G: No
-I: Condition exists in generator logic, but intent / sheet mapping is still being confirmed
-J: Current generator checks dayofweek and dayofmonth for third-Thursday logic; final sheet status pending intent confirmation
-A7 – CCC is changed
-F: Yes
-G: No
-I: Need dev work from ECBR before we can test. See CT4018T-525
-J: Awaiting CCC-related implementation / finalized condition before generator tracking can be marked implemented
-A8 – Account is Sold
-F: Yes
-G: Yes
-I: Implemented in generator conditions
-J: Triggered when is_debt_sold = True
-A9 – Manual trigger applied by CBR Business
-F: Yes
-G: Yes
-I: Implemented in generator conditions
-J: Triggered when is_credit_bureau_manual_reporting = True
-A10 – Account moves to a Final Status attribute
-F: Yes
-G: Yes
-I: Implemented in generator conditions
-J: Covered through current final-status handling using the account_status = "DA" condition
-A11 – Account deleted
-F: Yes
-G: No
-I: Not clearly implemented in current generator logic
-J: No explicit delete-specific condition found in current generator rules.py
-A12 – Account is Reactivated
-F: No
-G: Yes
-I: Implemented in generator conditions; intent wording still being aligned
-J: Current generator logic checks reactivation using reactivation_status and related reactivation fields
-A13 – Account under non-605B Fraud Investigation
-F: Yes
-G: Yes
-I: Implemented in generator conditions
-J: Excluded when is_identity_fraud_claimed_on_account = True and block_notification != True
-A14 – Account is manually suppressed
-F: Yes
-G: Yes
-I: Implemented in generator conditions
-J: Excluded when is_credit_bureau_manual_suppressed = True
-A16 – Account is <30 days old
-F: Yes
-G: Yes
-I: Implemented in generator conditions
-J: Excluded when datediff(current_date(), account_open_date) < 30
-A17 – Account has already reported under non-605B Fraud Investigation
-F: Yes
-G: Yes
-I: Implemented through current non-605B fraud handling
-J: Condition is driven by is_identity_fraud_claimed_on_account = True and block_notification != True
-A18 – Account under 605B Fraud Investigation
-F: Yes
-G: Yes
-I: Implemented in generator conditions
-J: Excluded when is_identity_fraud_claimed_on_account = True and block_notification = True
-A19 – Account has already reported deleted
-F: Yes
-G: Yes
-I: Implemented in generator conditions
-J: Covered through current final-status / account_status = "DA" handling
-A20 – Account has already reported Reactivated
-F: No
-G: Yes
-I: Implemented through current reactivation handling; intent wording still being aligned
-J: Current generator logic checks reactivation using reactivation_status and related reactivation fields
-A21 – Account fails eDQ Check
-F: Yes
-G: Yes
-I: EDQ work is completed at CT4018T-491
-J: Final EDQ suppression is implemented in reportable_accounts.py by excluding accounts present in edq_suppressions_df
+FROM cc_account_with_closure_reason;
