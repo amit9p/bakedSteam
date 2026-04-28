@@ -1,6 +1,19 @@
 
 %sql
 
+SELECT
+    cc.*,
+    f.is_identity_fraud_claimed_on_account,
+    f.is_valid_identity_fraud_proven,
+    f.identity_fraud_effective_date
+FROM cc_account_calculated cc
+LEFT JOIN fraud_calculated f
+    ON cc.account_id = f.account_id
+   AND cc.sor_id = f.sor_id;
+
+____________
+%sql
+
 -- =========================================================
 -- Fraud calculation SQL
 -- Based on:
