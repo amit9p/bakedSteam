@@ -1,4 +1,12 @@
 
+%sql
+
+SELECT *
+FROM parquet.`s3://my-bucket/data/cc_account/`
+LIMIT 100;
+
+
+
 Thanks Srinivas. I checked your query — the key validation there is the inner join between charged-off accounts and RA/customer data on "account_id + sor_id", which returned 22,426 distinct accounts. The left outer joins to estates and bankruptcy look like enrichment joins, so they should not reduce the distinct account count.
 
 I’ll validate the same against the actual consolidator path in Databricks: "CCAccount + Fraud" left join "CustomerInformation" on "account_id + sor_id". I’ll compare total rows, matched customer records, and missing customer records, after aligning snapshot dates.
