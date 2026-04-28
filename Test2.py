@@ -1,4 +1,13 @@
 
+
+LEFT JOIN latest_payment_posted_dates lp
+    ON CAST(a.account_id AS STRING) = CAST(lp.account_id AS STRING)
+   AND CAST(a.sor_id AS STRING) = CAST(lp.sor_id AS STRING)
+
+LEFT JOIN characteristics_flags cf
+    ON CAST(a.account_id AS STRING) = CAST(cf.account_id AS STRING)
+   AND CAST(a.sor_id AS STRING) = CAST(cf.sor_id AS STRING)
+
 %sql
 
 -- =========================================================
