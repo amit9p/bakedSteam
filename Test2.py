@@ -1,4 +1,117 @@
 
+%sql
+
+-- =========================================================
+-- Fraud calculation SQL
+-- Based on:
+-- datasets/fraud/pre_process.py
+-- constants.py
+-- =========================================================
+
+WITH constants AS (
+    SELECT
+        '6' AS OMEGA_SOR_ID,
+        'RESOLVED' AS INCIDENT_STATUS_RESOLVED,
+        'CONFIRMED_VALID' AS RESOLUTION_CODE_CONFIRMED_VALID,
+        'FRAUD' AS FRAUD_INCIDENT_TYPE,
+        'IDENTITY' AS IDENTITY_FRAUD_TYPE
+),
+
+-- =========================================================
+-- 1. Read input dataset
+-- From config.yaml:
+-- incidents_service_incident_dmos
+-- Replace table name below with your actual Databricks table/view
+-- =========================================================
+incidents_service_incident_dmos AS (
+    SELECT *
+    FROM your_catalog.your_schema.incidents_service_incident_dmos
+),
+
+-- =========================================================
+-- 2. Filter only identity fraud incidents
+-- PySpark equivalent:
+-- incidents_df.filter(
+--   col("incident_type") == FRAUD_INCIDENT_TYPE
+--   & col("fraud_type") == IDENTITY_FRAUD_TYPE
+-- )
+-- =========================================================
+identity_fraud_incidents AS (
+    SELECT i.*
+    FROM incidents_service_incident_dmos i
+    CROSS JOIN constants c
+    WHERE i.incident_type = c.FRAUD_INCIDENT_TYPE
+      AND i.fraud_type = c.IDENTITY_FRAUD_TYPE
+),
+
+-- =========================================================
+-- 3. Derive identity fraud flags per account_id
+--
+-- PySpark logic:
+-- groupBy("account_id").agg(
+--   count(when(incident_status != RESOLVED, 1)) > 0
+--      AS is_identity_fraud_claimed_on_account,
+--
+--   count(when(
+--       incident_status = RESOLVED
+--       AND resolution_code = CONFIRMED_VALID, 1
+--   )) > 0
+--      AS is_valid_identity_fraud_proven,
+--
+--   max(date_entered)
+--      AS identity_fraud_effective_date
+-- )
+-- =========================================================
+identity_fraud_flags AS (
+    SELECT
+        CAST(i.account_id AS STRING) AS account_id,
+
+        CASE
+            WHEN COUNT(
+                CASE
+                    WHEN i.incident_status <> c.INCIDENT_STATUS_RESOLVED
+                    THEN 1
+                END
+            ) > 0
+            THEN true
+            ELSE false
+        END AS is_identity_fraud_claimed_on_account,
+
+        CASE
+            WHEN COUNT(
+                CASE
+                    WHEN i.incident_status = c.INCIDENT_STATUS_RESOLVED
+                     AND i.resolution_code = c.RESOLUTION_CODE_CONFIRMED_VALID
+                    THEN 1
+                END
+            ) > 0
+            THEN true
+            ELSE false
+        END AS is_valid_identity_fraud_proven,
+
+        MAX(CAST(i.date_entered AS DATE)) AS identity_fraud_effective_date
+
+    FROM identity_fraud_incidents i
+    CROSS JOIN constants c
+    GROUP BY CAST(i.account_id AS STRING)
+)
+
+-- =========================================================
+-- 4. Final fraud output frame
+-- PySpark equivalent:
+-- build_fraud_frame()
+-- =========================================================
+SELECT
+    account_id,
+    is_identity_fraud_claimed_on_account,
+    is_valid_identity_fraud_proven,
+    identity_fraud_effective_date,
+    c.OMEGA_SOR_ID AS sor_id
+
+FROM identity_fraud_flags f
+CROSS JOIN constants c;
+
+______
 
 LEFT JOIN latest_payment_posted_dates lp
     ON CAST(a.account_id AS STRING) = CAST(lp.account_id AS STRING)
