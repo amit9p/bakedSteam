@@ -1,4 +1,11 @@
 
+
+I looked at the "primary_customer()" flow. For 10k input records, 1+ hour runtime does not look normal. My concern is that the issue may not be input size, but the repeated join pattern in "primary_customer()".
+
+We are building the final dataframe by joining many helper outputs back to the same "consolidated_df". If any helper function returns duplicate rows for the same "JOIN_KEYS", the row count can multiply during joins, and the final "dropDuplicates(JOIN_KEYS)" only happens at the very end, after Spark has already done the heavy work.
+
+I think we should debug this by checking each helper output for duplicate "JOIN_KEYS" and also logging row counts after every join to identify where the explosion starts. We should also check whether any single helper function is expensive internally.
+
 Hi Olivia, my understanding is that "context" is runtime metadata from the platform, not something defined in "config.yaml".
 
 In this PR I did not assume a new payload contract; I only followed the existing generator pattern where "context" may contain values like "product_type" and "reporting_date". The compatibility fix was added because the framework was calling the method positionally, so "context" could shift into the "edq_suppressions_df" slot when that DF was not passed.
