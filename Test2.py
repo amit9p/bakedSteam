@@ -1,3 +1,15 @@
+
+Just sharing this as a reference, not saying this is the confirmed root cause.
+
+If a value like "04292026" is parsed using "DDMMYYYY", Python reproduces the same error pattern:
+
+from datetime import datetime
+datetime.strptime("04292026", "%d%m%Y")
+# ValueError: unconverted data remains: 6
+
+So this may still be useful as a clue if we come back to the date-handling path later.
+
+
 from datetime import datetime
 datetime.strptime("04292026", "%d%m%Y")
 
