@@ -1,3 +1,6 @@
+from datetime import datetime
+datetime.strptime("04292026", "%d%m%Y")
+
 
 I checked the platform code. This does not look like a joiner output issue. It looks like "reporting_date" format mismatch.
 
