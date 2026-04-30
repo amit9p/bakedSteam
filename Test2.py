@@ -1,3 +1,11 @@
+
+Hi Olivia, my understanding is that "context" is runtime metadata from the platform, not something defined in "config.yaml".
+
+In this PR I did not assume a new payload contract; I only followed the existing generator pattern where "context" may contain values like "product_type" and "reporting_date". The compatibility fix was added because the framework was calling the method positionally, so "context" could shift into the "edq_suppressions_df" slot when that DF was not passed.
+
+I can’t guarantee platform will always pass "context" unless platform confirms that contract. The code is safe when "context" is absent, but if Canada needs to depend on specific context fields, it would be good to confirm the payload with platform.
+
+
 df -h /
 du -sh ~/* 2>/dev/null | sort -h
 du -sh ~/Library/* 2>/dev/null | sort -h | tail -20
