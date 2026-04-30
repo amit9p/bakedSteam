@@ -1,3 +1,10 @@
+df -h /
+du -sh ~/* 2>/dev/null | sort -h
+du -sh ~/Library/* 2>/dev/null | sort -h | tail -20
+rm -rf ~/Library/Caches/*
+rm -rf ~/Library/Logs/*
+
+
 
 Title
 Generator O/P readiness – testing strategy for report / do not report scenarios
