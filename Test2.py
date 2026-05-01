@@ -29,14 +29,12 @@ PYTHON_TYPE_MAP = {
 
 
 def normalize_avro_type(field_type):
-    # Handle union type like ["null", "string"]
     if isinstance(field_type, list):
         non_null_types = [t for t in field_type if t != "null"]
         if len(non_null_types) == 1:
             return normalize_avro_type(non_null_types[0])
         return "|".join(sorted(normalize_avro_type(t) for t in non_null_types))
 
-    # Handle logical types like {"type": "int", "logicalType": "date"}
     if isinstance(field_type, dict):
         logical_type = field_type.get("logicalType")
         base_type = field_type.get("type")
@@ -82,7 +80,6 @@ def extract_python_type(annotation_node):
 
 
 def find_schema_class(parsed_tree):
-    # Pick first class inheriting from Schema
     for node in parsed_tree.body:
         if isinstance(node, ast.ClassDef):
             for base in node.bases:
@@ -111,33 +108,48 @@ def read_python_schema(python_schema_path):
 
 
 def compare_schemas(avro_fields, python_fields):
-    missing_in_avro = []
+    python_not_in_avro = []
+    avro_not_in_python = []
     datatype_mismatches = []
 
+    # Python -> missing in Avro
     for field_name, python_type in python_fields.items():
         if field_name not in avro_fields:
-            missing_in_avro.append(field_name)
+            python_not_in_avro.append(field_name)
         else:
             avro_type = avro_fields[field_name]
             if python_type != avro_type:
-                datatype_mismatches.append(
-                    (field_name, python_type, avro_type)
-                )
+                datatype_mismatches.append((field_name, python_type, avro_type))
 
-    return missing_in_avro, datatype_mismatches
+    # Avro -> missing in Python
+    for field_name in avro_fields:
+        if field_name not in python_fields:
+            avro_not_in_python.append(field_name)
+
+    return python_not_in_avro, avro_not_in_python, datatype_mismatches
 
 
 def main():
     avro_fields = read_avro_schema(AVRO_SCHEMA_PATH)
     python_fields = read_python_schema(PYTHON_SCHEMA_PATH)
 
-    missing_in_avro, datatype_mismatches = compare_schemas(avro_fields, python_fields)
+    python_not_in_avro, avro_not_in_python, datatype_mismatches = compare_schemas(
+        avro_fields, python_fields
+    )
 
     print("=" * 80)
     print("FIELDS PRESENT IN PYTHON SCHEMA BUT NOT PRESENT IN AVRO SCHEMA")
     print("=" * 80)
-    print(f"Count: {len(missing_in_avro)}")
-    for field_name in missing_in_avro:
+    print(f"Count: {len(python_not_in_avro)}")
+    for field_name in python_not_in_avro:
+        print(field_name)
+
+    print()
+    print("=" * 80)
+    print("FIELDS PRESENT IN AVRO SCHEMA BUT NOT PRESENT IN PYTHON SCHEMA")
+    print("=" * 80)
+    print(f"Count: {len(avro_not_in_python)}")
+    for field_name in avro_not_in_python:
         print(field_name)
 
     print()
