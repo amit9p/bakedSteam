@@ -1,4 +1,7 @@
 
+“A code indicating the compliance or regulatory condition applicable to the account during the pre–charge-off reporting period. This value is reported to the credit bureau to reflect any special account status or compliance requirement (e.g., dispute, forbearance, relief program) prior to the account being classified as charged off.”
+
+
 “The most recent date on which the account, in its pre–charge-off status, was reported to the credit bureau. This represents the last reporting cycle prior to the account being charged off and reflects the latest bureau update before charge-off classification.”
 
 import ast
