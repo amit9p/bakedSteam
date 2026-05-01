@@ -1,4 +1,8 @@
 
+“The account status reported to the credit bureau during the pre–charge-off (pre-CO) period, reflecting the current payment or delinquency condition of the account prior to charge-off. This includes statuses such as current, delinquent, past due, or in collections, in accordance with bureau reporting standards.”
+
+
+
 “A standardized code used to convey additional account-specific information to the credit bureau during the pre–charge-off reporting period. This code supplements primary account status by indicating special conditions (e.g., dispute, hardship, deferred payment, or other regulatory scenarios) applicable prior to charge-off.”
 
 “An indicator denoting whether the account is excluded from credit bureau reporting during the pre–charge-off period. A value of ‘Y’ signifies that the account is excluded based on defined business, compliance, or regulatory rules, while ‘N’ indicates that the account remains eligible for reporting.”
