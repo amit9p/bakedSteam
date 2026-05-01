@@ -1,4 +1,6 @@
 
+“The most recent date on which the account, in its pre–charge-off status, was reported to the credit bureau. This represents the last reporting cycle prior to the account being charged off and reflects the latest bureau update before charge-off classification.”
+
 import ast
 import json
 import re
