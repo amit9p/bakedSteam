@@ -1,3 +1,5 @@
+“An indicator denoting whether the account is excluded from credit bureau reporting during the pre–charge-off period. A value of ‘Y’ signifies that the account is excluded based on defined business, compliance, or regulatory rules, while ‘N’ indicates that the account remains eligible for reporting.”
+
 
 “A descriptive text providing additional context for the suppression reason code associated with the account during the pre–charge-off period. This field elaborates on why the account’s data was excluded from credit bureau reporting, supporting auditability and business interpretation.”
 A code indicating the reason why the account’s pre–charge-off information was suppressed from being reported to the credit bureau. This captures the specific business, regulatory, or data-quality condition (e.g., active dispute, legal restriction, compliance hold, or missing/invalid data) that prevents the account from being included in bureau reporting prior to charge-off.”
