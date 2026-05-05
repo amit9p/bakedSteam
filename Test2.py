@@ -1,4 +1,3 @@
-
 def sbfe_fields(consolidated_df: DataFrame) -> DataFrame:
     """
     Builds the full SBFE calculated dataset by joining all SBFE field calculators
@@ -10,8 +9,8 @@ def sbfe_fields(consolidated_df: DataFrame) -> DataFrame:
     input_count = consolidated_df.count()
     logger.info(f"Input count before deduplication: {input_count}")
 
-    # Deduplicate input once on standard join keys.
-    # This avoids processing duplicate records again and again in every calculator.
+    # Deduplicate once at the beginning.
+    # This reduces duplicate records before applying all calculator functions.
     deduped_consolidated_df = consolidated_df.dropDuplicates(JOIN_KEYS)
 
     deduped_input_count = deduped_consolidated_df.count()
@@ -41,7 +40,7 @@ def sbfe_fields(consolidated_df: DataFrame) -> DataFrame:
         previous_account_number,
     ]
 
-    # Start result dataframe from passthrough fields using deduped input
+    # Use deduped input here
     result_df = passthrough_fields(deduped_consolidated_df).dropDuplicates(JOIN_KEYS)
 
     for calculator_fn in field_calculator_functions:
@@ -49,7 +48,7 @@ def sbfe_fields(consolidated_df: DataFrame) -> DataFrame:
             f"Result count before applying {calculator_fn.__name__}: {result_df.count()}"
         )
 
-        # Each calculator also receives deduped input now
+        # Use deduped input for each calculator
         deduplicated_fn_output = calculator_fn(deduped_consolidated_df).dropDuplicates(JOIN_KEYS)
 
         logger.info(
