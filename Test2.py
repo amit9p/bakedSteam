@@ -1,5 +1,5 @@
-This dataset provides consolidated account-level data for Card Small Business Financial Exchange reporting. It supports Enterprise Credit Bureau Reporting teams by preparing calculated reporting fields, account status details, suppression indicators, and validation outputs needed for downstream credit bureau submission. The dataset is used by data quality, operations, compliance, and reporting teams to review account eligibility, reporting accuracy, traceability, and audit readiness. It is specific to the Card Small Business Financial Exchange workflow and is maintained separately from temporary ingestion datasets or other credit reporting datasets.
 
+This dataset provides consolidated account-level data for Card Small Business Financial Exchange reporting. It supports Enterprise Credit Bureau Reporting teams by preparing calculated reporting fields, account status details, suppression indicators, and validation outputs needed for downstream credit bureau submission. The dataset is used by data quality, operations, compliance, and reporting teams to review account eligibility, reporting accuracy, traceability, and audit readiness. It is specific to the Card Small Business Financial Exchange workflow and is maintained separately from temporary ingestion datasets or other credit reporting datasets.
 
 
 def sbfe_fields(consolidated_df: DataFrame) -> DataFrame:
