@@ -1,109 +1,71 @@
 
-import re
-from pathlib import Path
+def sbfe_fields(consolidated_df: DataFrame) -> DataFrame:
+    """
+    Builds the full SBFE calculated dataset by joining all SBFE field calculators
+    on the standard ECBR join keys.
+    """
 
+    logger.info("Starting SBFE field calculations")
 
-# Hardcode your 5 schema files here
-schema_files = [
-    "ab_segment.py",
-    "ad_segment.py",
-    "cl_segment.py",
-    "is_segment.py",
-    "ti_segment.py",
-]
+    input_count = consolidated_df.count()
+    logger.info(f"Input count before deduplication: {input_count}")
 
-# Output file name
-output_file = "unified_schema.py"
+    # Deduplicate input once on standard join keys.
+    # This avoids processing duplicate records again and again in every calculator.
+    deduped_consolidated_df = consolidated_df.dropDuplicates(JOIN_KEYS)
 
-# Conflict report file
-conflict_file = "schema_conflicts.txt"
+    deduped_input_count = deduped_consolidated_df.count()
+    logger.info(f"Input count after deduplication: {deduped_input_count}")
 
+    join_type = "inner"
 
-# This pattern finds lines like:
-# account_id: Column[StringType]
-field_pattern = re.compile(
-    r"^\s*([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*Column\[(.*?)\](\s*#.*)?$"
-)
+    field_calculator_functions = [
+        get_account_closure_date,
+        calculate_account_status_1,
+        calculate_account_status_2,
+        account_update_deletion_indicator,
+        amount_charged_off_by_creditor,
+        calculate_basis_for_account_closure,
+        business_name_of_account_holder,
+        date_account_was_charged_off,
+        date_account_was_originally_opened,
+        date_of_most_recent_payment,
+        calculate_delinquency_status,
+        remaining_total_balance,
+        type_of_account_being_reported,
+        total_charge_off_recoveries_to_date,
+        total_amount_past_due,
+        get_current_credit_limit,
+        get_original_credit_limit,
+        sbfe_country_code,
+        previous_account_number,
+    ]
 
-# Dictionary to store unique fields
-# Example: {"account_id": "StringType"}
-unique_fields = {}
+    # Start result dataframe from passthrough fields using deduped input
+    result_df = passthrough_fields(deduped_consolidated_df).dropDuplicates(JOIN_KEYS)
 
-# This keeps field comments if present
-field_comments = {}
+    for calculator_fn in field_calculator_functions:
+        logger.info(
+            f"Result count before applying {calculator_fn.__name__}: {result_df.count()}"
+        )
 
-# This keeps datatype conflicts
-conflicts = []
+        # Each calculator also receives deduped input now
+        deduplicated_fn_output = calculator_fn(deduped_consolidated_df).dropDuplicates(JOIN_KEYS)
 
+        logger.info(
+            f"Output count when applying {calculator_fn.__name__}: "
+            f"{deduplicated_fn_output.count()}"
+        )
 
-# Loop through each schema file
-for schema_file in schema_files:
-    file_path = Path(schema_file)
+        result_df = result_df.join(
+            deduplicated_fn_output,
+            on=JOIN_KEYS,
+            how=join_type,
+        )
 
-    # Read the full file as text
-    file_lines = file_path.read_text().splitlines()
+    result_df = result_df.dropDuplicates(JOIN_KEYS)
 
-    # Loop through each line in the file
-    for line in file_lines:
-        match = field_pattern.match(line)
+    logger.info(f"Final partitions: {result_df.rdd.getNumPartitions()}")
+    logger.info(f"Final columns: {len(result_df.columns)}")
 
-        # Skip lines which are not schema field definitions
-        if not match:
-            continue
-
-        # Extract field name
-        field_name = match.group(1)
-
-        # Extract datatype, example StringType / IntegerType / DateType
-        field_type = match.group(2).strip()
-
-        # Extract comment if present
-        field_comment = match.group(3) or ""
-
-        # If field is not already added, add it
-        if field_name not in unique_fields:
-            unique_fields[field_name] = field_type
-            field_comments[field_name] = field_comment
-
-        # If same field exists with different datatype, capture conflict
-        elif unique_fields[field_name] != field_type:
-            conflicts.append(
-                f"{field_name}: first type = {unique_fields[field_name]}, "
-                f"conflicting type in {schema_file} = {field_type}"
-            )
-
-
-# Collect all datatypes used in final schema
-used_types = sorted(set(unique_fields.values()))
-
-# Create import line dynamically
-type_imports = ", ".join(used_types)
-
-
-# Start writing unified schema file content
-output_lines = []
-
-output_lines.append(f"from pyspark.sql.types import {type_imports}")
-output_lines.append("from typedspark import Column, Schema")
-output_lines.append("")
-output_lines.append("")
-output_lines.append("class UnifiedSchema(Schema):")
-
-# Add all unique fields into the unified schema
-for field_name, field_type in unique_fields.items():
-    comment = field_comments.get(field_name, "")
-    output_lines.append(f"    {field_name}: Column[{field_type}]{comment}")
-
-# Write unified_schema.py
-Path(output_file).write_text("\n".join(output_lines) + "\n")
-
-# Write conflicts, if any
-if conflicts:
-    Path(conflict_file).write_text("\n".join(conflicts) + "\n")
-else:
-    Path(conflict_file).write_text("No datatype conflicts found.\n")
-
-
-print(f"Unified schema generated: {output_file}")
-print(f"Total unique fields: {len(unique_fields)}")
-print(f"Conflict report generated: {conflict_file}")
+    return result_df
