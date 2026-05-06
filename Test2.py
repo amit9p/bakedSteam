@@ -1,4 +1,32 @@
 
+def test_missing_fields_should_not_be_nulltype(self, spark):
+    """
+    Test that any missing selected field is created with a real datatype,
+    so Parquet write will not fail with VOID type.
+    """
+
+    data = [
+        {
+            "account_id": "ACC001",
+            "sor_id": "SOR001",
+            "sor_customer_id": "CUST001",
+        }
+    ]
+
+    df = spark.createDataFrame(data)
+
+    result_df = df.select(*FieldSelector.get_calculated_fields(df))
+
+    null_type_cols = [
+        field.name
+        for field in result_df.schema.fields
+        if isinstance(field.dataType, NullType)
+    ]
+
+    assert null_type_cols == []
+
+
+______
 from pyspark.sql import functions as F
 from pyspark.sql import DataFrame
 
