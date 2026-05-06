@@ -1,4 +1,9 @@
 
+
+My PR build failed during the Sonar/static analysis stage. From the Jenkins logs, it looks like a Sonar authorization issue, not a unit test/code failure. The error shows "Status code 401" while calling Sonar API and also says "Not authorized. Please check sonar.login and sonar.password". My local test for the change is passing. Can someone please check if the Sonar token/credentials or project permission in Jenkins need to be refreshed?
+
+
+
 This PR fixes the Glue job failure during Parquet write caused by missing selected fields being created as `VOID/NullType`.
 
 Root cause:
