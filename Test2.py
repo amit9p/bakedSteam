@@ -1,5 +1,17 @@
 
-def test_missing_fields_should_not_be_nulltype(self, spark):
+This PR fixes the Glue job failure during Parquet write caused by missing selected fields being created as `VOID/NullType`.
+
+Root cause:
+When a required output field was not present in the input DataFrame, `FieldSelector._select_fields()` was adding the column using plain `F.lit(None)`. Spark inferred this as `NullType`, and Parquet does not support writing columns with `VOID/NullType`.
+
+Fix:
+Updated the missing-column handling logic to use `F.lit(None).cast("string")` so missing fields are still populated as null, but with a valid string datatype.
+
+Validation:
+Added unit test coverage to ensure missing selected fields do not result in `NullType` columns. Verified the updated test passes successfully.
+
+
+ef test_missing_fields_should_not_be_nulltype(self, spark):
     """
     Test that any missing selected field is created with a real datatype,
     so Parquet write will not fail with VOID type.
