@@ -1,2 +1,7 @@
 
 This dataset contains calculated account-level information for the Card Small Business Financial Exchange reporting process. The data is created from the Card Enterprise Credit Bureau Reporting consolidated input, which brings together account, customer, payment, delinquency, charge-off, recovery, suppression, and reporting status details from upstream Card sources. Reporting, data quality, operations, compliance, and audit teams use this dataset to confirm account eligibility, validate bureau reporting accuracy, support traceability, and review audit readiness. It is maintained as a separate dataset because it supports the Card small business bureau reporting workflow and is not intended for temporary ingestion or general-purpose reporting use.
+I checked the DD segment validation error for "date_first_delinquency". The issue is not the Spark datatype — the field is already coming as string. The validator is failing because this field is configured with "recording_technique = "N"", so it expects only numeric characters.
+
+Current values are coming in "yyyy-MM-dd" format, like "2020-05-12", which contains hyphens. For SBFE validation, it likely needs to be sent as "yyyyMMdd", like "20200512".
+
+So the fix should be to format "date_first_delinquency" before file generation/validation by removing hyphens or using "date_format(to_date(col), "yyyyMMdd")", while keeping the output datatype as string.
