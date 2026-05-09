@@ -1,4 +1,13 @@
+from pyspark.sql import functions as F
 
+df.filter(
+    F.col("account_number") == "10002428900"
+).select(
+    "account_number",
+    "ab_remaining_balance_amount"
+).show(False)
+
+____
 from pyspark.sql import functions as F
 
 bad_balance_df = df.filter(
