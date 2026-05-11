@@ -1,30 +1,7 @@
-from pyspark.sql import functions as F
+Yes, these 3 fields are expected to be INT in the SBFE QA dataset:
 
-df.filter(
-    F.col("account_number") == "10002428900"
-).select(
-    "account_number",
-    "ab_remaining_balance_amount"
-).show(False)
+- "ab_delinquency_status"
+- "ab_payment_structure"
+- "ab_length_of_payment_history"
 
-____
-from pyspark.sql import functions as F
-
-bad_balance_df = df.filter(
-    (F.col("attribute") == "balance_amt") &
-    (
-        F.col("formatted").isNull() |
-        (F.trim(F.col("formatted")) == "") |
-        (~F.col("formatted").rlike("^[0-9]+$")) |
-        (F.length(F.col("formatted")) != 9)
-    )
-).select(
-    "run_id",
-    "account_number",
-    "segment",
-    "attribute",
-    "formatted",
-    F.length("formatted").alias("formatted_length")
-)
-
-bad_balance_df.show(100, False)
+We also ran the test file puller against this dataset, and the data got uploaded successfully. The generator/file output should still format these numeric fields according to the SBFE fixed-width rules.
