@@ -1,27 +1,15 @@
 
-import yaml
+# line 139 -- list all statuses (both files and dirs)
+stats = fs.listStatus(s3_path)
 
-test_yaml = """
-datasets:
-  dataset_one:
-    date_range:
-      - [ "20180221", ]
-  dataset_two:
-    date_range:
-      - [ "20181001",  ]
-  dataset_three:
-    date_range:
-      - ["20181001",]
-"""
+# line 140 -- existing code -- filters only directories
+dirs = [st.getPath().getName() for st in stats if st.isDirectory()]
 
-config = yaml.safe_load(test_yaml)
+# ADD THIS -- filters only files (not directories)
+files = [st.getPath().getName() for st in stats if not st.isDirectory()]
 
-for dataset, values in config['datasets'].items():
-    date_range = values['date_range'][0]  # get the inner list
-    
-    start_date = date_range[0]  # first element always exists
-    
-    # safely get end date -- use None if second element missing
-    end_date = date_range[1] if len(date_range) > 1 else None
-    
-    print(f"{dataset} --> start: {start_date}, end: {end_date}")
+# print both
+print("Directories:", dirs)
+print("Files:", files)
+
+sys.exit(0)
