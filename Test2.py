@@ -1,17 +1,27 @@
 
-Hi team, I’m testing the "POST /internal-operations/platform-management-services/jobs" API for adhoc credit report runs.
+import yaml
 
-For "tenant = CARDRECOVERIES", the call is working fine with the same request structure.
-For "tenant = CARDSMALLBUSINESS", the request reaches the API successfully, but the server returns "HTTP 500" with only:
+# Test YAML string -- simulating exactly what's in your config file
+test_yaml = """
+datasets:
+  dataset_one:
+    date_range:
+      - [ "20180221", ]    # space before closing bracket
+  dataset_two:
+    date_range:
+      - [ "20181001",  ]   # two spaces before closing bracket
+  dataset_three:
+    date_range:
+      - ["20181001",]      # no space at all
+"""
 
-"{"error_message":"Your request could not be completed."}"
+# Parse the YAML
+config = yaml.safe_load(test_yaml)
 
-So this does not look like a curl/connectivity/auth issue. It looks more like a backend processing or tenant/config onboarding issue specific to "CARDSMALLBUSINESS".
-
-Can someone please help check whether:
-
-- "CARDSMALLBUSINESS" is fully supported/onboarded for this API
-- the "platformRunLibraryName", "platformRunLibraryVersion", and "tenantConfigurationFileName" combination is valid for this tenant
-- there is any server-side validation or config failure visible in logs for this request
-
-I can share the payload and "Client-Correlation-Id" if needed.
+# Print parsed results for each dataset
+for dataset, values in config['datasets'].items():
+    date_range = values['date_range'][0]  # get the list value
+    start_date = date_range[0]            # first element -- start date
+    end_date   = date_range[1]            # second element -- None/null
+    
+    print(f"{dataset} --> start: {start_date}, end: {end_date}")
