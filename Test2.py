@@ -1,3 +1,12 @@
+
+
+
+spark = (SparkSession.builder
+    .appName("input_fanout")
+    .config("spark.driver.memory", "8g")
+    .config("spark.executor.memory", "8g")
+    .config("spark.sql.shuffle.partitions", "200")
+    .getOrCreate())
 from pyspark.sql import SparkSession
 
 spark = SparkSession.builder.appName("my_app").getOrCreate()
