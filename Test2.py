@@ -1,17 +1,11 @@
-
-# diagnostic_1_input_fanout.py
-# Measures rows-per-account in each consolidator input dataset
-# This proves WHICH input(s) are fanning out
-
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 spark = SparkSession.builder.appName("input_fanout").getOrCreate()
+spark.sparkContext.setLogLevel("ERROR")  # suppress those WARN spam messages
 
-# ---- EDIT: Paths to each consolidator input for the current run ----
 RUN_ID = "23b91983-08b7-419c-99bc-a16700d30648-test2"
 BASE = f"s3://ecbr-pfm-s3-it-dfsl1-e1/tenant_data/{RUN_ID}/preprocess_outputs"
-# Path structure may differ - check the job logs for exact pre_process output paths
 
 INPUTS = {
     "account_service_account":              f"{BASE}/account_service_account",
@@ -25,26 +19,38 @@ INPUTS = {
     "metro2_reportable_accounts_base":      f"{BASE}/enterprise_credit_bureau_reporting_card_metro2_reportable_accounts_base",
 }
 
-print(f"{'Dataset':<42} {'Total':>12} {'Distinct acct':>15} {'Factor':>8}")
-print("=" * 82)
+# Try these column names in order (case-insensitive)
+POSSIBLE_KEY_NAMES = ["account_id", "ACCOUNT_ID", "acct_id", "ACCT_ID", "account_number"]
 
-results = {}
+print(f"{'Dataset':<42} {'Total':>14} {'Distinct':>14} {'Factor':>8}  Key column")
+print("=" * 95)
+
 for name, path in INPUTS.items():
     try:
         df = spark.read.parquet(path)
+        
+        # Find the right column name (case-insensitive)
+        df_cols_lower = [c.lower() for c in df.columns]
+        key_col = None
+        for candidate in POSSIBLE_KEY_NAMES:
+            if candidate.lower() in df_cols_lower:
+                # use the actual column name (preserving case)
+                key_col = df.columns[df_cols_lower.index(candidate.lower())]
+                break
+        
+        if key_col is None:
+            print(f"{name:<42}  NO account_id column found.")
+            print(f"   Available columns: {df.columns}")
+            continue
+        
         total = df.count()
-        distinct = df.select("account_id").distinct().count()
+        distinct = df.select(key_col).distinct().count()
         factor = total / distinct if distinct else 0
-        results[name] = factor
         flag = "  ← FAN-OUT" if factor > 1.01 else ""
-        print(f"{name:<42} {total:>12,} {distinct:>15,} {factor:>8.2f}{flag}")
+        print(f"{name:<42} {total:>14,} {distinct:>14,} {factor:>8.2f}  {key_col}{flag}")
+        
     except Exception as e:
-        print(f"{name:<42} ERROR: {str(e)[:50]}")
+        print(f"{name:<42}  ERROR: {str(e)[:60]}")
+        continue
 
-print("\n" + "=" * 82)
-print("Multiplied factors of fan-out inputs:", end=" ")
-combined = 1.0
-for name, factor in results.items():
-    if factor > 1.01:
-        combined *= factor
-print(f"{combined:.2f}  (should equal observed consolidator output factor of 4.00)")
+print("\nDone.")
