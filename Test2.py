@@ -1,4 +1,12 @@
 from pyspark.sql import SparkSession
+
+spark = SparkSession.builder.appName("my_app").getOrCreate()
+spark.sparkContext.setLogLevel("ERROR")   # ← add this line
+
+# ... rest of your code
+
+
+from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
 
 spark = SparkSession.builder.appName("input_fanout").getOrCreate()
