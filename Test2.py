@@ -1,4 +1,23 @@
 
+-- The 4 duplicate accounts in calculator
+WITH dups AS (
+  SELECT CONSUMER_ACCOUNT_NUMBER
+  FROM   IDENTIFIER($tbl_calculator)
+  WHERE  run_id = $run_id
+  GROUP BY CONSUMER_ACCOUNT_NUMBER
+  HAVING COUNT(*) > 1
+)
+SELECT d.CONSUMER_ACCOUNT_NUMBER,
+       CASE WHEN r.CONSUMER_ACCOUNT_NUMBER IS NOT NULL
+            THEN 'in_reportable' ELSE 'NOT_in_reportable' END AS status
+FROM   dups d
+LEFT JOIN (
+  SELECT DISTINCT CONSUMER_ACCOUNT_NUMBER
+  FROM IDENTIFIER($tbl_reportable) WHERE run_id = $run_id
+) r ON d.CONSUMER_ACCOUNT_NUMBER = r.CONSUMER_ACCOUNT_NUMBER;
+
+
+
 -- Use NOT EXISTS to avoid NULL pitfalls, and check row vs distinct counts
 SELECT
   (SELECT COUNT(*) FROM IDENTIFIER($tbl_calculator) WHERE run_id = $run_id) AS calc_rows,
