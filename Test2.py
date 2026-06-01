@@ -2,6 +2,28 @@
 -- ============================================================
 -- CONFIG
 -- ============================================================
+SET run_id = 'c897ba20-33bd-4d7b-994c-f23e4570272f-DR-04-26-dfsl1-test5';
+
+SET tbl_calculator = 'US_CARD.US_CARD.ENTERPRISE_CREDIT_BUREAU_REPORTING_CARD_CALCULATED_ACCOUNTS_CUSTOMERS_QA_V15_QHDP_CARD_NPI_VW';
+SET tbl_reportable = 'US_CARD.US_CARD.ENTERPRISE_CREDIT_BUREAU_REPORTING_CARD_METRO2_REPORTABLE_ACCOUNTS_QA_V10_QHDP_CARD_NPI_VW';
+
+-- ============================================================
+-- The 63: in calculator, NOT in generator output
+-- (account key = CONSUMER_ACCOUNT_NUMBER)
+-- ============================================================
+SELECT c.*
+FROM   IDENTIFIER($tbl_calculator) c
+WHERE  c.run_id = $run_id
+  AND  c.CONSUMER_ACCOUNT_NUMBER NOT IN (
+        SELECT CONSUMER_ACCOUNT_NUMBER
+        FROM   IDENTIFIER($tbl_reportable)
+        WHERE  run_id = $run_id)
+ORDER BY c.CONSUMER_ACCOUNT_NUMBER;
+
+
+-- ============================================================
+-- CONFIG
+-- ============================================================
 SET run_id = 20260426;
 
 SET tbl_primary    = 'MY_DB.MY_SCHEMA.PRIMARY';     -- consolidated primary
