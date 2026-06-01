@@ -1,4 +1,65 @@
 
+-- ============================================================
+-- CONFIG  — edit table names + column names to match your env
+-- ============================================================
+SET run_id = 'c897ba20-33bd-4d7b-994c-f23e4570272f-DR-04-26-dfsl1-test5';
+
+SET tbl_calculator  = 'US_CARD.US_CARD.ENTERPRISE_CREDIT_BUREAU_REPORTING_CARD_CALCULATED_ACCOUNTS_CUSTOMERS_QA_V15_QHDP_CARD_NPI_VW';
+SET tbl_reportable  = 'US_CARD.US_CARD.ENTERPRISE_CREDIT_BUREAU_REPORTING_CARD_METRO2_REPORTABLE_ACCOUNTS_QA_V10_QHDP_CARD_NPI_VW';
+SET tbl_cb_account  = 'CARD_DB.QHDP_CARD_NPI.credit_bureau_reporting_service_credit_bureau_account_dm_os';   -- C1 source
+SET tbl_rpt_ovrd    = 'CARD_DB.QHDP_CARD_NPI.credit_bureau_reporting_service_reporting_override_dm_os';      -- C2 source
+SET tbl_cb_customer = 'CARD_DB.QHDP_CARD_NPI.credit_bureau_reporting_service_credit_bureau_customer_dm_os';  -- C3 source
+
+-- ============================================================
+-- VALIDATION: tag each excluded (suppressed) account by C1/C2/C3
+-- account key = CONSUMER_ACCOUNT_NUMBER  (alias = account_id below)
+-- ============================================================
+WITH suppressed AS (   -- the 59 distinct excluded accounts
+  SELECT DISTINCT c.CONSUMER_ACCOUNT_NUMBER AS account_id,
+                  c.account_status
+  FROM   IDENTIFIER($tbl_calculator) c
+  WHERE  c.run_id = $run_id
+    AND NOT EXISTS (
+        SELECT 1 FROM IDENTIFIER($tbl_reportable) r
+        WHERE r.run_id = $run_id
+          AND r.CONSUMER_ACCOUNT_NUMBER = c.CONSUMER_ACCOUNT_NUMBER)
+),
+c1 AS (   -- account reporting_status = 'S'
+  SELECT DISTINCT account_id
+  FROM   IDENTIFIER($tbl_cb_account)
+  WHERE  run_id = $run_id AND reporting_status = 'S'
+),
+c2 AS (   -- active override: closed_date IS NULL
+  SELECT DISTINCT account_id
+  FROM   IDENTIFIER($tbl_rpt_ovrd)
+  WHERE  run_id = $run_id AND closed_date IS NULL
+),
+c3 AS (   -- ALL customers on the account have reporting_status = 'S'
+  SELECT account_id
+  FROM   IDENTIFIER($tbl_cb_customer)
+  WHERE  run_id = $run_id
+  GROUP BY account_id
+  HAVING MAX(CASE WHEN reporting_status = 'S' THEN 0 ELSE 1 END) = 0
+)
+SELECT
+  s.account_id,
+  s.account_status,
+  CASE WHEN c1.account_id IS NOT NULL THEN 'Y' ELSE 'N' END AS hit_c1_status_S,
+  CASE WHEN c2.account_id IS NOT NULL THEN 'Y' ELSE 'N' END AS hit_c2_active_override,
+  CASE WHEN c3.account_id IS NOT NULL
+            AND s.account_status <> 'DA' THEN 'Y' ELSE 'N' END AS hit_c3_all_cust_S,
+  CASE WHEN c1.account_id IS NOT NULL
+         OR c2.account_id IS NOT NULL
+         OR (c3.account_id IS NOT NULL AND s.account_status <> 'DA')
+       THEN 'EXPLAINED' ELSE 'UNEXPLAINED_check_C4' END AS verdict
+FROM suppressed s
+LEFT JOIN c1 ON s.account_id = c1.account_id
+LEFT JOIN c2 ON s.account_id = c2.account_id
+LEFT JOIN c3 ON s.account_id = c3.account_id
+ORDER BY verdict DESC, s.account_id;
+
+
+
 -- The 4 duplicate accounts in calculator
 WITH dups AS (
   SELECT CONSUMER_ACCOUNT_NUMBER
