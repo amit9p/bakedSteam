@@ -1,5 +1,7 @@
 
 
+Hi team — we ran ECBR in QA with the new date range and Metro2 reportable accounts uncommented in config. The EDQ step failed — looks like a SecretsManager `explicit deny` on `secretsmanager:GetSecretValue` for the platform credentials secret. Same role/secret as a job that succeeded, so we think it's platform-side. Details in thread 🧵
+
 
 spark = (SparkSession.builder
     .appName("input_fanout")
