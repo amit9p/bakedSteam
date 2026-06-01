@@ -1,4 +1,27 @@
 
+-- ============================================================
+-- CONFIG
+-- ============================================================
+SET run_id = 20260426;
+
+SET tbl_primary    = 'MY_DB.MY_SCHEMA.PRIMARY';     -- consolidated primary
+SET tbl_secondary  = 'MY_DB.MY_SCHEMA.SECONDARY';   -- consolidated secondary
+SET tbl_calculator = 'MY_DB.MY_SCHEMA.CALCULATOR';
+SET tbl_reportable = 'MY_DB.MY_SCHEMA.REPORTABLE_ACCOUNTS';
+
+-- ============================================================
+-- The 63: in calculator, not in reportable
+-- ============================================================
+SELECT c.*
+FROM   IDENTIFIER($tbl_calculator) c
+WHERE  c.instnc_id = $run_id
+  AND  c.account_id NOT IN (
+        SELECT account_id FROM IDENTIFIER($tbl_reportable)
+        WHERE instnc_id = $run_id)
+ORDER BY c.account_id;
+
+
+
 
 Hi team — we ran ECBR in QA with the new date range and Metro2 reportable accounts uncommented in config. The EDQ step failed — looks like a SecretsManager `explicit deny` on `secretsmanager:GetSecretValue` for the platform credentials secret. Same role/secret as a job that succeeded, so we think it's platform-side. Details in thread 🧵
 
