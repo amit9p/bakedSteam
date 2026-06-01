@@ -1,4 +1,13 @@
 
+-- Use NOT EXISTS to avoid NULL pitfalls, and check row vs distinct counts
+SELECT
+  (SELECT COUNT(*) FROM IDENTIFIER($tbl_calculator) WHERE run_id = $run_id) AS calc_rows,
+  (SELECT COUNT(DISTINCT CONSUMER_ACCOUNT_NUMBER) FROM IDENTIFIER($tbl_calculator) WHERE run_id = $run_id) AS calc_distinct_accts,
+  (SELECT COUNT(*) FROM IDENTIFIER($tbl_reportable) WHERE run_id = $run_id) AS rep_rows,
+  (SELECT COUNT(DISTINCT CONSUMER_ACCOUNT_NUMBER) FROM IDENTIFIER($tbl_reportable) WHERE run_id = $run_id) AS rep_distinct_accts;
+
+
+
 -- ============================================================
 -- CONFIG
 -- ============================================================
