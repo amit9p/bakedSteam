@@ -1,0 +1,6 @@
+instnc_id,test_scenario,date_range,consolidator_count,calculator_count,reportable_count,rows_excluded,distinct_accounts_excluded,exclusion_reason,expected_result,actual_result,verdict,notes
+20260528,New date range - first run,2026-05-28,,,,,2,Not yet in Metro2 reportable base,Accounts reported (new),Ran with 2 reportable accounts,PASS,First time these accounts reported
+20260528,New date range - rerun same date,2026-05-28,,,,,0,Already reported on first run,Zero records on rerun,Second rerun zero records,PASS,Dedup confirmed - no re-reporting
+20260507,Already-reported date,2026-05-07,,,,,0,Within Metro2 already-reported window,Zero reportable (exclusions),Ran with 0 reportable accounts,PASS,All accounts already reported - correctly suppressed
+20260426,Exclusion verification (C1-C4),2026-04-26,46486,46486,46423,63,59,C1 reporting_status='S' (credit_bureau_account),All exclusions explained by C1-C4,All 59 verified as C1 suppressions,PASS,4 calc dupe rows account for 63 vs 59; all still reported; no code or data issue
+20260205,Reporter run,2026-02-05,,,,,,account_type_code is null for 5 accounts,Successful generator run,Reporter failed on generator,FAIL,QA DATA ISSUE - null account_type_code on 5 accounts; not a code bug
