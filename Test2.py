@@ -1,3 +1,6 @@
+
+^[ \t]*([0-9a-zA-Z]([ \t]*[0-9a-zA-Z])*)?[ \t]*$
+
 -- ================================================================
 -- verify_reportable_exclusions.sql
 -- Verifies why accounts in CALCULATOR are missing from REPORTABLE
