@@ -5,6 +5,21 @@ SELECT
     snap_dt,
     first_name,
     last_name,
+    middle_name
+FROM CARD_DB.QHDP_CARD_NPI.RCVRY_ACCT_SRVC_CUSTOMER_OS
+WHERE 
+       REGEXP_LIKE(first_name,  '.*[^[:ascii:]].*')
+    OR REGEXP_LIKE(last_name,   '.*[^[:ascii:]].*')
+    OR REGEXP_LIKE(middle_name, '.*[^[:ascii:]].*')
+LIMIT 100;
+<><><><>
+
+SELECT 
+    instnc_id,
+    customer_id,
+    snap_dt,
+    first_name,
+    last_name,
     middle_name,
     -- flag which specific field has non-ASCII
     CASE WHEN REGEXP_LIKE(first_name,  '[^\\x00-\\x7F]') THEN 'Y' ELSE 'N' END AS first_name_has_non_ascii,
