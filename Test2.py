@@ -1,4 +1,21 @@
 
+sql = r"""
+    SELECT
+        customer_id,
+        address_id,
+        address_line_1,
+        address_line_2,
+        city
+    FROM account_service_address
+    WHERE
+        address_line_1 RLIKE '[^\\x00-\\x7F]'
+        OR address_line_2 RLIKE '[^\\x00-\\x7F]'
+        OR city           RLIKE '[^\\x00-\\x7F]'
+"""
+
+spark.sql(sql).show(truncate=False)
+
+-------
 SELECT 
     instnc_id,
     customer_id,
