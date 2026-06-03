@@ -1,3 +1,25 @@
+
+SELECT 
+    instnc_id,
+    customer_id,
+    snap_dt,
+    first_name,
+    last_name,
+    middle_name,
+    -- flag which specific field has non-ASCII
+    CASE WHEN REGEXP_LIKE(first_name,  '[^\\x00-\\x7F]') THEN 'Y' ELSE 'N' END AS first_name_has_non_ascii,
+    CASE WHEN REGEXP_LIKE(last_name,   '[^\\x00-\\x7F]') THEN 'Y' ELSE 'N' END AS last_name_has_non_ascii,
+    CASE WHEN REGEXP_LIKE(middle_name, '[^\\x00-\\x7F]') THEN 'Y' ELSE 'N' END AS middle_name_has_non_ascii
+FROM CARD_DB.QHDP_CARD_NPI.RCVRY_ACCT_SRVC_CUSTOMER_OS
+WHERE snap_dt = '2026-06-02'  -- adjust to your target date
+  AND (
+        REGEXP_LIKE(first_name,  '[^\\x00-\\x7F]')
+     OR REGEXP_LIKE(last_name,   '[^\\x00-\\x7F]')
+     OR REGEXP_LIKE(middle_name, '[^\\x00-\\x7F]')
+  )
+ORDER BY instnc_id;
+------------
+
 WITH cust AS (
     SELECT 
         instnc_id   AS customer_instnc_id,
