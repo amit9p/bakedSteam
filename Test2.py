@@ -1,17 +1,29 @@
-from pyspark.sql.functions import col
+SELECT DISTINCT c.instnc_id
+FROM CARD_DB.QHDP_CARD_NPI.RCVRY_ACCT_SRVC_CUSTOMER_OS c
+JOIN CARD_DB.QHDP_CARD_NPI.RCVRY_ACCT_SRVC_ADDRESS_OS a
+  ON c.instnc_id = a.instnc_id
+WHERE (
+        REGEXP_LIKE(c.first_name,  '.*[^[:ascii:]].*')
+     OR REGEXP_LIKE(c.last_name,   '.*[^[:ascii:]].*')
+     OR REGEXP_LIKE(c.middle_name, '.*[^[:ascii:]].*')
+      )
+  AND (
+        REGEXP_LIKE(a.address_line_1, '.*[^[:ascii:]].*')
+     OR REGEXP_LIKE(a.address_line_2, '.*[^[:ascii:]].*')
+     OR REGEXP_LIKE(a.city,           '.*[^[:ascii:]].*')
+      );
 
-df_addr = spark.read.parquet(
-    "s3a://ecbr-pfm-s3-it-dfsl1-e1/tenant_data/c897ba20-33bd-4d7b-994c-f23e4570272f-DR-04-26-dfsl1-test5/consolidator_outputs/load/account_service_address/"
-)
 
-non_ascii_pattern = r'[^\x00-\x7F]'
+SELECT instnc_id
+FROM CARD_DB.QHDP_CARD_NPI.RCVRY_ACCT_SRVC_CUSTOMER_OS
+WHERE REGEXP_LIKE(first_name,  '.*[^[:ascii:]].*')
+   OR REGEXP_LIKE(last_name,   '.*[^[:ascii:]].*')
+   OR REGEXP_LIKE(middle_name, '.*[^[:ascii:]].*')
 
-result_addr = df_addr.filter(
-    col("address_line_1").rlike(non_ascii_pattern) |
-    col("address_line_2").rlike(non_ascii_pattern) |
-    col("city").rlike(non_ascii_pattern)
-).select(
-    "customer_id", "address_id", "address_line_1", "address_line_2", "city"
-)
+INTERSECT
 
-result_addr.show(truncate=False)
+SELECT instnc_id
+FROM CARD_DB.QHDP_CARD_NPI.RCVRY_ACCT_SRVC_ADDRESS_OS
+WHERE REGEXP_LIKE(address_line_1, '.*[^[:ascii:]].*')
+   OR REGEXP_LIKE(address_line_2, '.*[^[:ascii:]].*')
+   OR REGEXP_LIKE(city,           '.*[^[:ascii:]].*');
