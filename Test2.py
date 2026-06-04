@@ -1,29 +1,22 @@
-SELECT DISTINCT c.instnc_id
-FROM CARD_DB.QHDP_CARD_NPI.RCVRY_ACCT_SRVC_CUSTOMER_OS c
-JOIN CARD_DB.QHDP_CARD_NPI.RCVRY_ACCT_SRVC_ADDRESS_OS a
-  ON c.instnc_id = a.instnc_id
-WHERE (
-        REGEXP_LIKE(c.first_name,  '.*[^[:ascii:]].*')
-     OR REGEXP_LIKE(c.last_name,   '.*[^[:ascii:]].*')
-     OR REGEXP_LIKE(c.middle_name, '.*[^[:ascii:]].*')
-      )
-  AND (
-        REGEXP_LIKE(a.address_line_1, '.*[^[:ascii:]].*')
-     OR REGEXP_LIKE(a.address_line_2, '.*[^[:ascii:]].*')
-     OR REGEXP_LIKE(a.city,           '.*[^[:ascii:]].*')
-      );
+-- ============================================================
+-- CONFIG
+-- ============================================================
+SET run_id = '<your_run_id>';
+SET tbl_transactions = '<DB.SCHEMA.CREDIT_CARD_TRANSACTION_AND_FINANCIAL_LEDGER>';
+SET tbl_output       = '<DB.SCHEMA.latest_payment_output_or_final_table>';  -- where the function's result lands
 
-
-SELECT instnc_id
-FROM CARD_DB.QHDP_CARD_NPI.RCVRY_ACCT_SRVC_CUSTOMER_OS
-WHERE REGEXP_LIKE(first_name,  '.*[^[:ascii:]].*')
-   OR REGEXP_LIKE(last_name,   '.*[^[:ascii:]].*')
-   OR REGEXP_LIKE(middle_name, '.*[^[:ascii:]].*')
-
-INTERSECT
-
-SELECT instnc_id
-FROM CARD_DB.QHDP_CARD_NPI.RCVRY_ACCT_SRVC_ADDRESS_OS
-WHERE REGEXP_LIKE(address_line_1, '.*[^[:ascii:]].*')
-   OR REGEXP_LIKE(address_line_2, '.*[^[:ascii:]].*')
-   OR REGEXP_LIKE(city,           '.*[^[:ascii:]].*');
+-- ============================================================
+-- 1. Replicate the function logic: latest PAYMENT date per account+sor
+-- ============================================================
+WITH expected AS (
+  SELECT
+    account_id,
+    sor_id,
+    MAX(transaction_effective_date) AS transaction_effective_date
+  FROM IDENTIFIER($tbl_transactions)
+  WHERE run_id = $run_id
+    AND credit_card_transaction_category_class = 'PAYMENT'
+  GROUP BY account_id, sor_id
+)
+SELECT * FROM expected
+ORDER BY account_id, sor_id;
