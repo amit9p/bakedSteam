@@ -1,3 +1,11 @@
+
+The `ah_previous_account_number` rule is failing because the regex requires at least one alphanumeric char, but per the Confluence spec this field is blank fill (SBFE reads blank, no AH segment). Updating the pattern to make the value optional so blank passes:
+
+`^([0-9a-zA-Z]( *[0-9a-zA-Z])*)?$`
+
+Still accepts a valid alphanumeric value for the non-16-digit edge case, but allows blank too. Will make the change unless there are objections
+
+
 ^([0-9a-zA-Z]( *[0-9a-zA-Z])*)?$
 
 
