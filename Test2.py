@@ -1,3 +1,8 @@
+Triggered accounts = the input set pulled into the run (before suppression). Final reportable accounts = what survives the calculator + reportable suppression logic and actually gets reported. So Triggered ≥ Final reportable, and the gap is the suppressed/non-reportable accounts (the C1–C4 suppression rules). Lining up with our earlier run: calculator ~46,486 in vs ~46,423 reportable out, the diff being suppressed accounts.
+
+
+
+
 
 The `ah_previous_account_number` rule is failing because the regex requires at least one alphanumeric char, but per the Confluence spec this field is blank fill (SBFE reads blank, no AH segment). Updating the pattern to make the value optional so blank passes:
 
