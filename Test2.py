@@ -1,45 +1,18 @@
-Triggered accounts = the input set pulled into the run (before suppression). Final reportable accounts = what survives the calculator + reportable suppression logic and actually gets reported. So Triggered ≥ Final reportable, and the gap is the suppressed/non-reportable accounts (the C1–C4 suppression rules). Lining up with our earlier run: calculator ~46,486 in vs ~46,423 reportable out, the diff being suppressed accounts.
-
-
-
-
-
-The `ah_previous_account_number` rule is failing because the regex requires at least one alphanumeric char, but per the Confluence spec this field is blank fill (SBFE reads blank, no AH segment). Updating the pattern to make the value optional so blank passes:
-
-`^([0-9a-zA-Z]( *[0-9a-zA-Z])*)?$`
-
-Still accepts a valid alphanumeric value for the non-16-digit edge case, but allows blank too. Will make the change unless there are objections
-
-
-^([0-9a-zA-Z]( *[0-9a-zA-Z])*)?$
-
-
-
-^[a-zA-Z]([ '-]*[a-zA-Z])*$
-           ^[\x20-\x7E]*$
-
-           ad zip postal code  ^[A-Za-z0-9 -]{3,10}$
-
-
--- ============================================================
--- CONFIG
--- ============================================================
-SET run_id = '<your_run_id>';
-SET tbl_transactions = '<DB.SCHEMA.CREDIT_CARD_TRANSACTION_AND_FINANCIAL_LEDGER>';
-SET tbl_output       = '<DB.SCHEMA.latest_payment_output_or_final_table>';  -- where the function's result lands
-
--- ============================================================
--- 1. Replicate the function logic: latest PAYMENT date per account+sor
--- ============================================================
-WITH expected AS (
-  SELECT
-    account_id,
-    sor_id,
-    MAX(transaction_effective_date) AS transaction_effective_date
-  FROM IDENTIFIER($tbl_transactions)
-  WHERE run_id = $run_id
-    AND credit_card_transaction_category_class = 'PAYMENT'
-  GROUP BY account_id, sor_id
-)
-SELECT * FROM expected
-ORDER BY account_id, sor_id;
+%sql
+SELECT COUNT(DISTINCT A.account_id) AS reportable_accounts
+FROM account_service_customer A
+LEFT JOIN account_service_account B
+  ON A.account_id = B.account_id
+LEFT JOIN credit_bureau_reporting_service_credit_bureau_customer C
+  ON A.account_id = C.account_id AND A.customer_id = C.customer_id
+LEFT JOIN account_service_address D
+  ON A.customer_id = D.customer_id
+LEFT JOIN collector_service_account_link E
+  ON A.account_id = E.account_id
+LEFT JOIN collector_service_collector_configuration F
+  ON E.collector_configuration_id = F.collector_configuration_id
+LEFT JOIN credit_bureau_reporting_service_credit_bureau_account G
+  ON C.account_id = G.account_id
+LEFT ANTI JOIN enterprise_credit_bureau_reporting_card_metro2_reportable_accounts_base H
+  ON A.account_id = H.account_id
+WHERE A.cust_role_cd IN ('PRIMARY','SECONDARY')
