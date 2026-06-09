@@ -1,30 +1,32 @@
 """
 reportable_account_count.py
 
-Loads each DFS L1 dataset at a configurable partition (instance) date, replicates
-the consolidator join logic from
+Computes the count of reportable accounts by replicating the consolidator join from
   ecbr_consolidations/datasets/enterprise_credit_bureau_reporting_card_dfs_accounts_primary/consolidate.py
-and reports the count of accounts that would be reported.
 
-Infrastructure (OAuth token, AWS creds, proxy, Spark builder) is taken directly
-from dfs_ol_read_qa.py / dfsl1_ol_dir_list.py.
+CREDENTIAL-ISOLATION DESIGN (per your instruction):
+  Each dataset has its OWN temporary AWS creds tied to its dataset_id. A single
+  shared Spark session has only ONE global S3 credential slot, so reading 11
+  datasets with 11 different creds collides -> AccessDenied.
 
-KEY DESIGN POINTS (per your changes):
-  - The partition is baked directly into the S3 path:
-        .../src/instnc_id=20260608           (most datasets)
-        .../load_partition_date=2026-06-08    (transaction_history, odd one out)
-    So Spark reads ONLY that partition folder -- no .filter() needed.
-  - A FRESH OAuth token is generated per dataset (one token is not sufficient
-    for all datasets), right before fetching that dataset's AWS credentials.
+  FIX: for EACH dataset we
+    1. mint a FRESH OAuth token,
+    2. fetch that dataset's AWS creds,
+    3. build a DEDICATED Spark session with those creds,
+    4. read the partition and WRITE it to local parquet (/tmp staging),
+    5. STOP that session.
+  Then a FINAL clean session reads all the local parquet (no S3, no creds needed)
+  and runs the consolidator join + count.
 
 USAGE:
-  - Set INSTNC and LOAD_PART below to the date you want.
+  - Set INSTNC / LOAD_PART below.
   - Provide MET creds via env vars (preferred) or fill the fallbacks.
   - Run:  python reportable_account_count.py
 """
 
 import os
 import json
+import shutil
 import logging
 import subprocess
 
@@ -36,42 +38,22 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # =============================================================================
-# 1. DATE CONFIG  -- the knobs you asked for
+# 1. CONFIG
 # =============================================================================
-INSTNC = "20260608"        # value for instnc_id-partitioned datasets (YYYYMMDD)
-LOAD_PART = "2026-06-08"   # value for the load_partition_date dataset (YYYY-MM-DD)
+INSTNC = "20260608"        # instnc_id-partitioned datasets (YYYYMMDD)
+LOAD_PART = "2026-06-08"   # load_partition_date dataset (YYYY-MM-DD)
 
-# Credentials for the MET OAuth call.
-# Prefer env vars; fallbacks are the active (uncommented) creds from dfs_ol_read_qa.py.
-")
-met_clientsecret = os.environ.get("MET_CLIENTSECRET", "")
+STAGING_DIR = "/tmp/ecbr_reportable_staging"   # local scratch for materialized datasets
 
-# =============================================================================
-# 2. Dataset config: (name, dataset_id, s3_src_path_WITH_partition_appended)
-#    The partition folder is baked directly into the path, so Spark reads only
-#    that partition and no .filter() is needed.
-# =============================================================================
+met_clientid = os.environ.get("MET_CLIENTID", "")
+met_clientsecret = os.environ.get("MET_CLIENTSECRET", ")
+
+# (name, dataset_id, s3_src_path_with_partition_appended)
 DATASETS = [
     (
         "account_service_account",
         "f3af2499-3d5d-4c22-a797-86872a9f1e4d",
         "s3a://cof-uscard-lossmitigation-cat3-qa-useast1/6kes2/lake/recoveries/account_service_account/src/instnc_id=" + INSTNC,
-    ),
-    (
-        "transaction_service_transaction_full_extract_dm_os",
-        "87dcc251-8ef8-48bc-884d-b2bf8e28368d",
-        "s3a://cof-uscard-lossmitigation-cat3-qa-useast1/cagcy/lake/recoveries/transaction_service_transaction_full_extract/src/instnc_id=" + INSTNC,
-    ),
-    (
-        "transaction_service_journal_dm_os",
-        "fadb93ce-e2d0-492f-8ae5-42d6c17c5acc",
-        "s3a://cof-uscard-lossmitigation-cat3-qa-useast1/nohth/lake/recoveries/transaction_service_journal/src/instnc_id=" + INSTNC,
-    ),
-    (
-        # ---- ODD ONE OUT: different bucket + different partition key/format ----
-        "transaction_history_service_transaction_history",
-        "cbb089f4-b3fc-42a5-a614-6810f8279fdd",
-        "s3a://cof-onelake-cat3-qa-useast1/standard/014/gvl4j/lake/src/oneingest-tables/us_card/transaction_history_service_transaction_history/load_partition_date=" + LOAD_PART,
     ),
     (
         "account_service_address",
@@ -108,13 +90,40 @@ DATASETS = [
         "723741aa-ddd7-4950-ac74-d7b2490d7bf4",
         "s3a://cof-uscard-lossmitigation-cat3-qa-useast1/taxcf/lake/recoveries/credit_bureau_reporting_service_reporting_override/src/instnc_id=" + INSTNC,
     ),
+    # ---- transaction datasets: NOT needed for the account COUNT (they only add
+    # ---- columns, not account filtering). Kept here but you can drop them.
+    (
+        "transaction_service_transaction_full_extract_dm_os",
+        "87dcc251-8ef8-48bc-884d-b2bf8e28368d",
+        "s3a://cof-uscard-lossmitigation-cat3-qa-useast1/cagcy/lake/recoveries/transaction_service_transaction_full_extract/src/instnc_id=" + INSTNC,
+    ),
+    (
+        "transaction_service_journal_dm_os",
+        "fadb93ce-e2d0-492f-8ae5-42d6c17c5acc",
+        "s3a://cof-uscard-lossmitigation-cat3-qa-useast1/nohth/lake/recoveries/transaction_service_journal/src/instnc_id=" + INSTNC,
+    ),
+    (
+        "transaction_history_service_transaction_history",
+        "cbb089f4-b3fc-42a5-a614-6810f8279fdd",
+        "s3a://cof-onelake-cat3-qa-useast1/standard/014/gvl4j/lake/src/oneingest-tables/us_card/transaction_history_service_transaction_history/load_partition_date=" + LOAD_PART,
+    ),
 ]
 
-# The reportable_accounts_base table is needed for the consolidator's left_anti
-# exclusion. It is NOT in the dir_list config. Add (name, id, path_with_partition)
-# once you have it; otherwise the script runs WITHOUT the anti-join and warns you.
+# Only these datasets are actually used in the consolidator join for the COUNT.
+# (transaction_* are excluded -- they don't change which accounts are reportable.)
+DATASETS_NEEDED_FOR_COUNT = {
+    "account_service_account",
+    "account_service_address",
+    "account_service_customer",
+    "credit_bureau_reporting_service_credit_bureau_customer_dm_os",
+    "collector_service_account_link",
+    "collector_service_collector_configuration_dm_os",
+    "credit_bureau_reporting_service_credit_bureau_account_dm_os",
+    # reporting_override is read but not used in the join below; keep for completeness.
+}
+
+# reportable_accounts_base for the left_anti exclusion. Add when available.
 REPORTABLE_ACCOUNTS_BASE = None
-# Example:
 # REPORTABLE_ACCOUNTS_BASE = (
 #     "enterprise_credit_bureau_reporting_card_metro2_reportable_accounts_base",
 #     "<dataset_id>",
@@ -122,7 +131,7 @@ REPORTABLE_ACCOUNTS_BASE = None
 # )
 
 # =============================================================================
-# 3. Proxy / Spark env setup  [copied from dfs_ol_read_qa.py]
+# 2. Proxy / Spark env  [copied from dfs_ol_read_qa.py]
 # =============================================================================
 c1_proxy = "http://proxy-onprem-nlb-us-east-1.cof-prd-bacloudproxy.aws.cb4good.com:8099"
 c1_no_proxy = (
@@ -148,10 +157,10 @@ TOKEN_URL = "https://api-it.cloud.capitalone.com/oauth2/token"
 
 
 # =============================================================================
-# 4. Credential + Spark helpers  [copied from dfs_ol_read_qa.py]
+# 3. Credential + Spark helpers
 # =============================================================================
 def get_oauth_token() -> str:
-    """Fetch a fresh client-credentials OAuth token. Called PER dataset."""
+    """Fetch a FRESH client-credentials OAuth token. Called per dataset."""
     resp = requests.post(
         TOKEN_URL,
         data={"grant_type": "client_credentials"},
@@ -178,77 +187,82 @@ def get_aws_credentials(dataset_id: str, oauth_token: str) -> tuple:
     return creds["accessKeyId"], creds["secretAccessKey"], creds["sessionToken"]
 
 
-def build_spark(access_key: str, secret_key: str, session_token: str) -> SparkSession:
-    return (
-        SparkSession.builder.appName("reportable_account_count")
+def build_spark(app_name, access_key=None, secret_key=None, session_token=None) -> SparkSession:
+    """Build a Spark session. If creds are given, wire them for S3 reads."""
+    builder = (
+        SparkSession.builder.appName(app_name)
         .config("spark.driver.memory", "8g")
         .config("spark.sql.shuffle.partitions", "8")
         .config("spark.sql.files.maxPartitionBytes", "64m")
-        .config("spark.hadoop.fs.s3a.access.key", access_key)
-        .config("spark.hadoop.fs.s3a.secret.key", secret_key)
-        .config("spark.hadoop.fs.s3a.session.token", session_token)
-        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-        .config("spark.hadoop.fs.s3a.path.style.access", "true")
-        .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com")
         .config("spark.jars", f"{hadoop_aws_jar},{aws_java_sdk_jar}")
-        .getOrCreate()
     )
-
-
-def reconfigure_s3_creds(spark, access_key, secret_key, session_token):
-    """Each dataset has its OWN temporary creds, so refresh the hadoop conf per read."""
-    hconf = spark.sparkContext._jsc.hadoopConfiguration()
-    hconf.set("fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
-    hconf.set("fs.s3a.endpoint", "s3.amazonaws.com")
-    hconf.set("fs.s3a.path.style.access", "true")
-    hconf.set("fs.s3a.access.key", access_key)
-    hconf.set("fs.s3a.secret.key", secret_key)
-    hconf.set("fs.s3a.session.token", session_token)
-
-
-# =============================================================================
-# 5. Load one dataset.
-#    - Generates a FRESH OAuth token for THIS dataset.
-#    - Gets that dataset's AWS creds, points hadoop conf at them.
-#    - Reads the partition folder directly (partition already in src_path).
-# =============================================================================
-def load_dataset(spark, name, dataset_id, src_path):
-    oauth_token = get_oauth_token()  # fresh token per dataset
-    access_key, secret_key, session_token = get_aws_credentials(dataset_id, oauth_token)
-    reconfigure_s3_creds(spark, access_key, secret_key, session_token)
-
-    df = spark.read.parquet(src_path)  # partition is baked into the path; no filter needed
-    cnt = df.count()
-    logger.info(f"Loaded {name}: {cnt} rows  [{src_path}]")
-    return df
+    if access_key is not None:
+        builder = (
+            builder
+            .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+            .config("spark.hadoop.fs.s3a.path.style.access", "true")
+            .config("spark.hadoop.fs.s3a.endpoint", "s3.amazonaws.com")
+            .config("spark.hadoop.fs.s3a.access.key", access_key)
+            .config("spark.hadoop.fs.s3a.secret.key", secret_key)
+            .config("spark.hadoop.fs.s3a.session.token", session_token)
+        )
+    return builder.getOrCreate()
 
 
 # =============================================================================
-# 6. Main: load all datasets, replicate consolidate.py, count reportable accounts
+# 4. Read ONE dataset in its OWN dedicated session, stage to local parquet, stop.
+# =============================================================================
+def stage_dataset(name, dataset_id, src_path, staging_dir):
+    """Dedicated session per dataset: fresh token -> own creds -> read -> write local -> stop."""
+    oauth_token = get_oauth_token()
+    ak, sk, st = get_aws_credentials(dataset_id, oauth_token)
+
+    spark = build_spark(f"stage_{name}", ak, sk, st)
+    try:
+        df = spark.read.parquet(src_path)
+        out_path = os.path.join(staging_dir, name)
+        # Write to local parquet so the final session can read it WITHOUT any creds.
+        df.write.mode("overwrite").parquet("file://" + out_path)
+        # Count from the just-written local copy (cheap, and confirms it landed)
+        cnt = spark.read.parquet("file://" + out_path).count()
+        logger.info(f"Staged {name}: {cnt} rows -> {out_path}")
+    finally:
+        spark.stop()
+    return os.path.join(staging_dir, name)
+
+
+# =============================================================================
+# 5. Main
 # =============================================================================
 def main():
-    # Build spark once using the FIRST dataset's creds (its own fresh token);
-    # each subsequent read refreshes both token and creds inside load_dataset.
-    first_id = DATASETS[0][1]
-    boot_token = get_oauth_token()
-    ak, sk, st = get_aws_credentials(first_id, boot_token)
-    spark = build_spark(ak, sk, st)
-    logger.info("Spark session built.")
+    # Clean staging dir
+    if os.path.exists(STAGING_DIR):
+        shutil.rmtree(STAGING_DIR)
+    os.makedirs(STAGING_DIR, exist_ok=True)
 
-    # ---- Load every dataset into a dict keyed by name (fresh token each) ----
-    dfs = {}
+    # ---- Stage every dataset in its own isolated session ----
+    staged = {}
     for name, dataset_id, src_path in DATASETS:
-        dfs[name] = load_dataset(spark, name, dataset_id, src_path)
+        staged[name] = stage_dataset(name, dataset_id, src_path, STAGING_DIR)
 
-    # Friendly handles (match consolidate.py variable roles)
-    account_service_customer_df = dfs["account_service_customer"]
-    account_service_account_df = dfs["account_service_account"]
-    credit_bureau_customer_df = dfs["credit_bureau_reporting_service_credit_bureau_customer_dm_os"]
-    account_service_address_df = dfs["account_service_address"]
-    collector_account_link_df = dfs["collector_service_account_link"]
-    collector_config_df = dfs["collector_service_collector_configuration_dm_os"]
-    credit_bureau_account_df = dfs["credit_bureau_reporting_service_credit_bureau_account_dm_os"]
-    # transaction datasets only add COLUMNS, not account filtering -> omitted for the count.
+    if REPORTABLE_ACCOUNTS_BASE is not None:
+        b_name, b_id, b_path = REPORTABLE_ACCOUNTS_BASE
+        staged[b_name] = stage_dataset(b_name, b_id, b_path, STAGING_DIR)
+
+    # ---- Final clean session: read local parquet (NO creds needed) and join ----
+    spark = build_spark("reportable_count_final")
+    logger.info("Final session built; reading staged local parquet.")
+
+    def local(name):
+        return spark.read.parquet("file://" + staged[name])
+
+    account_service_customer_df = local("account_service_customer")
+    account_service_account_df = local("account_service_account")
+    credit_bureau_customer_df = local("credit_bureau_reporting_service_credit_bureau_customer_dm_os")
+    account_service_address_df = local("account_service_address")
+    collector_account_link_df = local("collector_service_account_link")
+    collector_config_df = local("collector_service_collector_configuration_dm_os")
+    credit_bureau_account_df = local("credit_bureau_reporting_service_credit_bureau_account_dm_os")
 
     # ---- Consolidator join chain (consolidate.py lines 66-97) ----
     joined_df = (
@@ -290,8 +304,8 @@ def main():
 
     # ---- left_anti against reportable_accounts_base (consolidate.py lines 101-108) ----
     if REPORTABLE_ACCOUNTS_BASE is not None:
-        b_name, b_id, b_path = REPORTABLE_ACCOUNTS_BASE
-        base_df = load_dataset(spark, b_name, b_id, b_path)
+        b_name = REPORTABLE_ACCOUNTS_BASE[0]
+        base_df = local(b_name)
         joined_df = joined_df.join(
             base_df.alias("base"),
             on=F.col("acct.account_id") == F.col("base.account_id"),
@@ -300,14 +314,11 @@ def main():
         logger.info("Applied left_anti join with metro2 reportable_accounts_base.")
     else:
         logger.warning(
-            "REPORTABLE_ACCOUNTS_BASE not set -- skipping the left_anti exclusion. "
-            "Count is the PRE-exclusion consolidated population, NOT the final "
-            "reportable count. Add the base table config for an exact match."
+            "REPORTABLE_ACCOUNTS_BASE not set -- skipping left_anti exclusion. "
+            "Count is the PRE-exclusion consolidated population, NOT final reportable."
         )
 
     # ---- PRIMARY_FILTERS (consolidate.py line 112) ----
-    # Known primary filter is cust_role_cd in ('PRIMARY','SECONDARY').
-    # If filter_config.PRIMARY_FILTERS has more conditions, ADD them here.
     joined_df = joined_df.filter(
         F.col("cust.cust_role_cd").isin("PRIMARY", "SECONDARY")
     )
@@ -316,7 +327,6 @@ def main():
     final_count = joined_df.select(F.col("cust.account_id")).distinct().count()
     logger.info("=" * 60)
     logger.info(f"instnc_id date          : {INSTNC}")
-    logger.info(f"load_partition_date     : {LOAD_PART}")
     logger.info(f"Reportable account count: {final_count}")
     logger.info("=" * 60)
     print(f"\nReportable account count (instnc_id={INSTNC}): {final_count}\n")
