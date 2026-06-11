@@ -1,5 +1,7 @@
 ^\s*$
 
+^[A-Za-z0-9][A-Za-z0-9 \-]{2,14}$
+
 
 
 joined_df = joined_df.filter(F.col("account_type").isNotNull())
