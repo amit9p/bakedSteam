@@ -1,3 +1,6 @@
+^\s*$
+
+
 
 joined_df = joined_df.filter(F.col("account_type").isNotNull())
 
