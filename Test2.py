@@ -1,3 +1,8 @@
+
+
+Nice work, approving! On splitting data-driven further , good with it in principle, but each sub-job re-runs pipenv install --dev, so too many tiny splits can cancel out the gain. Only helps if splits are balanced + we have enough executors to run them in parallel. Maybe check per-job timings and aim for 2-3 balanced splits?
+
+
 This repo is failing the SonarQube quality gate on test coverage. Two conditions
 fail: coverage on new code is 0% (needs ≥80%) and overall coverage is 77.8%
 (needs ≥80%).
