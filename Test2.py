@@ -1,4 +1,7 @@
 
+Thanks for checking! Cache helps with the download, but each job still runs its own install, so that 50 sec adds up per split. Fine for a few, just don't want setup time to cancel out the speedup
+
+
 Thanks for checking! 50 sec per job adds up though , the more we split, the more install time we pay. Fine for a few splits, just don't want the setup cost to cancel out the speedup.
 
 Nice work, approving! Splitting the data-driven tests further sounds good to me. One thing to keep in mind , each job re-runs pipenv install --dev, so too many small jobs might not actually save much time. Might be worth checking how long each job takes first, and making sure we have enough executors to run them in parallel.
