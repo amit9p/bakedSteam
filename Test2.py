@@ -1,4 +1,4 @@
-
+Nice work, approving! Good with splitting data-driven further in principle , just worth checking per-job timings first, since each sub-job re-runs pipenv install --dev (though useCache should help). Only pays off if splits are balanced + we have executors to run them in parallel. Maybe aim for 2-3?
 
 Nice work, approving! On splitting data-driven further , good with it in principle, but each sub-job re-runs pipenv install --dev, so too many tiny splits can cancel out the gain. Only helps if splits are balanced + we have enough executors to run them in parallel. Maybe check per-job timings and aim for 2-3 balanced splits?
 
