@@ -1,4 +1,5 @@
 
+Yeah, I hear you on the line count and the join overhead. I'd still lean toward EDQ though , the win is more about consistency and having all DQ results in one auditable place than about saving code. Especially for bureau reporting, that governance story is handy. But agree it's not a magic bullet.
 Hey Tyler, heads up , I'll be updating the eDQ rules for a few fields from the failure analysis: account_holder_postal_zipcode (accept Canadian/UK formats), address_line_2 (trim blank spaces), date_of_birth (fix 1800-01-01 outliers), and city_name + j2_city_name (clean up trailing spaces, commas, embedded states). Skipping consumer_account_number and state_code since those are just nulls/blanks with nothing to fix. Will ping you once it's done!
 
 
