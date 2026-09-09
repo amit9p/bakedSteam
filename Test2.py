@@ -1,13 +1,12 @@
-Thanks for the context, Revanth — makes sense now. The backend reconciliation is designed to run as a batch over the full account set, so there isn't a standard way to process a single account on demand today. Fastest path for testing is usually triggering the ad-hoc batch run in QA rather than waiting for overnight. Whether we can filter the job to a specific account_id, I'd need to check how the DEVEX exchange and consolidator steps are configured — let me look into it and get back to you. Can you share the account_id and how often you'd need this during a test cycle?
-Hi team — documenting eCBR alerting for Recoveries (CT4018T-544) and need a quick assist 🙏
-
-*PagerDuty:* Who owns it? Is the flow eCBR detects → eCBR PagerDuty → pages our tenant group? Anything we set up on our side?
-
-*Alert coverage — live today or planned?*
-• Pipeline timing (midnight / 8am / 5am / 12pm)
-• Runtime >4hr and >2hr
-• Dataset refresh >24hr
-• Stale upstream data
-• Success notifications
-
-Quick call works too. Thanks!
+"Hi everyone, I'm Amit, joined yesterday as Principal Data Engineer on the AI side. I've spent about 15 years in data engineering — most recently at Caterpillar, and before that a few years at Capital One on their card data platform, building PySpark pipelines on AWS, Snowflake, Airflow, that kind of stack. Healthcare is new for me, so I'm looking forward to learning the domain from you all. Outside work I'm in Dallas with my wife and two kids. Excited to be here."
+Then let them talk. They'll likely walk through the project and docs. Your job is to show curiosity, not expertise yet.
+Good questions to have ready (pick 2–3):
+What's the team's biggest priority right now?
+What should I read first — any docs or repos to start with?
+Who should I go to for access, environment setup, and domain questions?
+How does the team usually communicate — Teams, standups, tickets?
+Anything you wish you'd known in your first month here?
+Tone tips:
+Camera on, smile, say each person's name back when they introduce themselves.
+Don't try to impress or mention improvements yet — just absorb.
+End with: "Thanks, this was really helpful. I'll go through the docs and follow up with questions."
