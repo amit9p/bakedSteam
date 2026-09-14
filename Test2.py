@@ -1,2 +1,5 @@
-I have recently joined Cotiviti as Principal Data Engineer – AI, reporting to Surya Vadlamani. I require the following AD groups for my work:
-ml_cv, ml_ccv, ml_cob, ml_ppm, ml_pccv, ml_rca, MLC_Cluster_Access, OAI_DataOps, RG - OAI ART Contributor, RG - Bitbucket-Licensed-Users, Aiplatform-Jenkins-Contributors
+New hire in the AI/ML data engineering team (Principal Data Engineer – AI, reporting to Surya Vadlamani). Requesting read/write access to the MLSA Confluence space for team documentation.
+Request Type for Confluence: Space
+Once you pick "Space", a field Action to be taken for Space should appear → choose Modify Space.
+Justification:
+I need access to the team's documentation in the MLSA / Artificial Intelligence Center of Excellence space to onboard and contribute to project documentation.
