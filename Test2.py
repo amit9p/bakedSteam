@@ -1,8 +1,10 @@
-New hire in the AI/ML data engineering team (Principal Data Engineer – AI, reporting to Surya Vadlamani). Requesting read/write access to the MLSA Confluence space for team documentation.
-Request Type for Confluence: Space
-Once you pick "Space", a field Action to be taken for Space should appear → choose Modify Space.
-Justification:
-I need access to the team's documentation in the MLSA / Artificial Intelligence Center of Excellence space to onboard and contribute to project documentation.
-
-
-  Hi @Revadigar, Sharanabasappa — I've been working through the ARIA data pipeline design based on the two docs and our call. I have a draft proposal and a few questions that would be easier over a call. Could we find 30–45 minutes this week? Happy to share the deck beforehand if that helps."
+Hi Reva, Surya,
+First pass at how ARIA's data should flow end to end, based on the Agentic Hub doc, the evaluation doc, and our call last week. I haven't seen code or data yet — this is a draft to correct, not a design to approve.
+Agenda (~15 min walkthrough, rest for discussion):
+What the data platform must deliver for ARIA
+Proposed architecture — CIS loop, four layers on Databricks, Reva's AI components hosted inside
+CCDM — what I understood, how I'd build the data side
+Phase 1 vs Phase 2
+Six open questions that decide Phase 1 speed
+Deck attached. Come ready to tell me what I got wrong.
+Thanks, Amit
