@@ -1,4 +1,4 @@
-
+💻 Command: DISM /Online /Cleanup-Image /RestoreHealth — run it as administrator. Comment below if your PC feels faster after!
 "Hi Yesh, good to see you again — you were on my panel, so thanks for that. I started last week under Surya, first hire on his team. Reva's asked me to design the data pipeline for ARIA — CIS in and out, the layers on Databricks, the clinical data model — and I'm presenting a first draft to him and Surya tomorrow. I'm new to healthcare, and I've mostly used Databricks from the SQL side, so I wanted to meet you early since you own the platform I'll be building on."
 Then: "Tell me about your side — what does your team own?" That's the handoff. Let him run.
 Questions — pick 3 or 4, that's all 15 minutes holds:
