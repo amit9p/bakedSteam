@@ -1,9 +1,1 @@
-
-Hi Rutvi,
-Thanks for sharing the New Hire Onboarding deck. Quick 30 min to walk through it and fill in the gaps for me:
-What Cotiviti does & the LOBs — where does the AI org fit
-AI Solutions team — who does what (Yesh's team vs Surya's vs yours)
-Data Engineering projects — what's active, where Aria sits
-Any links/tools from slide 7 I haven't got access to yet
-Thanks,
-Amit
+Hi Whitney — I'm Amit, new on Surya Vadlamani's team, working on Project ARIA with Reva. He mentioned you'd know: is there a UKG project code for ARIA I should be transferring hours to? In the Add Project list I currently see [nothing / X and Y], and my default is AI Initiatives / 7601 / Default Job. Thanks!
