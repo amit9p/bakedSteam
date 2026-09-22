@@ -12,3 +12,4 @@ Could my user (amit.prasad@cotiviti.com) be granted token permission ("Can use" 
 Thanks,
 Amit
 SHOW SCHEMAS IN ai_engineering_dev_catalog_1688890232235261;
+CREATE SCHEMA IF NOT EXISTS ai_engineering_dev_catalog_1688890232235261.amit_prasad;
