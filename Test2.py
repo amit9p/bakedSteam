@@ -13,3 +13,6 @@ Thanks,
 Amit
 SHOW SCHEMAS IN ai_engineering_dev_catalog_1688890232235261;
 CREATE SCHEMA IF NOT EXISTS ai_engineering_dev_catalog_1688890232235261.amit_prasad;
+cd C:\Users\amit.prasad\dev\aria\aria_data_pipeline
+uv venv --python 3.12 .venv
+.venv\Scripts\python --version
