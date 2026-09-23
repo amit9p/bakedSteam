@@ -18,3 +18,5 @@ src\aria\__init__.py  bronze.py  config.py  quality.py  rules.py  sample_data.py
 src\notebooks\00_generate_sample_events.py  10_bronze_chart_events.py  20_silver_ccdm.py
 tests\test_rules.py  test_silver_transforms.py
 .gitignore  AGENTS.md  CLAUDE.md  Jenkinsfile  README.md  databricks.yml  pyproject.toml  pytest.ini
+
+description: Set to true to write synthetic CIS events into the landing folder before ingest (dev only)
