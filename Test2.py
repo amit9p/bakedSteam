@@ -11,3 +11,10 @@ Databricks panel → Bundle Resource Explorer: the job is now [dev amit_prasad] 
 Open the run from the link in the terminal. Three tasks: generate_sample_events → bronze_chart_events → silver_ccdm.
 Catalog Explorer → amit_prasad: chart_events 4 rows, encounter 3, condition_mention 8, quarantine 2.
 Run once more (hover → Run): chart_events 8, the other three unchanged.
+
+.databricks\  .venv\  .vscode\
+resources\aria_hello_pipeline.job.yml
+src\aria\__init__.py  bronze.py  config.py  quality.py  rules.py  sample_data.py  silver.py
+src\notebooks\00_generate_sample_events.py  10_bronze_chart_events.py  20_silver_ccdm.py
+tests\test_rules.py  test_silver_transforms.py
+.gitignore  AGENTS.md  CLAUDE.md  Jenkinsfile  README.md  databricks.yml  pyproject.toml  pytest.ini
