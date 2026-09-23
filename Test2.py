@@ -20,3 +20,8 @@ tests\test_rules.py  test_silver_transforms.py
 .gitignore  AGENTS.md  CLAUDE.md  Jenkinsfile  README.md  databricks.yml  pyproject.toml  pytest.ini
 
 description: Set to true to write synthetic CIS events into the landing folder before ingest (dev only)
+
+SELECT 'chart_events' t, count(*) n FROM ai_engineering_dev_catalog_1688890232235261.amit_prasad.chart_events
+UNION ALL SELECT 'encounter', count(*) FROM ai_engineering_dev_catalog_1688890232235261.amit_prasad.encounter
+UNION ALL SELECT 'condition_mention', count(*) FROM ai_engineering_dev_catalog_1688890232235261.amit_prasad.condition_mention
+UNION ALL SELECT 'quarantine', count(*) FROM ai_engineering_dev_catalog_1688890232235261.amit_prasad.quarantine;
