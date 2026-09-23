@@ -1,1 +1,2 @@
 Hi Meghan, thanks for the heads-up — happy to do the interview. You can let Abhishek know there won't be a hands-on coding exercise. The technical portion will focus on architecture and system design (data platform design, pipeline reliability, Databricks/cloud trade-offs), plus how he's led and grown data engineering teams. I've got the resume and will review before the call. Thanks!
+"Meghan asked me to interview Abhishek Gakhar for your Director role — I'll focus on architecture/system design + team leadership, no coding exercise. Anything specific you want me to probe?"
