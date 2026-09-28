@@ -1,3 +1,10 @@
+
+"Solid data engineering background with good healthcare experience and practical migration knowledge. For this role, I'd like to see more depth on the AI side and a clearer picture of his experience leading larger teams. I'd suggest the next round explore these areas further."
+
+
+
+
+
 Yes. Here's the final version with all the changes in one place:
 
 **Strengths**
