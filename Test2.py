@@ -1,19 +1,8 @@
-Interview Feedback: Abhishek Gakhar, Director DE – AI
 Strengths
-Strong healthcare data background from Anthem: claims, clinical data, member matching.
-A practical, well-structured approach to data migration and reconciliation.
-Good Databricks fundamentals and cost awareness.
-Concerns
-His GenAI understanding is mostly conceptual. He couldn't go deep on RAG design trade-offs, and hasn't led a team that delivered one.
-Leadership scale isn't clear. He was an individual contributor at Meta, and has been about 3 months in his current Director role.
-His answers were long and needed some redirection.
-Recommendation: Strong on healthcare data and migrations, but I have concerns on GenAI depth and leadership scale for a Director role. I'd suggest the next round focus on people leadership before a final decision.
-
-
-Done! Congratulations on your new bot. You will find it at t.me/amit_rh_agent_bot. You can now add a description, about section and profile picture for your bot, see /help for a list of commands. By the way, when you've finished creating your cool bot, ping our Bot Support if you want a better username for it. Just make sure the bot is fully operational before you do this.
-
-Use this token to access the HTTP API:
-8707484283:AAHbemboTsTrK83GuWyGE7tS6FCbmFC6rAQ
-Keep your token secure and store it safely, it can be used by anyone to control your bot.
-
-For a description of the Bot API, see this page: https://core.telegram.org/bots/api
+Strong healthcare data background from 9 years at Anthem, covering claims, clinical data formats (FHIR, CCDA, HL7), and probabilistic member matching (MDM). He gave a practical, well-structured approach to data migration from his current SQL Server to Databricks work: phased migration, parallel runs, and reconciliation with counts and hashes. He also has good Databricks fundamentals (Unity Catalog, CDC, medallion architecture) and strong cost awareness.
+Areas for Development
+His GenAI understanding is mostly conceptual. He couldn't go deep on RAG design trade-offs such as embedding models, vector stores, or keeping embeddings in sync, and he hasn't led a team that delivered one. Leadership scale is unclear: he was an individual contributor at Meta, and has been about 3 months in his current Director role. He didn't give a concrete production failure he owned. His answers were long and needed redirection.
+Do you recommend for this position? 👎 Thumbs down.
+Would you recommend for another position? 👍 Thumbs up, for example a senior data engineering manager or data architect role focused on healthcare data platforms or migrations.
+Overall thoughts
+Solid data engineering and healthcare domain experience, with practical migration skills. For this Director AI role, though, I have concerns about his GenAI depth and his leadership at the 15+ engineer scale. If the team moves forward, I'd suggest the next round focus on people leadership and AI strategy before a final decision.
