@@ -1,4 +1,7 @@
 
+"Thanks Surya, that helps. With that scope, he's a better fit. His Databricks migration experience was his strongest area. The main open point is leading larger teams, so it's worth checking in your round."
+
+
 "Solid data engineering background with good healthcare experience and practical migration knowledge. For this role, I'd like to see more hands-on depth in building data infrastructure for AI use cases, like embedding pipelines and vector databases, and a clearer picture of his experience leading larger teams. I'd suggest the next round explore these areas further."
 
 
