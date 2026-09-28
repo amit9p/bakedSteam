@@ -1,3 +1,8 @@
+"Hi Meghan, after talking with Surya, I have a clarification on my feedback for Abhishek. My AI-related concern doesn't apply, since the role is focused on Databricks pipelines, data engineering, and migrations, which were his strongest areas. Could you reopen the feedback form so I can update it? Thanks!"
+Asking to reopen the form is better than just a chat message, because the form is the official record and currently shows a thumbs down. Once it's reopened, I can help you update the ratings and text.
+
+
+
 
 "Thanks Surya, that helps. With that scope, he's a better fit. His Databricks migration experience was his strongest area. The main open point is leading larger teams, so it's worth checking in your round."
 
