@@ -28,3 +28,6 @@ Happy to go through it on a 30-minute call with you or the engineer building the
 ___
 
 Fair question, and sorry for jumping into detail. Surya is my manager; he and Reva asked me to take on the data-engineering side of Reva's ARIA pipeline, so I'm the same consumer as Reva, not a new one. Nothing is decided; I only wanted to understand what CIS plans to publish. Let me set up a short call with Reva and Surya included so you hear it from them directly. Thanks, Amit
+
+
+Not on top of it — inside it. Reva builds the AI components; I'm the data engineer on his ARIA effort, handling the data plumbing around them (landing your feed, storing it, returning the results). One pipeline, one team. Surya is my manager and is aware. I'll set up a short call with Reva and Surya so you hear it from them directly; sorry for the confusion.
