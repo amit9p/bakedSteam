@@ -6,3 +6,11 @@ source_map: this is the one that genuinely depends on data you haven't seen. The
 So if Reva asks "how did you build reference tables without data", the answer is:
 "The tables are the standard shape any clinical data model has: allowed values, a translation per source, and the code book. The values in vocabulary are industry standards; the code reference is public CMS data loaded yearly; the source map is the only one that depends on CIS's output, and its rows are placeholders until I see one real payload, which is one of my asks today."
 Why "loaded once, changed rarely": each has its own slow clock. Vocabulary changes only with a CCDM version bump; source map when a new source or a new NLP version arrives; code reference once a year when CMS publishes. None of them changes per chart, which is what separates Group A from Group B.
+
+
+
+Hi Binod, I’m Amit Prasad, Principal Data Engineer in Surya Vadlamani’s group. Reva Sharanbasappa suggested I reach out: I’m building the data layer for ARIA, the part that takes what CIS produces for a chart (NLP output + the chart), runs it through the ARIA pipeline, and sends recommendations back to CIS.
+
+Reva mentioned your team is planning to publish NLP output and charts to an S3 bucket with an event trigger. Could I get 30 minutes with you or the engineer leading that? I’d like to understand the mechanism and timeline, the output format (a sample payload would help a lot), and how CIS wants to receive and show ARIA’s results. I’ll bring a one-page picture of the pipeline so it’s concrete.
+
+Any slot next week works for me. Thanks, Amit
