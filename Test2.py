@@ -14,3 +14,13 @@ Hi Binod, I’m Amit Prasad, Principal Data Engineer in Surya Vadlamani’s grou
 Reva mentioned your team is planning to publish NLP output and charts to an S3 bucket with an event trigger. Could I get 30 minutes with you or the engineer leading that? I’d like to understand the mechanism and timeline, the output format (a sample payload would help a lot), and how CIS wants to receive and show ARIA’s results. I’ll bring a one-page picture of the pipeline so it’s concrete.
 
 Any slot next week works for me. Thanks, Amit
+
+-----
+
+Thanks Binod, that lines up well with my plan.
+I'm building ARIA's data layer: it consumes what your service publishes to S3 (the JSON + chart) on the event notification, keeps an untouched copy for replay/audit, standardises the NLP output into our common clinical data model, runs Reva's components on it, and returns a per-chart recommendation package (codes, evidence with page/position, reasons) to CIS. Which platform it runs on (Databricks or AWS native) is being decided with Surya this month; your S3 + event design works for either.
+Three things would help me build against it now:
+One sample JSON (de-identified is fine) and how the chart is referenced.
+The event mechanism (S3 → EventBridge / SNS / SQS?) and the AWS account, for cross-account access.
+How CIS wants to receive ARIA's output: S3 drop, API, or a table.
+Happy to go through it on a 30-minute call with you or the engineer building the service, any time next week. Thanks, Amit
