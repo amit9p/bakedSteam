@@ -1,3 +1,11 @@
+
+To Reva
+Not yet. Binod hadn't heard about my role. He says Tejveer, Sundar and Cloud are tracking this, CIS data is targeted for Oct 30, and leadership expects a demo to internal customers before Thanksgiving (they met this morning). I'm taking it to Surya tonight. Can you join a short sync with Surya tomorrow so the three of us say the same thing to Binod and leadership? I'll send the invite once Surya gives me a time.
+To Surya
+Surya, I need 15 min first thing tomorrow. Binod (CIS) messaged me today — he hadn't heard about my role on ARIA and says Tejveer, Sundar and Cloud are tracking it: CIS data by Oct 30 and a demo to internal customers before Thanksgiving, decided in a leadership meeting this morning. He wants Tejveer and Cloud looped in. I've told him the commitments sit with you and Reva and haven't promised anything. Can you take the Tejveer/Cloud alignment, and can we agree what is actually committed for Thanksgiving before I reply further? Reva is in the loop and also wants to align.
+To Binod
+Thanks Binod, that's useful context, the dates especially. Surya brought me in last month for the data side of Reva's ARIA work; the commitments and the demo plan sit with Surya and Reva, so I'll make sure they pick this up with Tejveer and Cloud directly. From my side, a sample of the JSON (de-identified is fine) ahead of Oct 30 would help us be ready for your feed. Thanks for the support.
+======
 Then go to Surya immediately (1:1, and it's fine that it's 5 pm):
 Surya, need your steer. Following Reva's suggestion in our 1:1 today, I messaged Binod Chamoli (CIS) about the S3 feed for ARIA. He's confused about my role, says he didn't hear about it from leadership, and asked that Tejveer and Cloud be included in a call. I've told him I'm bringing it to you and Reva. How would you like to handle it — do you want to set up the call, or should I send the invite with you and Reva and include Tejveer and Cloud? I'll hold off on anything further to Binod until I hear from you.
 And a short FYI to Reva:
