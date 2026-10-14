@@ -1,10 +1,8 @@
-EMAIL="amit.prasad@cotiviti.com"
-read -rsp "Paste API token: " TOKEN; echo
-CLOUD=$(curl -s https://cotiviti.atlassian.net/_edge/tenant_info | sed 's/.*"cloudId":"\([^"]*\)".*/\1/')
-BASE="https://api.atlassian.com/ex/confluence/$CLOUD/wiki/api/v2"
-echo "Cloud ID: $CLOUD"
-
-
-SPACE_ID=$(curl -s -u "$EMAIL:$TOKEN" "$BASE/spaces?keys=MLSA" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-echo "Space ID: $SPACE_ID"
-curl -s -u "$EMAIL:$TOKEN" -w '\nHTTP %{http_code}\n' "$BASE/pages/5035399687" | grep -oE '"title":"[^"]*"|HTTP [0-9]+'
+Short version: the three tables come from the problem, not from the data. The problem in your design doc is "every component spells the same fact differently." Any shared clinical data model solves that with the same three things: a list of allowed words (vocabulary), a translation from each source's words into them (source map), and the official code book (code reference). OMOP has exactly this (vocabulary, concept, source-to-concept map), so does FHIR with value sets; your speaker notes already say the names borrow from OMOP and FHIR. The structure is standard; you didn't need data to know it.
+Where the values came from:
+vocabulary: industry-standard lists, not guesses. The assertion values (present / history / negated / possible) are the categories clinical NLP engines have used for 20 years (the NegEx/ConText scheme that cTAKES and commercial engines follow). The sections are the standard parts of a clinical note (HPI, Problem List, Medications, Assessment/Plan, Labs, Radiology). MEAT is CMS's own documentation standard for risk adjustment. Disposition is the only home-grown one: it's ARIA's workflow outcome (codeable / coder queue / drop) from Reva's design.
+code_reference: public CMS data. The ICD-10-CM code list is published every year (fiscal year Oct 1 to Sep 30, hence valid_from 2025-10-01, valid_to 2026-09-30), and the CMS-HCC model maps each code to an HCC. The example rows follow the V28 model: E11.22 → HCC 37, N18.30 → HCC 329, I50.9 → HCC 226, I10 → no HCC. The RAF weights in the examples are placeholders; the real ones come from CMS's rate-announcement tables per model and population segment.
+source_map: this is the one that genuinely depends on data you haven't seen. The nlp_v3 rows are illustrative, showing the shape of the translation. Your own design notes that the POC's Abstractor says status: affirmed where we'd say ACTIVE, which is exactly the kind of row this table holds. Its real rows get written the day you see one CIS payload.
+So if Reva asks "how did you build reference tables without data", the answer is:
+"The tables are the standard shape any clinical data model has: allowed values, a translation per source, and the code book. The values in vocabulary are industry standards; the code reference is public CMS data loaded yearly; the source map is the only one that depends on CIS's output, and its rows are placeholders until I see one real payload, which is one of my asks today."
+Why "loaded once, changed rarely": each has its own slow clock. Vocabulary changes only with a CCDM version bump; source map when a new source or a new NLP version arrives; code reference once a year when CMS publishes. None of them changes per chart, which is what separates Group A from Group B.
