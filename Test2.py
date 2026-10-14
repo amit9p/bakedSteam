@@ -31,3 +31,13 @@ Fair question, and sorry for jumping into detail. Surya is my manager; he and Re
 
 
 Not on top of it — inside it. Reva builds the AI components; I'm the data engineer on his ARIA effort, handling the data plumbing around them (landing your feed, storing it, returning the results). One pipeline, one team. Surya is my manager and is aware. I'll set up a short call with Reva and Surya so you hear it from them directly; sorry for the confusion.
+
+
+
+-------
+
+Understood. I'll take this to Surya and Reva now and we'll set up the call with Tejveer and Cloud included. Thanks for flagging it.
+Then go to Surya immediately (1:1, and it's fine that it's 5 pm):
+Surya, need your steer. Following Reva's suggestion in our 1:1 today, I messaged Binod Chamoli (CIS) about the S3 feed for ARIA. He's confused about my role, says he didn't hear about it from leadership, and asked that Tejveer and Cloud be included in a call. I've told him I'm bringing it to you and Reva. How would you like to handle it — do you want to set up the call, or should I send the invite with you and Reva and include Tejveer and Cloud? I'll hold off on anything further to Binod until I hear from you.
+And a short FYI to Reva:
+Reva, heads-up: I reached out to Binod as discussed. He hadn't heard about my role from leadership and asked for Tejveer and Cloud to be on a call. I've looped Surya in and told Binod we'll set it up together. Could you back me up with Binod on the "same pipeline, data side" point?
