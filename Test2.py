@@ -1,3 +1,12 @@
+Yes, those three, plus the ingest from your S3 feed on one end and the output back to CIS on the other.
+Schema: landing tables for your JSON + chart, the standardised clinical data model Reva's components read, and versioned output tables (recommendations, evidence, reasons).
+Logic: ingest, validate, standardise, run Reva's components, store results — replayable for audit.
+APIs for CIS to get recommendations and the evidence behind them.
+Reva owns the AI logic; I own the data in and out of it.
+
+
+
+
 Short version: the three tables come from the problem, not from the data. The problem in your design doc is "every component spells the same fact differently." Any shared clinical data model solves that with the same three things: a list of allowed words (vocabulary), a translation from each source's words into them (source map), and the official code book (code reference). OMOP has exactly this (vocabulary, concept, source-to-concept map), so does FHIR with value sets; your speaker notes already say the names borrow from OMOP and FHIR. The structure is standard; you didn't need data to know it.
 Where the values came from:
 vocabulary: industry-standard lists, not guesses. The assertion values (present / history / negated / possible) are the categories clinical NLP engines have used for 20 years (the NegEx/ConText scheme that cTAKES and commercial engines follow). The sections are the standard parts of a clinical note (HPI, Problem List, Medications, Assessment/Plan, Labs, Radiology). MEAT is CMS's own documentation standard for risk adjustment. Disposition is the only home-grown one: it's ARIA's workflow outcome (codeable / coder queue / drop) from Reva's design.
