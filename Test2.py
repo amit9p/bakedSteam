@@ -1,4 +1,15 @@
 
+Title: ARIA – CIS dates, tech stack, roles
+Body:
+Hi Surya, Reva,
+30 minutes to align before we talk to Binod/CIS. Binod says CIS plans to have the data on S3 by Oct 30 and leadership expects a demo to internal customers before Thanksgiving; Tejveer, Sundar and Cloud are tracking it. He had not heard about my role.
+What we tell CIS about those dates.
+Data hub stack: Databricks on the CIS S3 feed, or AWS-native.
+Roles (Reva: AI components, me: data in and out) and who speaks to Tejveer and Cloud.
+Thanks,
+Amit
+
+++±++±++++
 To Reva
 Not yet. Binod hadn't heard about my role. He says Tejveer, Sundar and Cloud are tracking this, CIS data is targeted for Oct 30, and leadership expects a demo to internal customers before Thanksgiving (they met this morning). I'm taking it to Surya tonight. Can you join a short sync with Surya tomorrow so the three of us say the same thing to Binod and leadership? I'll send the invite once Surya gives me a time.
 To Surya
