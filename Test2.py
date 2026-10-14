@@ -1,3 +1,9 @@
+Then go to Surya immediately (1:1, and it's fine that it's 5 pm):
+Surya, need your steer. Following Reva's suggestion in our 1:1 today, I messaged Binod Chamoli (CIS) about the S3 feed for ARIA. He's confused about my role, says he didn't hear about it from leadership, and asked that Tejveer and Cloud be included in a call. I've told him I'm bringing it to you and Reva. How would you like to handle it — do you want to set up the call, or should I send the invite with you and Reva and include Tejveer and Cloud? I'll hold off on anything further to Binod until I hear from you.
+And a short FYI to Reva:
+Reva, heads-up: I reached out to Binod as discussed. He hadn't heard about my role from leadership and asked for Tejveer and Cloud to be on a call. I've looped Surya in and told Binod we'll set it up together. Could you back me up with Binod on the "same pipeline, data side" point?
+
+<><><><<><><>
 Yes, those three, plus the ingest from your S3 feed on one end and the output back to CIS on the other.
 Schema: landing tables for your JSON + chart, the standardised clinical data model Reva's components read, and versioned output tables (recommendations, evidence, reasons).
 Logic: ingest, validate, standardise, run Reva's components, store results — replayable for audit.
