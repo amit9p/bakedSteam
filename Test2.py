@@ -1,4 +1,5 @@
-
+The S3 feed you and he discussed — the AWS service that pulls from the CIS app and publishes the JSON + chart to S3 with an event notification. His words: CIS is targeting Oct 30 to have that data available to us. He didn't say more; I've asked him for a sample JSON before then. His message below."
+÷÷÷÷÷÷
 Title: ARIA – CIS dates, tech stack, roles
 Body:
 Hi Surya, Reva,
