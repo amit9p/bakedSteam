@@ -24,3 +24,7 @@ One sample JSON (de-identified is fine) and how the chart is referenced.
 The event mechanism (S3 → EventBridge / SNS / SQS?) and the AWS account, for cross-account access.
 How CIS wants to receive ARIA's output: S3 drop, API, or a table.
 Happy to go through it on a 30-minute call with you or the engineer building the service, any time next week. Thanks, Amit
+
+___
+
+Fair question, and sorry for jumping into detail. Surya is my manager; he and Reva asked me to take on the data-engineering side of Reva's ARIA pipeline, so I'm the same consumer as Reva, not a new one. Nothing is decided; I only wanted to understand what CIS plans to publish. Let me set up a short call with Reva and Surya included so you hear it from them directly. Thanks, Amit
