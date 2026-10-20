@@ -19,17 +19,15 @@ Same pipeline, same team.
 
 ## 2. My tasks — 2 minutes
 
-From my side, five things.
+From my side, four things.
 
-First, the contract for your feed. What the file looks like, how the chart is referenced, the event, the AWS account. I can finish that one week after I get a sample file.
+First, agree the format of your feed with you. What the file looks like, how the chart is linked, how the event works. I can finish that one week after I get a sample file.
 
-Second, our pipeline reading your real files. One to two weeks after I have the sample and access to the bucket. It already runs on test data today. The access itself is set up by our platform team, so I'll know their timing after this week's review.
+Second, make our pipeline read your real files. One to two weeks after I have the sample and access to your bucket. It already runs on test data today. The access is set up by our platform team, so I'll confirm their timing after our design review.
 
-Third, the reference data. The CMS code list and HCC mapping, plus a basic word list until we get the real one. This week.
+Third, send the results back to you. One file per chart in a bucket, same way you send to us. The format we agree once we know how your app wants to read it.
 
-Fourth, the tables for Reva's policy tool. Policy documents, rule versions, rules, coder reviews. Two weeks after Reva confirms the rule format.
-
-Fifth, the format of the results we send back to you. That comes after the first one, once we know how your app wants to read it.
+Fourth, the storage behind Reva's policy tool, so every rule version and every coder review is kept. Two weeks after Reva confirms the rule format.
 
 ---
 
@@ -89,7 +87,7 @@ First version goes to S3, one file per chart. An API for "why this code?" comes 
 
 Before we close, two quick things from the data side.
 
-My tasks. The feed contract, one week after a sample. The pipeline on your real files, one to two weeks after sample plus access. Reference data this week. The tables behind Reva's tool, two weeks after he confirms the rule format. The results format after the contract.
+My tasks. Agree your feed format, one week after a sample. Read your real files, one to two weeks after sample plus access. Send results back, format after that. Storage for Reva's tool, two weeks after he confirms the rule format.
 
 And three asks. A sample JSON with the chart link. How the event works and which AWS account. How you want the results back. I'll send what I'm assuming right after this. Please correct it.
 
