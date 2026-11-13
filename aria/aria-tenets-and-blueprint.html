@@ -1,0 +1,435 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>ARIA Data Hub — Decision Tenets and Data Blueprint</title>
+<style>body{font-family:Segoe UI,Arial,sans-serif;font-size:11pt;max-width:1100px;margin:24px auto;color:#111}
+table{border-collapse:collapse;width:100%;margin:8px 0 16px}th,td{border:1px solid #999;padding:4px 6px;vertical-align:top;font-size:10pt}th{background:#e8e8e8}
+h1{font-size:20pt}h2{font-size:16pt;margin-top:28px}h3{font-size:13pt}</style></head><body><h1>ARIA Data Hub — Decision Tenets and Data Blueprint</h1>
+<p>Draft v0.1, Nov 10, 2026. Owner: Amit Prasad. For: Reva, Nikhil, Yesh, Surya. Follows the Oct 29 design review: the ask was to write down the tenets before we pick where the hub runs, and to list every kind of data the hub keeps.</p>
+<hr />
+<h2>Part 1 — Decision tenets and how we choose a platform</h2>
+<h3>Why this page</h3>
+<p>There is no perfect platform; every option has cons. So before we compare Databricks, AWS-native or GCP, we write down what the data hub must guarantee, and what we are willing to trade. The platform that keeps the guarantees with the fewest trades wins. The guarantees come from the requirements (audit, PHI, evaluation, the CIS handshake), not from tool preference.</p>
+<h3>Tenets — what the hub guarantees, on any platform</h3>
+<ol>
+<li><strong>Nothing that feeds a decision is ever overwritten.</strong> Reruns create versions; corrections are new rows. Bronze, silver, the truth graph and gold are append-only.</li>
+<li><strong>Every decision can be reproduced, years later.</strong> Each gold row carries its version keys: rule snapshot digest and fingerprint, graph version, model, CCDM and taxonomy versions, feed version. Replay from bronze with the same versions gives the same answer.</li>
+<li><strong>Every piece of evidence has a source.</strong> A code points to a graph fact, the fact to a sentence (page and offsets) in silver, the sentence to the ZIP in bronze, the rule to its PRM snapshot and guideline page. No hop is inferred at audit time.</li>
+<li><strong>PHI is read by jobs, not people.</strong> Pipeline, components and the Explain API read PHI tables; humans get masked views unless they are auditing. Every PHI location has its own key and its own role.</li>
+<li><strong>Other systems come through the doors.</strong> Lookup and Explain APIs, or the S3 handoffs. Nobody reads our tables directly, and we never write to PRM; PRM is the policy store of record and we keep a copy.</li>
+<li><strong>Same input plus same rules gives the same answer,</strong> and a rule change flips zero previously-correct charts. Both are release gates, checked against the golden dataset.</li>
+<li><strong>Bad data is kept and reported, not dropped or fixed.</strong> Quarantine holds the row with a reason and an owner; the counts go back to CIS as a daily number.</li>
+<li><strong>The data layer is portable; only the plumbing is platform-specific.</strong> Tables are Delta/Parquet on object storage, jobs are PySpark, paths and endpoints are configuration. Triggers, catalog, roles and the doors' endpoints are the only things that change with the platform.</li>
+</ol>
+<h3>Trade-offs we accept</h3>
+<ul>
+<li>A rebuild of the plumbing if the company's hyperscaler decision moves us; not a rebuild of the data layer.</li>
+<li>A file handoff with the components for the demo instead of APIs.</li>
+<li>Days of lead time for cross-account access and PHI approval, rather than sharing a bucket or a workspace.</li>
+<li>The hub does not improve data quality. It keeps, flags and reports.</li>
+</ul>
+<h3>Dimensions — what we score each platform on</h3>
+<p>Each comes from a tenet or a fixed fact. Score 1–3 (3 is best) with a one-line reason; no weights until we have scored once.</p>
+<table>
+<thead>
+<tr>
+<th>#</th>
+<th>Dimension</th>
+<th>Comes from</th>
+<th>What "good" looks like</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1</td>
+<td>Versioning and lineage</td>
+<td>T1, T2, T3</td>
+<td>Append-only tables, time travel, lineage captured by the platform, not by hand</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>PHI controls</td>
+<td>T4</td>
+<td>Row/column masking, audit log, per-location keys, an approved PHI environment exists or has a date</td>
+</tr>
+<tr>
+<td>D3</td>
+<td>Reproducibility and replay</td>
+<td>T2, T6</td>
+<td>Pinned-version reruns are cheap; both runs kept side by side</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>Fit with CIS and the components</td>
+<td>fixed facts</td>
+<td>CIS is on AWS S3; components and PRM run on Kubernetes/Postgres in AWS; fewest cross-cloud hops</td>
+</tr>
+<tr>
+<td>D5</td>
+<td>The two doors</td>
+<td>T5</td>
+<td>A SQL/REST endpoint the components and CIS can call with a role, day one</td>
+</tr>
+<tr>
+<td>D6</td>
+<td>Time to first real chart</td>
+<td>timeline</td>
+<td>Pipeline exists; only access work remains</td>
+</tr>
+<tr>
+<td>D7</td>
+<td>Portability</td>
+<td>T8</td>
+<td>Data layer moves unchanged; plumbing is small and known</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>Who runs it and at what cost</td>
+<td>org</td>
+<td>A named platform team, existing CI/CD track, per-chart cost understood</td>
+</tr>
+<tr>
+<td>D9</td>
+<td>Fit with the company direction</td>
+<td>hyperscaler decision</td>
+<td>Does not create another island; registered in the lakehouse inventory</td>
+</tr>
+</tbody>
+</table>
+<h3>Scoring sheet (facts as of Nov 10; scores to be filled after the hyperscaler decision)</h3>
+<table>
+<thead>
+<tr>
+<th>Dimension</th>
+<th>Databricks on AWS (today)</th>
+<th>AWS-native lakehouse</th>
+<th>GCP (no environment yet)</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>D1 Versioning and lineage</td>
+<td>Delta + Unity Catalog lineage out of the box</td>
+<td>Iceberg/Delta on S3; lineage needs tooling</td>
+<td>—</td>
+</tr>
+<tr>
+<td>D2 PHI controls</td>
+<td>Row filters, masks, audit log; PHI-approved workspace not confirmed</td>
+<td>Lake Formation + CloudTrail; existing product-data controls</td>
+<td>—</td>
+</tr>
+<tr>
+<td>D3 Replay</td>
+<td>Serverless reruns with pinned versions</td>
+<td>Glue/EMR reruns</td>
+<td>—</td>
+</tr>
+<tr>
+<td>D4 Fit with CIS/components</td>
+<td>Same cloud; cross-account roles</td>
+<td>Same cloud, possibly same account</td>
+<td>Cross-cloud to CIS, components and PRM</td>
+</tr>
+<tr>
+<td>D5 Doors</td>
+<td>SQL warehouse endpoint day one; REST later</td>
+<td>API Gateway + Lambda to build</td>
+<td>—</td>
+</tr>
+<tr>
+<td>D6 Time to first chart</td>
+<td>Days (pipeline exists)</td>
+<td>Weeks (rebuild plumbing)</td>
+<td>Months (environment + rebuild)</td>
+</tr>
+<tr>
+<td>D7 Portability</td>
+<td>Data layer portable; Unity-specific pieces avoided by design</td>
+<td>Same</td>
+<td>Same</td>
+</tr>
+<tr>
+<td>D8 Who runs it / cost</td>
+<td>Yesh's team; Asset Bundles + Jenkins</td>
+<td>Nikhil's team; Terraform + Jenkins</td>
+<td>Unknown</td>
+</tr>
+<tr>
+<td>D9 Company direction</td>
+<td>Register catalog in the lakehouse inventory</td>
+<td>Native</td>
+<td>Depends on the decision</td>
+</tr>
+</tbody>
+</table>
+<p>The decision is for Surya, Nikhil and Yesh once the hyperscaler direction is known.</p>
+<h3>What does not change with the platform</h3>
+<p>The CIS contract, the six silver tables and quarantine, the truth graph store, the gold table, the golden dataset and replay job, the evaluation metrics, the policy copy, and the four rules in Part 2. All of it is being built now on Databricks against synthetic data and carries over.</p>
+<hr />
+<h2>Part 2 — Data blueprint: what the hub keeps, and why</h2>
+<p>This is the inventory of every kind of data in the data hub. One row per kind. For each: what it is in plain words, who writes it, who reads it, whether it holds PHI, how long we keep it, and where we are today.</p>
+<p>Status: <strong>built</strong> = runs today on synthetic data · <strong>next</strong> = slice 2 · <strong>later</strong> = 2027.</p>
+<h3>Four rules that apply to every row</h3>
+<ol>
+<li><strong>We never overwrite anything that fed a decision.</strong> A rerun creates a new version; a correction is a new row. The old row stays.</li>
+<li><strong>Every decision row records which versions produced it</strong>: the rule set, the truth graph, the model, the schema, the reference data. That is what lets us reproduce it years later.</li>
+<li><strong>People don't read PHI tables; jobs do.</strong> The pipeline, the AI components and the Explain API read them. People see masked views, unless they are auditing.</li>
+<li><strong>Nobody reads our tables directly.</strong> Other systems come through the two APIs (Lookup and Explain) or the S3 file handoffs. The policy rules live in PRM; we keep a nightly copy and never write back to it.</li>
+</ol>
+<h3>A. The chart path — one chart, from arrival to the coder's decision</h3>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>What it is</th>
+<th>Written by</th>
+<th>Read by</th>
+<th>PHI</th>
+<th>Kept</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Bronze</td>
+<td>The ZIP exactly as CIS sent it: the chart PDF, the NLP output, the mode. Plus when it arrived and which feed version sent it. This is what we replay from.</td>
+<td>ingest job</td>
+<td>silver job; replay</td>
+<td>yes</td>
+<td>years</td>
+<td>built</td>
+</tr>
+<tr>
+<td>Silver</td>
+<td>The NLP output split into six clean tables: the chart, its notes, every clinical mention (with page and position), every candidate code, relationships between mentions, and MEAT evidence. One table per section of the extraction requirements.</td>
+<td>silver job</td>
+<td>abstractor, auditor, Explain API, analysts</td>
+<td>yes</td>
+<td>years</td>
+<td>2 of 6 tables built</td>
+</tr>
+<tr>
+<td>Quarantine</td>
+<td>Anything that failed a data check, kept with a reason and an owner (CIS, NLP team, or us). Not edited, not dropped. A whole chart that fails goes back to CIS as "not processed, reason X". Reasons roll up into a daily report.</td>
+<td>silver job</td>
+<td>us; CIS and the NLP team via the daily report</td>
+<td>yes</td>
+<td>1 year</td>
+<td>built</td>
+</tr>
+<tr>
+<td>Handoff folder</td>
+<td>One clean JSON per chart, written for the abstractor to read. A working copy, not a record.</td>
+<td>export job</td>
+<td>abstractor</td>
+<td>yes</td>
+<td>30 days</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Clinical truth graph</td>
+<td>What the abstractor decided is true for this patient at this visit: which conditions, which evidence, which provider, and whether it was managed. One graph per chart, a new version per run.</td>
+<td>abstractor (we load its output)</td>
+<td>auditor, Explain API</td>
+<td>yes</td>
+<td>years</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Gold</td>
+<td>The auditor's verdict, one row per code: codeable, flag, or coder queue; which check it failed; the rule and rule-set version used; links to the evidence. Later, the coder's action lands on the same row.</td>
+<td>auditor (we load its output); CIS for the coder action</td>
+<td>publish job, Explain API, evaluation, audit export</td>
+<td>yes</td>
+<td>years</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Results file</td>
+<td>The per-chart JSON we send back to CIS: every code's verdict and evidence. Always one per chart received, even when it is "not processed".</td>
+<td>publish job</td>
+<td>CIS</td>
+<td>yes</td>
+<td>90 days</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Coder feedback</td>
+<td>What the coder did with each code (accept, reject, override) and why, plus time per chart. Joined to gold, this is where the pilot numbers come from.</td>
+<td>CIS; evaluation job</td>
+<td>evaluation, AI team, analysts</td>
+<td>yes</td>
+<td>years</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Audit package</td>
+<td>For one code on one chart: the evidence, the rule, the checks, the coder's action, frozen as a single file that someone with no access to ARIA can read. Made on request for CMS audits.</td>
+<td>export job</td>
+<td>compliance, external auditors</td>
+<td>yes</td>
+<td>years</td>
+<td>next</td>
+</tr>
+</tbody>
+</table>
+<h3>B. Policy rules — owned by PRM, copied by the hub</h3>
+<p>PRM (Policy Rules Manager) is the AI platform team's component, built by Reva. It is the store of record for coding rules. The hub only keeps a copy.</p>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>What it is</th>
+<th>Written by</th>
+<th>Read by</th>
+<th>PHI</th>
+<th>Kept</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>PRM records</td>
+<td>The guideline documents, the rules drafted from them, coder reviews of each rule, and the pointer to the rule set currently active for a payer and date range. Immutable snapshots.</td>
+<td>PRM</td>
+<td>auditor (by API), the coder review screen, AI team</td>
+<td>no</td>
+<td>forever</td>
+<td>in development (not ours)</td>
+</tr>
+<tr>
+<td>Policy copy</td>
+<td>A nightly copy of PRM's records into the hub, so the Explain API, evaluation and audit walk-back can read the rule that was active on a given day without calling PRM. Manual export first, a job once PRM's schema is stable.</td>
+<td>nightly copy job</td>
+<td>Explain API, evaluation, analysts</td>
+<td>no</td>
+<td>forever</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Write path to the lake</td>
+<td>The plan assumes PRM eventually writes its records into the lakehouse directly. Shape and date not decided.</td>
+<td>hub</td>
+<td>PRM</td>
+<td>no</td>
+<td>—</td>
+<td>later</td>
+</tr>
+</tbody>
+</table>
+<h3>C. Reference data — the lookup tables everyone shares</h3>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>What it is</th>
+<th>Written by</th>
+<th>Read by</th>
+<th>PHI</th>
+<th>Kept</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>CMS code sets</td>
+<td>ICD-10 codes, the ICD-10 to HCC crosswalk per model year, RAF weights. A new year is loaded beside the old, never over it.</td>
+<td>yearly load</td>
+<td>silver, auditor, Explain API</td>
+<td>no</td>
+<td>forever</td>
+<td>constants today; table next</td>
+</tr>
+<tr>
+<td>Payer lists</td>
+<td>Per payer: which conditions count as chronic, acute, or not listed, by code and date range.</td>
+<td>load per payer edition</td>
+<td>auditor, evaluation</td>
+<td>no</td>
+<td>forever</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Clinical taxonomy</td>
+<td>The NLP team's concept vocabulary: concepts, synonyms, relationships, code mappings. We hold a versioned copy.</td>
+<td>periodic load</td>
+<td>all components</td>
+<td>no</td>
+<td>current + previous</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Our additions</td>
+<td>Concepts we add on top of the taxonomy, with who added them and why.</td>
+<td>data engineers with the AI team</td>
+<td>same</td>
+<td>no</td>
+<td>forever</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Schema registry</td>
+<td>The shared clinical data model's vocabulary and version, co-owned with the AI team.</td>
+<td>data engineers with the AI team</td>
+<td>silver, policy-to-logic</td>
+<td>no</td>
+<td>forever</td>
+<td>constants today; table next</td>
+</tr>
+</tbody>
+</table>
+<h3>D. Quality and operations</h3>
+<table>
+<thead>
+<tr>
+<th>Data</th>
+<th>What it is</th>
+<th>Written by</th>
+<th>Read by</th>
+<th>PHI</th>
+<th>Kept</th>
+<th>Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Golden dataset</td>
+<td>About 256 real, de-identified charts where coders have confirmed the right answer. Every release is checked against it. Confirmed mistakes are added as permanent test cases.</td>
+<td>coders + data engineers</td>
+<td>replay, evaluation</td>
+<td>yes (de-identified)</td>
+<td>forever</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Replay runs</td>
+<td>Reruns of old charts with pinned versions, to prove two things on every release: same chart + same rules = same answer, and a rule change flips no chart that was correct before. Both runs are kept; the diff is the record.</td>
+<td>replay job</td>
+<td>release checks, AI team, QA</td>
+<td>yes</td>
+<td>years</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Evaluation metrics</td>
+<td>Precision, recall, overrides, coder time, per HCC, per code, per date of service, per version. Never one aggregate number.</td>
+<td>evaluation job</td>
+<td>AI team, leadership, QA</td>
+<td>no</td>
+<td>forever</td>
+<td>next</td>
+</tr>
+<tr>
+<td>Run and lineage log</td>
+<td>Every job run: inputs, outputs, versions.</td>
+<td>every job</td>
+<td>ops, auditors</td>
+<td>no</td>
+<td>years</td>
+<td>built (platform)</td>
+</tr>
+</tbody>
+</table>
+<h3>How it is organised</h3>
+<p>Every table is registered in the catalog with an owner, a PHI flag, a retention period, and the four rules as tags. One schema per lane: bronze, silver (ccdm), truth graph (ctg), gold, policy, reference, feedback.</p>
+<h3>The audit question, walked through</h3>
+<p>"Why did you recommend E11.22 on this chart in 2026?"</p>
+<p>Gold row (verdict, which check, confidence) → the rule and rule-set version → the rule text and guideline page (policy copy) → the truth graph version → the evidence sentence, page and position (silver) → the original ZIP (bronze). Every hop is a kept, versioned row. Rerunning from bronze with the same versions gives the same answer. The audit package is this walk, frozen into one file.</p></body></html>
