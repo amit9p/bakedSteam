@@ -7,7 +7,7 @@ Data blueprint – every kind of data the hub keeps: what it is, who writes and 
 
 Link: [paste the Loop link here]
 
-It is a draft for your corrections. The open points are listed at the end of the page with a name against each.
+It is a draft for your corrections. Reva, there are four questions for you at the end of the page.
 
 Surya – any update on the hyperscaler decision?
 
